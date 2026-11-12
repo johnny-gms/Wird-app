@@ -249,9 +249,9 @@ export function ProfileAbout() {
       </section>
       <h2 className="label mb-2 mt-6">Sources et crédits</h2>
       <ul className="card space-y-2 p-5 text-sm leading-relaxed text-muted">
-        <li><b className="text-ink">Texte coranique</b> : <i>Tanzil Quran Text (Uthmani, version 1.0.2)</i>, © 2008-2010 <a className="font-semibold text-primary underline" href="http://tanzil.net" target="_blank" rel="noreferrer">Tanzil.net</a>, licence Creative Commons Attribution 3.0. Texte reproduit sans modification ; seule la Basmala, écrite en tête du verset 1 dans le fichier source, est séparée pour conserver la numérotation exacte des versets. Mises à jour : tanzil.net/updates.</li>
+        <li><b className="text-ink">Texte coranique</b> : <i>Tanzil Quran Text (Uthmani Minimal, version 1.1)</i>, © 2007-2026 Tanzil Project, <a className="font-semibold text-primary underline" href="http://tanzil.net" target="_blank" rel="noreferrer">Tanzil.net</a>, licence Creative Commons Attribution 3.0. Texte reproduit sans aucune modification (la Basmala est portée par un attribut distinct dans le fichier source, la numérotation des versets est exacte). Hizb et pages : métadonnées Tanzil v1.0. Mises à jour : tanzil.net/updates.</li>
         <li><b className="text-ink">Noms des sourates</b> (translittération, titres français) : paquet <i>quran-json</i> (CC BY 4.0).</li>
-        <li><b className="text-ink">Hizb et pages du Mushaf de Médine</b> : paquet <i>quran-meta</i> (MIT).</li>
+        <li><b className="text-ink">Recoupement des Hizb et pages</b> : paquet <i>quran-meta</i> (MIT).</li>
         <li><b className="text-ink">Police du texte coranique</b> : Amiri Quran (SIL OFL). Interface : polices système.</li>
       </ul>
       <p className="mt-4 text-xs leading-relaxed text-muted">Le texte affiché sert d’aide à la mémorisation. Pour une récitation exacte, référez-vous toujours à un Mushaf imprimé et à un enseignant qualifié.</p>

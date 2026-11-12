@@ -4,6 +4,7 @@ import { buildPlan, completeGoal, evaluateItem, goalProgress, memorizedIds, next
 import { TOTAL_PAGES, idsPages, rangePages } from './pages';
 import { allHizbStats, currentStreak, overall, surahStats } from './progress';
 import { ayahId, fromAyahId, hizbRange, SURAHS, TOTAL_VERSES } from './quran';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { periodReport } from './reports';
 import { nextChunk } from './rotation';
@@ -46,24 +47,44 @@ describe('données du Coran', () => {
   });
 });
 
-describe('texte Tanzil intégré', () => {
-  const t = JSON.parse(readFileSync('public/data/quran-uthmani.json', 'utf8')) as { s: string[][]; bismillah: string; bismillahVariants: Record<string, string>; license: string };
+describe('texte Tanzil intégré (Uthmani Minimal 1.1)', () => {
+  const t = JSON.parse(readFileSync('public/data/quran-uthmani.json', 'utf8')) as { s: string[][]; bismillah: string; bismillahVariants: Record<string, string>; license: string; sha256: string; source: string };
+  const xml = readFileSync('data/tanzil/quran-uthmani-min.xml', 'utf8');
+  it('provenance : empreinte, version et licence du fichier original', () => {
+    expect(createHash('sha256').update(readFileSync('data/tanzil/quran-uthmani-min.xml')).digest('hex')).toBe(t.sha256);
+    expect(readFileSync('data/tanzil/SHA256SUMS', 'utf8')).toContain(t.sha256);
+    expect(t.source).toMatch(/Uthmani Minimal, Version 1\.1/);
+    expect(t.license).toMatch(/Creative Commons Attribution 3\.0/);
+    expect(t.license).toMatch(/CHANGING IT IS NOT ALLOWED/);
+  });
   it('114 sourates, 6236 versets, numérotation exacte', () => {
     expect(t.s).toHaveLength(114);
     expect(t.s.flat()).toHaveLength(TOTAL_VERSES);
     t.s.forEach((v, i) => expect(v.length).toBe(SURAHS[i].n));
+    expect(xml.match(/<aya /g)).toHaveLength(6236);
   });
-  it('Basmala : verset 1 d’Al-Fatiha ; séparée du verset 1 des autres sourates (sauf At-Tawba)', () => {
+  it('texte identique au XML original (sans aucune altération)', () => {
+    const texts = [...xml.matchAll(/<aya index="\d+" text="([^"]*)"/g)].map((m) => m[1]);
+    expect(t.s.flat()).toEqual(texts);
+  });
+  it('Basmala : verset 1 d’Al-Fatiha ; attribut séparé pour les autres sourates (sauf At-Tawba)', () => {
     expect(t.s[0][0]).toBe(t.bismillah);
-    expect(t.s[1][0]).toBe('الٓمٓ');
-    expect(t.s[8][0].startsWith(t.bismillah.slice(0, 6))).toBe(false); // At-Tawba : pas de Basmala
-    expect(Object.keys(t.bismillahVariants)).toEqual(['95', '97']);
-    expect(t.s.flat().every((v) => v.length > 0 && !v.includes('\r'))).toBe(true);
+    expect(xml.match(/bismillah="/g)).toHaveLength(112);
+    expect(t.s[1][0]).not.toContain(t.bismillah.slice(0, 6)); // 2:1 = « الم », sans Basmala
+    expect(Object.keys(t.bismillahVariants)).toEqual([]);
+    expect(t.s.flat().every((v) => v.length > 0)).toBe(true);
   });
-  it('conserve la mention de licence et de provenance', () => {
-    expect(t.license).toMatch(/Tanzil/);
-    expect(t.license).toMatch(/Creative Commons Attribution 3.0/);
+});
+
+describe('Hizb et pages (source Tanzil quran-data.xml, recoupées)', () => {
+  const meta = readFileSync('data/tanzil/quran-data.xml', 'utf8');
+  const block = (name: string) => [...(meta.match(new RegExp(`<${name}\\b[^>]*>([\\s\\S]*?)</${name}>`))?.[1] ?? '').matchAll(/sura="(\d+)" aya="(\d+)"/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  it('60 Hizb = 1 quart sur 4 des 240 quarts Tanzil', () => {
+    const q = block('hizbs');
+    expect(q).toHaveLength(240);
+    for (let h = 1; h <= 60; h++) expect(fromAyahId(hizbRange(h)[0])).toEqual({ surah: q[(h - 1) * 4][0], ayah: q[(h - 1) * 4][1] });
   });
+  it('604 pages', () => expect(block('pages')).toHaveLength(604));
 });
 
 describe('renforcement adaptatif', () => {
