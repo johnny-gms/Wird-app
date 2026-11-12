@@ -12,7 +12,7 @@ import {
   skipItem,
   type Core,
 } from '@/engine/plan';
-import { ayahId, surahMeta } from '@/engine/quran';
+import { SURAHS, ayahId, surahMeta } from '@/engine/quran';
 import { newLearningVerse, newMemorizedVerse } from '@/engine/scheduling';
 import type {
   DayRecord,
@@ -24,6 +24,7 @@ import type {
   PlanItem,
   Settings,
   SessionState,
+  TrashItem,
   SessionSummary,
   UndoSnapshot,
   VerseState,
@@ -70,7 +71,7 @@ interface Actions {
 
   addAdhoc(surah: number, from: number, to: number): string | null;
   /** Ouvre la séance (tout le programme restant, ou un seul élément). Retourne false s'il n'y a rien à faire. */
-  startSession(onlyItemId?: string): boolean;
+  startSession(only?: string | string[]): boolean;
   openEvaluation(): void;
   backToProgram(): void;
   setDraft(itemId: string, grade: DraftGrade | null): void;
@@ -85,6 +86,12 @@ interface Actions {
   toggleGoalAchieved(id: string): void;
   deletePersonalGoal(id: string): void;
 
+  /** Sourates entières « déjà apprises » : ajoute les nouvelles, retire (corbeille) celles décochées jamais travaillées. */
+  applyKnownSurahs(selected: number[]): void;
+  /** Passe des versets appris en « à renforcer » dès aujourd'hui (ils restent dans la rotation). */
+  flagReinforce(surah: number, from: number, to: number): void;
+  /** Recalcule le programme du jour (éléments non faits uniquement). */
+  refreshPlan(): void;
   restoreTrash(id: string): void;
   deleteTrashItem(id: string): void;
   undoValidation(): boolean;
@@ -340,13 +347,14 @@ export const useWird = create<WirdStore>((set, get) => {
       return item.id;
     },
 
-    startSession(onlyItemId) {
+    startSession(only) {
       get().ensureToday();
       const s = get();
       if (!s.plan) return false;
       const open = s.plan.items.filter((i) => i.status === 'pending');
-      if (onlyItemId ? !open.some((i) => i.id === onlyItemId) : open.length === 0) return false;
-      const wanted: SessionState['scope'] = onlyItemId ? [onlyItemId] : 'all';
+      const ids = only === undefined ? null : Array.isArray(only) ? only : [only];
+      if (ids ? !ids.some((id) => open.some((i) => i.id === id)) : open.length === 0) return false;
+      const wanted: SessionState['scope'] = ids ?? 'all';
       const prev = s.session && s.session.date === s.plan.date ? s.session : null;
       const same = prev && JSON.stringify(prev.scope) === JSON.stringify(wanted);
       if (same) return true; // reprise : brouillon d'évaluation conservé
@@ -462,6 +470,55 @@ export const useWird = create<WirdStore>((set, get) => {
       const g = get().personalGoals.find((x) => x.id === id);
       if (!g) return;
       set({ personalGoals: get().personalGoals.filter((x) => x.id !== id), trash: [...get().trash, trashPersonalGoal(g, new Date())] });
+    },
+
+    applyKnownSurahs(selected) {
+      const today = dateKey();
+      const verses0 = get().verses;
+      const complete = new Set<number>();
+      for (const sObj of SURAHS) {
+        let all = true;
+        for (let a = 1; a <= sObj.n; a++) if (verses0[ayahId(sObj.id, a)]?.status !== 'memorized') { all = false; break; }
+        if (all) complete.add(sObj.id);
+      }
+      const want = new Set(selected);
+      let verses = { ...verses0 };
+      const trashAdd: TrashItem[] = [];
+      for (const id of want) {
+        if (complete.has(id)) continue;
+        for (let a = 1; a <= surahMeta(id).n; a++) {
+          const k = ayahId(id, a);
+          if (!verses[k] || verses[k].status === 'learning') verses[k] = newMemorizedVerse(k, today);
+        }
+      }
+      for (const id of complete) {
+        if (want.has(id)) continue;
+        // on ne retire que les versets jamais travaillés dans l'app ; ceux qui ont un historique restent
+        const t = trashVerses(verses, id, 1, surahMeta(id).n, new Date());
+        const keep = (t.item?.kind === 'verses' ? t.item.verses : []).filter((v) => v.reviews > 0 || v.lastReviewedAt);
+        verses = { ...t.verses };
+        for (const v of keep) verses[v.id] = v;
+        if (t.item && t.item.kind === 'verses') {
+          const removed = t.item.verses.filter((v) => !(v.reviews > 0 || v.lastReviewedAt));
+          if (removed.length) trashAdd.push({ ...t.item, verses: removed });
+        }
+      }
+      rebuild({ verses, trash: [...get().trash, ...trashAdd], progressLog: logProgress({ verses, progressLog: get().progressLog }, today) });
+    },
+
+    flagReinforce(surah, from, to) {
+      const today = dateKey();
+      const verses = { ...get().verses };
+      for (let a = from; a <= to; a++) {
+        const id = ayahId(surah, a);
+        const v = verses[id];
+        if (v && v.status === 'memorized') verses[id] = { ...v, fragile: true, stage: 0, reinforceDue: today };
+      }
+      rebuild({ verses });
+    },
+
+    refreshPlan() {
+      rebuild();
     },
 
     /** Restaure un élément de la corbeille (versets, objectif d'apprentissage ou objectif personnel). */

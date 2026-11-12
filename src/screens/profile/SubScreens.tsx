@@ -1,72 +1,10 @@
-import { Bell, BellOff, CheckCircle2, Download, Minus, Plus, TriangleAlert, Upload } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { ConfirmSheet, SubPage, Segmented, Toggle, toast } from '@/components/ui';
-import { PagesStepper } from '@/screens/Onboarding';
-import type { Direction, NotificationPrefs } from '@/engine/types';
+import { Bell, BellOff, CheckCircle2, TriangleAlert } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { SubPage, Toggle, toast } from '@/components/ui';
+import type { NotificationPrefs } from '@/engine/types';
 import { disableNotifications, enableNotifications, getPushStatus, sendLocalTest, serverConfigured, type PushStatus } from '@/notifications/client';
-import { dateKey } from '@/engine/dates';
 import { useWird } from '@/store/useWird';
 import { APP_VERSION } from '@/lib/version';
-
-function Stepper({ value, min, max, step = 1, onChange, unit }: { value: number; min: number; max: number; step?: number; onChange: (n: number) => void; unit: string }) {
-  return (
-    <div className="flex items-center gap-1">
-      <button className="flex h-10 w-10 items-center justify-center rounded-full bg-surface2 disabled:opacity-40" disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))} aria-label="Diminuer"><Minus size={16} /></button>
-      <span className="w-20 text-center text-sm font-semibold tabular-nums">{value} {unit}</span>
-      <button className="flex h-10 w-10 items-center justify-center rounded-full bg-surface2 disabled:opacity-40" disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))} aria-label="Augmenter"><Plus size={16} /></button>
-    </div>
-  );
-}
-
-function Field({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="px-4 py-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[15px] font-semibold">{title}</p>
-        {children}
-      </div>
-      {hint && <p className="mt-1.5 text-xs leading-relaxed text-muted">{hint}</p>}
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------ Paramètres du Wird
-const DIR_OPTS: { value: Direction; label: string }[] = [
-  { value: 'forward', label: 'Al-Fatiha → An-Nas' },
-  { value: 'backward', label: 'An-Nas → Al-Fatiha' },
-];
-
-export function ProfileWird() {
-  const { settings, updateSettings } = useWird();
-  return (
-    <SubPage title="Paramètres du Wird" back="/profil">
-      <h2 className="label mb-2">Programme quotidien</h2>
-      <section className="card divide-y divide-line/70">
-        <Field title="Pages à apprendre" hint="Nouvelles sourates, en pages du Mushaf de Médine. 0 = pas de nouvel apprentissage. Si rien ne reste à apprendre, rien n’est inventé.">
-          <PagesStepper value={settings.learnPagesPerDay} min={0} max={5} onChange={(n) => updateSettings({ learnPagesPerDay: n })} label="à apprendre" />
-        </Field>
-        <Field title="Pages à réviser" hint="Rotation de vos sourates apprises. Si vous en connaissez moins, la révision se limite à ce contenu. Jamais une dette : ce qui n’est pas fait n’est pas reporté.">
-          <PagesStepper value={settings.reviewPagesPerDay} min={0} max={20} onChange={(n) => updateSettings({ reviewPagesPerDay: n })} label="à réviser" />
-        </Field>
-        <Field title="Renforcement maximum" hint="Plafond de versets fragiles proposés par jour, pour ne jamais surcharger.">
-          <Stepper value={settings.reinforceVersesPerDay} min={5} max={60} step={5} unit="versets" onChange={(n) => updateSettings({ reinforceVersesPerDay: n })} />
-        </Field>
-      </section>
-
-      <h2 className="label mb-2 mt-6">Sens d’apprentissage</h2>
-      <section className="card p-4">
-        <Segmented<Direction> value={settings.learnDirection} onChange={(learnDirection) => updateSettings({ learnDirection })} options={DIR_OPTS} />
-        <p className="mt-3 text-xs leading-relaxed text-muted">Ordre dans lequel WIRD propose les nouvelles sourates à apprendre. Un apprentissage déjà en cours n’est pas interrompu.</p>
-      </section>
-
-      <h2 className="label mb-2 mt-6">Sens de révision</h2>
-      <section className="card p-4">
-        <p className="text-sm leading-relaxed text-muted">La révision suit toujours les Hizb dans l’ordre, du 1<sup>er</sup> au 60<sup>e</sup>, et chaque Hizb du début vers la fin. Un verset difficile reste dans la rotation et peut revenir plus tôt en renforcement.</p>
-      </section>
-      <p className="mt-4 text-xs leading-relaxed text-muted">Les intervalles de renforcement (lendemain, 2 jours, 4 jours, puis 7 et 21 jours) sont centralisés dans <code>src/engine/config.ts</code>.</p>
-    </SubPage>
-  );
-}
 
 // ------------------------------------------------------------------ Notifications
 const CATS: { key: keyof NotificationPrefs; title: string; hint: string; example: string }[] = [
@@ -185,54 +123,6 @@ function StatusCard({ status, busy, onEnable, onDisable, onTest }: { status: Pus
         {status === 'subscribed' && <button className="btn-ghost min-h-[44px]" onClick={onDisable}>Désactiver</button>}
       </div>
     </section>
-  );
-}
-
-// ------------------------------------------------------------------ Données
-export function ProfileData() {
-  const { exportData, importData, resetAll, profile } = useWird();
-  const file = useRef<HTMLInputElement>(null);
-  const [reset, setReset] = useState(false);
-
-  const doExport = () => {
-    const blob = new Blob([exportData()], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `wird-sauvegarde-${dateKey()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    toast('Export prêt');
-  };
-  const doImport = async (f: File | undefined) => {
-    if (!f) return;
-    const r = importData(await f.text());
-    toast(r.ok ? 'Sauvegarde restaurée' : r.error);
-  };
-
-  return (
-    <SubPage title="Données et confidentialité" back="/profil">
-      <section className="card p-5 text-sm leading-relaxed text-muted">
-        <p className="mb-2 font-semibold text-ink">Vos données vous appartiennent</p>
-        <ul className="space-y-1.5">
-          <li>• Tout est enregistré <b>sur cet appareil</b> (IndexedDB). Aucun compte, aucune publicité, aucun suivi.</li>
-          <li>• Si vous activez les rappels, seuls l’abonnement de notification, vos horaires, votre fuseau et la date de votre dernière activité sont transmis au serveur de rappels. Jamais vos versets ni vos évaluations.</li>
-          <li>• Pensez à exporter une sauvegarde : si l’appareil ou le navigateur est réinitialisé, les données locales peuvent être perdues.</li>
-        </ul>
-      </section>
-      <h2 className="label mb-2 mt-6">Sauvegarde</h2>
-      <div className="flex flex-col gap-2">
-        <button className="btn-outline" onClick={doExport}><Download size={18} /> Exporter mes données (JSON)</button>
-        <button className="btn-outline" onClick={() => file.current?.click()}><Upload size={18} /> Restaurer une sauvegarde</button>
-        <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { void doImport(e.target.files?.[0]); e.target.value = ''; }} />
-      </div>
-      <h2 className="label mb-2 mt-6">Remise à zéro</h2>
-      <p className="mb-3 text-sm text-muted">{profile.demo ? 'Vous utilisez des données de démonstration. ' : ''}Efface définitivement tout ce qui est enregistré sur cet appareil : mémorisation, historique, objectifs et réglages.</p>
-      <button className="btn-danger w-full" onClick={() => setReset(true)}>Effacer toutes les données</button>
-      <ConfirmSheet open={reset} onClose={() => setReset(false)} title="Tout effacer ?" message="Cette action est définitive. Pensez à exporter une sauvegarde avant. WIRD repartira de l’écran de bienvenue." confirmLabel="Effacer définitivement" danger onConfirm={() => void resetAll()} />
-    </SubPage>
   );
 }
 

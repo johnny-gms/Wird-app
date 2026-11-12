@@ -54,3 +54,9 @@ export function formatPages(p: number): string {
   const s = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(r);
   return `${s} ${r > 1 ? 'pages' : 'page'}`;
 }
+
+/** Versets (id global, début → fin) d'une page du Mushaf de Médine (1..604). */
+export function pageRange(page: number): [number, number] {
+  const p = Math.max(1, Math.min(TOTAL_PAGES, page));
+  return [PAGE_STARTS[p - 1], p < TOTAL_PAGES ? PAGE_STARTS[p] - 1 : TOTAL_VERSES];
+}

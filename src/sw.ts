@@ -32,7 +32,7 @@ self.addEventListener('push', (event) => {
   }
   event.waitUntil(
     self.registration.showNotification(data.title ?? 'WIRD', {
-      body: data.body ?? 'Votre Wird vous attend, à votre rythme.',
+      body: data.body ?? 'Ton Wird t’attend, à ton rythme.',
       icon: '/icons/icon-192.png',
       badge: '/icons/badge-96.png',
       tag: data.tag ?? 'wird',

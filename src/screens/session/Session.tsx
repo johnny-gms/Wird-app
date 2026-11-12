@@ -1,4 +1,5 @@
-import { ArrowLeft, Check, ChevronDown, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, Check, ChevronDown, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GradeChip, KindBadge, SurahNumber, cx, toast, GRADE_STYLE } from '@/components/ui';
@@ -8,6 +9,10 @@ import { itemPages } from '@/engine/plan';
 import { rangeLabel, surahMeta } from '@/engine/quran';
 import type { DraftGrade, PlanItem } from '@/engine/types';
 import { basmalaFor, loadQuranText, type QuranData } from '@/lib/quranText';
+import { haptic } from '@/lib/haptics';
+import { Reader } from '@/components/Reader';
+import { pageOf } from '@/engine/pages';
+import { ayahId } from '@/engine/quran';
 import { useWird } from '@/store/useWird';
 
 /** Temps actif : uniquement pendant que l'écran est visible et que l'utilisateur interagit (pause après 3 min d'inactivité). */
@@ -45,6 +50,26 @@ export default function Session() {
   const nav = useNavigate();
   const { session, plan, startSession, openEvaluation, backToProgram, setDraft, validateSession } = useWird();
   const flush = useActiveTimer();
+  const [reader, setReader] = useState<PlanItem | null>(null);
+
+  // Garde l'écran allumé pendant la séance (si l'appareil le permet) : aucune interruption pendant le travail.
+  useEffect(() => {
+    let lock: { release: () => Promise<void> } | null = null;
+    const req = async () => {
+      try {
+        lock = await (navigator as unknown as { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }).wakeLock?.request('screen') ?? null;
+      } catch {
+        lock = null;
+      }
+    };
+    void req();
+    const onVis = () => document.visibilityState === 'visible' && void req();
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      void lock?.release();
+    };
+  }, []);
 
   // Entrée sur l'écran : reprend la séance ouverte, ou en ouvre une (tout le programme restant).
   useEffect(() => {
@@ -65,14 +90,20 @@ export default function Session() {
 
   const leave = () => {
     flush();
-    toast('Séance enregistrée — vous pourrez la reprendre');
+    toast('Séance enregistrée — tu pourras la reprendre');
     nav('/', { replace: true });
   };
   const validate = () => {
     flush();
     const r = validateSession();
-    nav(r === 'bilan' ? '/session/bilan' : '/', { replace: true });
-    if (r === 'none') toast('Aucun élément évalué — rien n’a été enregistré');
+    if (r === 'bilan') {
+      haptic('success');
+      nav('/session/bilan', { replace: true });
+      toast('Séance validée', { label: 'Annuler', onClick: () => { if (useWird.getState().undoValidation()) nav('/session', { replace: true }); } });
+    } else {
+      nav('/', { replace: true });
+      toast('Aucun élément évalué — rien n’est enregistré');
+    }
   };
 
   return (
@@ -94,23 +125,34 @@ export default function Session() {
 
       <main className="mx-auto w-full max-w-[520px] flex-1 px-4 pb-40 pt-4">
         {session.step === 'program' ? (
-          <Program items={items} />
+          <Program items={items} onReader={setReader} />
         ) : (
           <Evaluate items={items} draft={session.draft} onSet={setDraft} />
         )}
       </main>
+
+      {reader && createPortal(
+        <div className="fixed inset-0 z-[55] animate-slide-in overflow-y-auto bg-bg" role="dialog" aria-label="Coran numérique">
+          <div className="pt-safe mx-auto w-full max-w-[520px] px-4 pb-16">
+            <button onClick={() => setReader(null)} className="-ml-1 mt-3 flex min-h-[40px] items-center gap-1 pr-3 font-semibold text-primary"><ArrowLeft size={18} /> Retour à la séance</button>
+            <h2 className="mb-3 mt-1 font-display text-[24px] font-semibold">{surahMeta(reader.surah).tr} · {rangeLabel(reader.surah, reader.from, reader.to).replace(/^Sourate \d+ — /, '')}</h2>
+            <SessionReader item={reader} />
+          </div>
+        </div>,
+        document.body,
+      )}
 
       <footer className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface">
         <div className="mx-auto max-w-[520px] px-4 pb-4 pt-3">
           {session.step === 'program' ? (
             <>
               <button className="btn-primary w-full" onClick={openEvaluation} disabled={total === 0}>Terminer la séance</button>
-              <p className="mt-2 text-center text-xs text-muted">Travaillez dans l’ordre de votre choix, puis évaluez tout à l’étape suivante. Vous pouvez interrompre (✕) sans rien perdre.</p>
+              <p className="mt-2 text-center text-xs text-muted">Travaille dans l’ordre de ton choix, puis évalue tout à l’étape suivante. Tu peux interrompre sans rien perdre.</p>
             </>
           ) : (
             <>
               <button className="btn-primary w-full" onClick={validate} disabled={decided < total}>Valider le bilan</button>
-              <p className="mt-2 text-center text-xs text-muted">{decided < total ? 'Évaluez chaque élément (ou « Non travaillé ») pour valider.' : 'Vous pouvez encore modifier une évaluation avant de valider.'}</p>
+              <p className="mt-2 text-center text-xs text-muted">{decided < total ? 'Évalue chaque élément (ou « Non travaillé ») pour valider.' : 'Tu peux encore modifier une évaluation avant de valider.'}</p>
             </>
           )}
         </div>
@@ -120,7 +162,7 @@ export default function Session() {
 }
 
 // ------------------------------------------------------------------ Étape 1 : programme
-function Program({ items }: { items: PlanItem[] }) {
+function Program({ items, onReader }: { items: PlanItem[]; onReader: (it: PlanItem) => void }) {
   const [open, setOpen] = useState<string | null>(null);
   const [data, setData] = useState<QuranData | null>(null);
   const [failed, setFailed] = useState(false);
@@ -132,7 +174,7 @@ function Program({ items }: { items: PlanItem[] }) {
 
   return (
     <>
-      <p className="mb-4 text-sm leading-relaxed text-muted">Voici tout ce qui est prévu. Récitez de mémoire, à voix haute, avec votre propre Mushaf : WIRD n’écoute ni n’enregistre rien. Touchez un élément pour afficher le texte de référence.</p>
+      <p className="mb-4 text-sm leading-relaxed text-muted">Voici tout ce qui est prévu. Travaille à ton rythme, avec ton Coran papier ou le Coran numérique de WIRD : rien ne t’interrompt, et WIRD n’écoute ni n’enregistre rien. Touche un élément pour voir le texte.</p>
       <ol className="space-y-2.5">
         {items.map((it, idx) => {
           const meta = surahMeta(it.surah);
@@ -154,7 +196,7 @@ function Program({ items }: { items: PlanItem[] }) {
               </button>
               {isOpen && (
                 <div className="animate-fade border-t border-line px-4 py-4" aria-label="Texte de référence">
-                  {failed && <p className="text-sm text-muted">Le texte de référence n’a pas pu être chargé. Utilisez votre Mushaf.</p>}
+                  {failed && <p className="text-sm text-muted">Le texte de référence n’a pas pu être chargé. Utilise ton Mushaf.</p>}
                   {!failed && !verses && <p className="text-sm text-muted">Chargement…</p>}
                   {bas && <p className="ar mb-2 text-center text-[24px] leading-[2] text-primary" lang="ar">{bas}</p>}
                   {verses && (
@@ -164,7 +206,8 @@ function Program({ items }: { items: PlanItem[] }) {
                       ))}
                     </p>
                   )}
-                  <p className="mt-3 text-[11px] leading-relaxed text-muted">Texte uthmani — Tanzil.net (CC BY 3.0). Pour une récitation exacte, référez-vous toujours à votre Mushaf.</p>
+                  <button className="btn-soft mt-3 !min-h-[40px] text-sm" onClick={() => onReader(it)}><BookOpen size={16} /> Ouvrir dans le Coran WIRD</button>
+                  <p className="mt-3 text-[11px] leading-relaxed text-muted">Texte Tanzil (Uthmani Minimal 1.1, CC BY 3.0). Pour une récitation exacte, réfère-toi toujours à ton Mushaf.</p>
                 </div>
               )}
             </li>
@@ -196,7 +239,7 @@ function Evaluate({ items, draft, onSet }: { items: PlanItem[]; draft: Record<st
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label={`Évaluation ${meta.tr}`}>
               {GRADE_ORDER.map((g) => (
-                <button key={g} role="radio" aria-checked={d === g} onClick={() => onSet(it.id, d === g ? null : g)} className={cx('flex min-h-[46px] items-center gap-2 rounded-lg border-2 px-3 text-left text-[13px] font-semibold transition active:scale-[.98]', d === g ? `${GRADE_STYLE[g].solid} border-transparent text-white` : `bg-bg ${GRADE_STYLE[g].ring}`)}>
+                <button key={g} role="radio" aria-checked={d === g} onClick={() => { haptic('select'); onSet(it.id, d === g ? null : g); }} className={cx('flex min-h-[46px] items-center gap-2 rounded-lg border-2 px-3 text-left text-[13px] font-semibold transition active:scale-[.98]', d === g ? `${GRADE_STYLE[g].solid} border-transparent text-white` : `bg-bg ${GRADE_STYLE[g].ring}`)}>
                   {d === g ? <Check size={15} strokeWidth={3} /> : <span className={cx('h-2.5 w-2.5 rounded-full', GRADE_STYLE[g].solid)} />}
                   {GRADE_LABEL[g]}
                 </button>
@@ -211,4 +254,11 @@ function Evaluate({ items, draft, onSet }: { items: PlanItem[]; draft: Record<st
       })}
     </ol>
   );
+}
+
+function SessionReader({ item }: { item: PlanItem }) {
+  const [page, setPage] = useState(pageOf(ayahId(item.surah, item.from)));
+  const [mode, setMode] = useState<'page' | 'list'>('page');
+  const [surah, setSurah] = useState<number | null>(item.surah);
+  return <Reader page={page} onPage={setPage} onSurah={(n) => { setSurah(n); setMode('list'); }} surah={surah} mode={mode} onMode={(m) => { setMode(m); if (m === 'list') setSurah(item.surah); }} highlight={{ surah: item.surah, from: item.from, to: item.to }} />;
 }

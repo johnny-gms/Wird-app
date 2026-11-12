@@ -18,6 +18,8 @@ export interface SurahStats {
   /** A des versets mémorisés mais en retard de révision. */
   needsMaintenance: boolean;
   needsReinforcement: boolean;
+  /** Date (AAAA-MM-JJ) de la dernière révision d'un verset de la sourate, ou ''. */
+  last: string;
 }
 
 export function surahStats(verses: Record<number, VerseState>, surah: number, today: string): SurahStats {
@@ -26,9 +28,11 @@ export function surahStats(verses: Record<number, VerseState>, surah: number, to
   let learning = 0;
   let fragile = 0;
   let stale = 0;
+  let last = '';
   for (let a = 1; a <= n; a++) {
     const v = verses[ayahId(surah, a)];
     if (!v) continue;
+    if (v.lastReviewedAt && v.lastReviewedAt > last) last = v.lastReviewedAt;
     if (v.status === 'learning') learning++;
     else {
       memorized++;
@@ -38,7 +42,7 @@ export function surahStats(verses: Record<number, VerseState>, surah: number, to
     }
   }
   const state: SurahState = memorized === n ? 'complete' : memorized > 0 ? 'partial' : learning > 0 ? 'learning' : 'none';
-  return { surah, total: n, memorized, learning, fragile, stale, state, needsMaintenance: stale > 0, needsReinforcement: fragile > 0 };
+  return { surah, total: n, memorized, learning, fragile, stale, state, needsMaintenance: stale > 0, needsReinforcement: fragile > 0, last };
 }
 
 export function allSurahStats(verses: Record<number, VerseState>, today: string): SurahStats[] {
@@ -178,3 +182,12 @@ export function hizbSurahs(h: number): number[] {
   const s2 = fromAyahId(b).surah;
   return Array.from({ length: s2 - s1 + 1 }, (_, i) => s1 + i);
 }
+
+// ---------- État d'un verset (couleurs de l'artefact : gris / bleu / vert / ambre) ----------
+export type VerseKind = 'n' | 'l' | 'm' | 'r';
+export function verseKind(v?: VerseState): VerseKind {
+  if (!v) return 'n';
+  if (v.status === 'learning') return 'l';
+  return v.fragile ? 'r' : 'm';
+}
+export const KIND_NAME: Record<VerseKind, string> = { n: 'Non suivi', l: 'En apprentissage', m: 'Appris', r: 'À renforcer' };

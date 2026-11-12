@@ -78,7 +78,7 @@ export async function sendLocalTest(): Promise<boolean> {
   const reg = await registration();
   if (!reg) return false;
   await reg.showNotification('WIRD — notification de test', {
-    body: 'Si vous lisez ceci, votre appareil affiche bien les notifications de WIRD.',
+    body: 'Si tu lis ceci, ton appareil affiche bien les notifications de WIRD.',
     icon: '/icons/icon-192.png',
     badge: '/icons/badge-96.png',
     tag: 'wird-test',

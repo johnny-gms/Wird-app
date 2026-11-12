@@ -132,6 +132,21 @@
     @apply rounded-[14px] text-white;
     box-shadow: 0 1px 2px rgb(var(--shadow) / 0.05), 0 6px 18px rgb(var(--shadow) / 0.08);
   }
+  /* repère de fin de verset, comme l'artefact */
+  .vm {
+    @apply inline-block text-center align-middle text-primary;
+    direction: ltr;
+    unicode-bidi: isolate;
+    min-width: 1.7em;
+    height: 1.7em;
+    line-height: 1.55em;
+    border-radius: 50%;
+    border: 1.5px solid #8fa896;
+    font-size: 0.62em;
+    font-family: 'Amiri Quran', 'Geeza Pro', serif;
+    margin: 0 0.25em;
+    background: radial-gradient(circle, transparent 62%, rgba(143, 168, 150, 0.18) 64%);
+  }
   .ar {
     font-family: 'Amiri Quran', 'Geeza Pro', 'Traditional Arabic', 'Noto Naskh Arabic', serif;
     direction: rtl;

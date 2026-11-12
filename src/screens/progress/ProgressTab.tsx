@@ -12,7 +12,8 @@ import { groupRuns } from '@/engine/rotation';
 import type { Grade, HistoryEntry, ProgressPoint, SessionSummary, VerseState } from '@/engine/types';
 import { formatDateShort, useToday } from '@/lib/hooks';
 import { useWird } from '@/store/useWird';
-import { Goals, History } from './ProgressMore';
+import { GoalsCompact, History } from './ProgressMore';
+import { SurahGrid } from '../wird/SurahGrid';
 
 type Range = 7 | 30 | 90 | 0; // 0 = tout
 const RANGES: { v: Range; l: string }[] = [
@@ -49,7 +50,11 @@ export default function ProgressPage() {
 
   return (
     <Screen title="Ma progression">
-      <p className="-mt-1 text-sm text-muted">Basée uniquement sur ce que vous avez réellement enregistré.</p>
+      <p className="-mt-1 text-sm text-muted">Basée uniquement sur ce que tu as réellement enregistré.</p>
+
+      {/* ---------- Les 114 sourates ---------- */}
+      <H2>Mes 114 sourates</H2>
+      <SurahGrid />
 
       {/* ---------- Vue d'ensemble ---------- */}
       <H2>Vue d’ensemble</H2>
@@ -96,9 +101,7 @@ export default function ProgressPage() {
 
       {/* ---------- Objectifs personnels ---------- */}
       <H2>Mes objectifs</H2>
-      <Goals />
-
-      <Link to="/wird/sourates" className="btn-soft mt-8 w-full">Voir le tableau des 114 sourates</Link>
+      <GoalsCompact />
     </Screen>
   );
 }
@@ -164,11 +167,11 @@ function Evolution({ range, today, history, progressLog, summaries, days }: { ra
         <Title>Progression mémorisée</Title>
         {varies ? (
           <>
-            <p className="mt-0.5 text-sm text-muted">{rep.memorizedDelta !== null && rep.memorizedDelta !== 0 ? `${rep.memorizedDelta > 0 ? '+' : ''}${rep.memorizedDelta} versets sur la période.` : 'Évolution de votre mémorisation suivie.'}</p>
+            <p className="mt-0.5 text-sm text-muted">{rep.memorizedDelta !== null && rep.memorizedDelta !== 0 ? `${rep.memorizedDelta > 0 ? '+' : ''}${rep.memorizedDelta} versets sur la période.` : 'Évolution de ta mémorisation suivie.'}</p>
             <Line points={pts.map((p) => p.memorized)} />
           </>
         ) : (
-          <p className="mt-0.5 text-sm leading-snug text-muted">Le suivi démarre à vos prochaines séances : la courbe se dessinera avec vos vraies données.</p>
+          <p className="mt-0.5 text-sm leading-snug text-muted">Le suivi démarre à tes prochaines séances : la courbe se dessinera avec tes vraies données.</p>
         )}
       </div>
 
@@ -331,8 +334,8 @@ function WeekGoal({ today, days, summaries }: { today: string; days: Set<string>
   return (
     <div className="card p-4">
       <div className="flex items-baseline justify-between"><Title>Cette semaine</Title><span className="text-sm text-muted tabular-nums">{target ? `${active} / ${target} jours` : `${active} jour${active > 1 ? 's' : ''} actif${active > 1 ? 's' : ''}`}</span></div>
-      {target ? <ProgressBar value={active / target} className="mt-3" /> : <p className="mt-1 text-xs text-muted">Aucun objectif chiffré : vous pouvez en définir un dans « Mes objectifs » (facultatif).</p>}
-      <p className="mt-3 text-sm leading-snug text-muted">{wkSummaries.length} séance{wkSummaries.length > 1 ? 's' : ''} · temps moyen par séance : {avg} min · {streak > 1 ? `${streak} jours de suite · ` : ''}vous avancez à votre rythme</p>
+      {target ? <ProgressBar value={active / target} className="mt-3" /> : <p className="mt-1 text-xs text-muted">Aucun objectif chiffré : tu peux en définir un dans « Mes objectifs » (facultatif).</p>}
+      <p className="mt-3 text-sm leading-snug text-muted">{wkSummaries.length} séance{wkSummaries.length > 1 ? 's' : ''} · temps moyen par séance : {avg} min · {streak > 1 ? `${streak} jours de suite · ` : ''}tu avances à ton rythme</p>
     </div>
   );
 }
@@ -374,7 +377,7 @@ function Bilan({ today, history, progressLog, summaries }: { today: string; hist
           <div><p className="font-display text-[30px] font-semibold leading-none">{ms >= 60_000 ? Math.round(ms / 60000) : 0}<span className="ml-1 text-sm">min</span></p><p className="mt-1.5 text-[15px] leading-snug text-muted">temps total</p></div>
         </div>
         <p className="mt-4 text-sm leading-snug"><b>Sourates travaillées :</b> <span className="text-muted">{r.surahs.length ? r.surahs.slice(0, 6).map((s) => surahMeta(s.surah).tr).join(', ') : 'aucune pour l’instant'}</span></p>
-        <p className="mt-1.5 text-sm leading-snug"><b>Points forts :</b> <span className="text-muted">{r.byGrade.mastered > 0 ? `${r.byGrade.mastered} verset${r.byGrade.mastered > 1 ? 's' : ''} maîtrisé${r.byGrade.mastered > 1 ? 's' : ''}` : 'ils apparaîtront avec vos séances'}</span></p>
+        <p className="mt-1.5 text-sm leading-snug"><b>Points forts :</b> <span className="text-muted">{r.byGrade.mastered > 0 ? `${r.byGrade.mastered} verset${r.byGrade.mastered > 1 ? 's' : ''} maîtrisé${r.byGrade.mastered > 1 ? 's' : ''}` : 'ils apparaîtront avec tes séances'}</span></p>
         <p className="mt-1.5 text-sm leading-snug"><b>Difficultés récurrentes :</b> <span className="text-muted">{r.difficulties.length ? r.difficulties.slice(0, 3).map((d) => `${surahMeta(d.surah).tr} ${d.from === d.to ? d.from : `${d.from}–${d.to}`}`).join(' · ') : 'aucune sur cette période'}</span></p>
       </div>
     </>
@@ -397,14 +400,13 @@ function HizbSection() {
   }, [range]);
   return (
     <div>
-      <p className="mb-3 text-sm leading-relaxed text-muted">{any ? 'Un hizb est « couvert » lorsque tous ses versets sont dans votre mémorisation.' : 'Aucune donnée pour le moment : les hizb se colorent à mesure que vous ajoutez des versets mémorisés.'}</p>
-      <div className="grid grid-cols-5 gap-2.5">
+      <p className="mb-3 text-sm leading-relaxed text-muted">{any ? 'Un hizb est « couvert » lorsque tous ses versets sont dans ta mémorisation.' : 'Aucune donnée pour le moment : les hizb se colorent à mesure que tu ajoutes des versets appris.'}</p>
+      <div className="card p-4"><div className="grid grid-cols-[repeat(30,1fr)] gap-[3px]" role="group" aria-label="60 Hizb">
         {stats.map((h) => (
-          <button key={h.hizb} onClick={() => setSel(h.hizb)} aria-label={`Hizb ${h.hizb}, ${Math.round(h.ratio * 100)} %`} className={cx('relative flex aspect-square min-h-[44px] flex-col items-center justify-center overflow-hidden rounded-xl text-[15px] font-semibold tabular-nums transition active:scale-95', h.complete ? 'bg-good text-white' : h.memorized ? 'border-2 border-line bg-surface text-ink' : 'bg-neutral text-neutral-ink')}>
-            {h.memorized > 0 && !h.complete && <span className="absolute inset-x-0 bottom-0 bg-good/30" style={{ height: `${h.ratio * 100}%` }} />}
-            <span className="relative">{h.hizb}</span>
-          </button>
+          <button key={h.hizb} onClick={() => setSel(h.hizb)} aria-label={`Hizb ${h.hizb}, ${Math.round(h.ratio * 100)} %`} title={`Hizb ${h.hizb}`} className={cx('aspect-square rounded-[4px] transition active:scale-90', h.complete ? 'bg-good' : h.memorized ? 'bg-good/40' : 'bg-surface2')} />
         ))}
+      </div>
+      <p className="mt-3 text-sm"><b>{stats.filter((h) => h.complete).length}</b> <span className="text-muted">Hizb couverts sur 60 · {stats.filter((h) => h.memorized && !h.complete).length} partiels</span></p>
       </div>
       <div className="mt-4 flex gap-4 text-xs text-muted">
         <span className="flex items-center gap-1.5"><i className="h-[11px] w-[11px] rounded-[3px] bg-good" />Couvert</span>

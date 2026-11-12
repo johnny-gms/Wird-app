@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { create } from 'zustand';
 import { GRADE_LABEL, KIND_LABEL } from '@/engine/config';
+import { haptic } from '@/lib/haptics';
 import type { Grade, WorkKind } from '@/engine/types';
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
@@ -95,6 +96,7 @@ export function Tabs<T extends string>({ options, value, onChange }: { options: 
 
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y0: number; last: number; t: number; v: number } | null>(null);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -108,16 +110,48 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     };
   }, [open, onClose]);
   if (!open) return null;
+
+  // Glisser la poignée vers le bas ferme la feuille (distance ou vitesse) ; sinon elle revient en place.
+  const down = (e: React.PointerEvent) => {
+    drag.current = { y0: e.clientY, last: e.clientY, t: performance.now(), v: 0 };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    if (ref.current) ref.current.style.transition = 'none';
+  };
+  const move = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || !ref.current) return;
+    const now = performance.now();
+    d.v = (e.clientY - d.last) / Math.max(1, now - d.t);
+    d.last = e.clientY;
+    d.t = now;
+    ref.current.style.transform = `translateY(${Math.max(0, e.clientY - d.y0)}px)`;
+  };
+  const up = (e: React.PointerEvent) => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d || !ref.current) return;
+    const dy = e.clientY - d.y0;
+    ref.current.style.transition = 'transform .25s cubic-bezier(.2,.8,.2,1)';
+    if (dy > 120 || d.v > 0.7) {
+      ref.current.style.transform = 'translateY(100%)';
+      haptic('tap');
+      setTimeout(onClose, 200);
+    } else ref.current.style.transform = '';
+  };
+
   // Portail : la feuille doit passer au-dessus de la barre de navigation, quel que soit le contexte d'empilement du parent.
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 animate-fade bg-ink/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="pb-safe relative max-h-[88dvh] w-full max-w-[520px] animate-sheet-up overflow-y-auto rounded-t-[22px] bg-bg p-4 pb-6 shadow-[0_-6px_30px_rgba(0,0,0,.2)] outline-none sm:rounded-[22px]">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="font-display text-[22px] font-semibold">{title}</h2>
-          <button onClick={onClose} aria-label="Fermer" className="flex h-10 w-10 items-center justify-center rounded-full bg-surface2 text-muted">
-            <X size={18} />
-          </button>
+      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="pb-safe relative max-h-[88dvh] w-full max-w-[520px] animate-sheet-up overflow-y-auto rounded-t-[22px] bg-bg px-4 pb-6 shadow-[0_-6px_30px_rgba(0,0,0,.2)] outline-none sm:rounded-[22px]">
+        <div className="sticky top-0 z-10 -mx-4 touch-none bg-bg px-4 pb-2 pt-2.5" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+          <i className="mx-auto mb-2 block h-[5px] w-11 rounded-full bg-line" />
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-[22px] font-semibold">{title}</h2>
+            <button onClick={onClose} onPointerDown={(e) => e.stopPropagation()} aria-label="Fermer" className="flex h-10 w-10 items-center justify-center rounded-full bg-surface2 text-muted">
+              <X size={18} />
+            </button>
+          </div>
         </div>
         {children}
       </div>
@@ -149,28 +183,41 @@ export function ConfirmSheet({ open, onClose, onConfirm, title, message, confirm
 }
 
 // ---------- Toast ----------
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 interface ToastState {
   msg: string | null;
-  show: (m: string) => void;
+  action: ToastAction | null;
+  show: (m: string, action?: ToastAction, ms?: number) => void;
+  hide: () => void;
 }
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 export const useToast = create<ToastState>((set) => ({
   msg: null,
-  show: (m) => {
-    set({ msg: m });
+  action: null,
+  show: (m, action, ms) => {
+    set({ msg: m, action: action ?? null });
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => set({ msg: null }), 2600);
+    toastTimer = setTimeout(() => set({ msg: null, action: null }), ms ?? (action ? 8000 : 2600));
   },
+  hide: () => set({ msg: null, action: null }),
 }));
-export const toast = (m: string) => useToast.getState().show(m);
+export const toast = (m: string, action?: ToastAction, ms?: number) => useToast.getState().show(m, action, ms);
 
 export function ToastHost() {
-  const msg = useToast((s) => s.msg);
+  const { msg, action, hide } = useToast();
   if (!msg) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 lg:bottom-8" role="status" aria-live="polite">
-      <div className="flex animate-pop items-center gap-2 rounded-full bg-primary px-[18px] py-2.5 text-sm font-semibold text-primary-ink shadow-[0_6px_20px_rgba(0,0,0,.25)]">
-        <Check size={16} /> {msg}
+      <div className="pointer-events-auto flex animate-pop items-center gap-3 rounded-full bg-primary py-2.5 pl-[18px] pr-3 text-sm font-semibold text-primary-ink shadow-[0_6px_20px_rgba(0,0,0,.25)]">
+        <span className="flex items-center gap-2"><Check size={16} /> {msg}</span>
+        {action && (
+          <button className="rounded-full bg-white/20 px-3 py-1 font-bold" onClick={() => { haptic('tap'); action.onClick(); hide(); }}>
+            {action.label}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -252,5 +299,14 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
     <button role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} className={cx('relative h-7 w-12 shrink-0 rounded-full transition', checked ? 'bg-primary' : 'bg-line')}>
       <span className={cx('absolute top-0.5 h-6 w-6 rounded-full bg-surface shadow transition-all', checked ? 'left-[22px]' : 'left-0.5')} />
     </button>
+  );
+}
+
+/** Pied d'écran collé en bas (actions principales), au-dessus de la zone sûre. */
+export function StickyFooter({ children }: { children: ReactNode }) {
+  return (
+    <div className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface">
+      <div className="mx-auto max-w-[520px] px-4 pb-4 pt-3">{children}</div>
+    </div>
   );
 }

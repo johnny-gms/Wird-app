@@ -18,7 +18,7 @@ export function History() {
     for (const h of [...history].reverse()) map.set(h.date, [...(map.get(h.date) ?? []), h]);
     return [...map.entries()];
   }, [history]);
-  if (!groups.length) return <Empty title="Pas encore d’historique">Chaque évaluation enregistrée apparaîtra ici : date, sourate, versets, type de travail et résultat.</Empty>;
+  if (!groups.length) return <Empty title="Pas encore d’historique">Chaque évaluation enregistrée apparaît ici : date, sourate, versets, type de travail et résultat.</Empty>;
   return (
     <div className="space-y-5">
       {groups.slice(0, limit).map(([date, entries]) => {
@@ -71,7 +71,7 @@ export function Goals() {
   return (
     <div className="space-y-3">
       <p className="text-sm leading-relaxed text-muted">Des intentions simples, sans chiffres imposés. Elles servent de repères, jamais de pression.</p>
-      {personalGoals.length === 0 && <Empty title="Aucun objectif">Par exemple : « Mémoriser la sourate Al-Mulk » ou « Réviser un peu chaque jour ».</Empty>}
+      {personalGoals.length === 0 && <Empty title="Aucun objectif">Par exemple : « Apprendre la sourate Al-Mulk » ou « Réviser un peu chaque jour ».</Empty>}
       {personalGoals.map((g) => {
         let progress: { v: number; text: string } | null = null;
         if (g.type === 'memorization' && g.surah) {
@@ -117,12 +117,12 @@ function AddGoal({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const suggestions: Record<GoalType, string[]> = {
     memorization: [],
-    review: ['Réviser régulièrement tout ce que j’ai mémorisé', 'Terminer un tour complet de ma rotation'],
+    review: ['Réviser régulièrement tout ce que j’ai appris', 'Terminer un tour complet de ma rotation'],
     regularity: ['Travailler un peu chaque jour', 'Revenir régulièrement, même brièvement'],
   };
   const reset = () => { setTitle(''); setSurah(null); setDays(null); setPick(false); };
   const save = () => {
-    const t = title.trim() || (type === 'memorization' && surah ? `Mémoriser la sourate ${surahMeta(surah).tr}` : '');
+    const t = title.trim() || (type === 'memorization' && surah ? `Apprendre la sourate ${surahMeta(surah).tr}` : '');
     if (!t) return;
     add({ type, title: t, surah: type === 'memorization' ? surah ?? undefined : undefined, daysPerWeek: type === 'regularity' ? days ?? undefined : undefined });
     reset();
@@ -156,5 +156,31 @@ function AddGoal({ open, onClose }: { open: boolean; onClose: () => void }) {
         <button className="btn-primary w-full" onClick={save} disabled={!title.trim() && !(type === 'memorization' && surah)}>Enregistrer</button>
       </div>
     </Sheet>
+  );
+}
+
+/** Version courte de la section Objectifs : trois objectifs au plus, gestion complète dans une feuille. */
+export function GoalsCompact() {
+  const { personalGoals, toggleGoalAchieved } = useWird();
+  const [open, setOpen] = useState(false);
+  const active = personalGoals.filter((g) => !g.achievedAt);
+  const shown = (active.length ? active : personalGoals).slice(0, 3);
+  return (
+    <div className="card p-4">
+      {shown.length === 0 ? (
+        <p className="text-sm text-muted">Des intentions simples, sans chiffres imposés : « Apprendre Al-Mulk », « Réviser un peu chaque jour »…</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {shown.map((g) => (
+            <li key={g.id} className="flex items-center gap-3">
+              <button onClick={() => toggleGoalAchieved(g.id)} aria-pressed={!!g.achievedAt} aria-label={g.achievedAt ? 'Marquer comme non atteint' : 'Marquer comme atteint'} className={cx('flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition', g.achievedAt ? 'border-good bg-good text-white' : 'border-line')}>{g.achievedAt && <Check size={15} strokeWidth={3} />}</button>
+              <span className={cx('flex-1 text-[15px]', g.achievedAt && 'text-muted line-through')}>{g.title}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button className="btn-soft mt-3 !min-h-[40px] text-sm" onClick={() => setOpen(true)}>{personalGoals.length ? `Gérer mes objectifs (${personalGoals.length})` : 'Ajouter un objectif'}</button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Mes objectifs"><Goals /></Sheet>
+    </div>
   );
 }

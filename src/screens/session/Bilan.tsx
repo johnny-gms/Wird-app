@@ -5,6 +5,7 @@ import { goalProgress } from '@/engine/plan';
 import { overall } from '@/engine/progress';
 import { formatDuration, rangeLabel, surahMeta } from '@/engine/quran';
 import { useToday } from '@/lib/hooks';
+import { haptic } from '@/lib/haptics';
 import { planCounts } from '@/lib/plan';
 import { useWird } from '@/store/useWird';
 import { ProgressBar, Screen } from '@/components/ui';
@@ -14,20 +15,21 @@ import { itemPages } from '@/engine/plan';
 export default function Bilan() {
   const nav = useNavigate();
   const today = useToday();
-  const { summaries, plan, goals, verses, startSession } = useWird();
+  const { summaries, plan, goals, verses, startSession, lastValidation, undoValidation, session } = useWird();
   const summary = [...summaries].reverse().find((s) => s.date === today);
   const c = planCounts(plan);
   const o = useMemo(() => overall(verses, today), [verses, today]);
-  if (!summary) return <Navigate to="/" replace />;
+  // après une annulation de validation, la séance est restaurée : on la rouvre au lieu de retourner à l'accueil
+  if (!summary) return session ? <Navigate to="/session" replace /> : <Navigate to="/" replace />;
   const complete = c.open === 0;
   const learnToday = (plan?.items ?? []).filter((i) => i.kind === 'learn' && i.status === 'done');
 
   const donePages = (plan?.items ?? []).filter((i) => i.status === 'done').reduce((a, i) => a + itemPages(i), 0);
   return (
-    <Screen title={complete ? 'Séance accomplie' : 'Bien joué pour aujourd’hui'} sub={complete ? 'Qu’Allah accepte votre effort. À demain, in châ’ Allah.' : 'Ce qui reste peut attendre : rien n’est reporté ni dû.'}>
+    <Screen title={complete ? 'Séance accomplie' : 'Bien joué pour aujourd’hui'} sub={complete ? 'Qu’Allah accepte ton effort. À demain, in châ’ Allah.' : 'Ce qui reste peut attendre : rien n’est reporté ni dû.'}>
       <div className="card flex items-center gap-4 p-4">
         <span className="flex h-12 w-12 shrink-0 animate-pop items-center justify-center rounded-full bg-primary text-primary-ink"><Check size={24} strokeWidth={2.4} /></span>
-        <p className="text-sm leading-relaxed text-muted">Votre bilan est enregistré : les règles de progression et de renforcement ont été appliquées. <b className="text-ink">{formatPages(donePages)}</b> travaillées aujourd’hui.</p>
+        <p className="text-sm leading-relaxed text-muted">Ton bilan est enregistré : les règles de progression et de renforcement ont été appliquées. <b className="text-ink">{formatPages(donePages)}</b> travaillées aujourd’hui.</p>
       </div>
 
       <section className="card mt-4 p-5" aria-label="Bilan">
@@ -36,7 +38,7 @@ export default function Bilan() {
           <Big n={summary.mastered} l="maîtrisés" tone="text-good" />
           <Big n={summary.toReinforce} l="à renforcer" tone="text-warn" />
         </div>
-        <p className="mt-3 text-center text-xs text-muted">Les versets à renforcer reviendront d’eux-mêmes dans votre programme, au bon moment.</p>
+        <p className="mt-3 text-center text-xs text-muted">Les versets à renforcer reviendront d’eux-mêmes dans ton programme, au bon moment.</p>
         <div className="mt-5 border-t border-line/60 pt-4">
           <p className="label mb-2">Sourates concernées</p>
           <ul className="flex flex-wrap gap-1.5">
@@ -77,8 +79,15 @@ export default function Bilan() {
             </div>
           );
         })}
-        {o.memorizedVerses > 0 && <p className="mt-4 text-sm text-muted">Vous entretenez aujourd’hui environ {o.ratio < 0.01 ? 'moins de 1' : Math.round(o.ratio * 100)} % du Coran.</p>}
+        {o.memorizedVerses > 0 && <p className="mt-4 text-sm text-muted">Tu entretiens aujourd’hui environ {o.ratio < 0.01 ? 'moins de 1' : Math.round(o.ratio * 100)} % du Coran.</p>}
       </section>
+
+      {lastValidation && (
+        <div className="card mt-4 flex items-center gap-3 p-4">
+          <div className="flex-1"><b className="block">Une erreur de manipulation ?</b><span className="text-sm text-muted">Tu peux annuler cette validation : tout revient comme avant et tu retrouves ton évaluation pour la corriger.</span></div>
+          <button className="btn-soft !min-h-[40px] text-sm" onClick={() => { if (undoValidation()) { haptic('warning'); nav('/session', { replace: true }); } }}>Annuler la validation</button>
+        </div>
+      )}
 
       <div className="mt-6 flex flex-col gap-2">
         {!complete && (

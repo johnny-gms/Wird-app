@@ -31,11 +31,9 @@ export function useOnline(): boolean {
   return on;
 }
 
-export function greeting(hour = new Date().getHours()): string {
-  if (hour < 5) return 'Bonne nuit';
-  if (hour < 12) return 'Bonjour';
-  if (hour < 18) return 'Bon après-midi';
-  return 'Bonsoir';
+/** Salutation fixe : « As-salam alaykoum » (pas de Bonjour/Bonsoir). */
+export function greeting(): string {
+  return 'As-salam alaykoum';
 }
 
 export function formatDateLong(d = new Date()): string {

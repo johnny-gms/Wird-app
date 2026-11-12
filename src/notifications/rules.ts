@@ -29,10 +29,10 @@ export interface Reminder {
 }
 
 export const MESSAGES: Record<ReminderKind, { title: string; body: string }> = {
-  daily: { title: 'Votre Wird du jour', body: 'Votre programme est prêt, à votre rythme.' },
-  second: { title: 'Un petit moment pour votre Wird ?', body: 'Quelques minutes suffisent aujourd’hui.' },
-  unfinished: { title: 'Reprendre où vous en étiez', body: 'Vous aviez commencé hier : reprenez quand vous voulez, sans pression.' },
-  comeback: { title: 'Bon retour quand vous serez prêt', body: 'Rien à rattraper : votre Wird reprend simplement là où vous l’aviez laissé.' },
+  daily: { title: 'Ton Wird du jour', body: 'Ton programme est prêt, à ton rythme.' },
+  second: { title: 'Un petit moment pour ton Wird ?', body: 'Quelques minutes suffisent aujourd’hui.' },
+  unfinished: { title: 'Reprendre où tu en étais', body: 'Tu avais commencé hier : reprends quand tu veux, sans pression.' },
+  comeback: { title: 'Bon retour quand tu seras prêt', body: 'Rien à rattraper : ton Wird reprend simplement là où tu l’avais laissé.' },
 };
 
 /** `localDate` / `localTime` : date (AAAA-MM-JJ) et heure (HH:MM) dans le fuseau de l'abonné. */

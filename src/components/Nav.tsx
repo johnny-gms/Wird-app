@@ -1,10 +1,12 @@
-import { BookOpenCheck, ChartNoAxesColumn, House, UserRound } from 'lucide-react';
+import { BookOpen, ChartNoAxesColumn, House, RefreshCw, UserRound } from 'lucide-react';
+import { haptic } from '@/lib/haptics';
 import { NavLink } from 'react-router-dom';
 import { cx } from './ui';
 
 const TABS = [
   { to: '/', label: 'Accueil', icon: House, end: true },
-  { to: '/wird', label: 'Mon Wird', icon: BookOpenCheck, end: false },
+  { to: '/wird', label: 'Mon Wird', icon: BookOpen, end: false },
+  { to: '/revisions', label: 'Révisions', icon: RefreshCw, end: false },
   { to: '/progression', label: 'Progression', icon: ChartNoAxesColumn, end: false },
   { to: '/profil', label: 'Profil', icon: UserRound, end: false },
 ];
@@ -19,6 +21,7 @@ export function Nav() {
             <NavLink
               to={to}
               end={end}
+              onClick={() => haptic('tap')}
               className={({ isActive }) =>
                 cx('group relative flex flex-col items-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition lg:flex-row lg:gap-3 lg:px-3 lg:py-3 lg:text-sm', isActive ? 'font-bold text-primary lg:bg-soft' : 'text-muted hover:text-ink')
               }
