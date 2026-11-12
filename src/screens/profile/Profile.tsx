@@ -1,6 +1,6 @@
 import { Bell, ChevronRight, Database, Info, Moon, SlidersHorizontal, Sun, Smartphone } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Page, PageTitle, Row, Segmented } from '@/components/ui';
+import { Row, Screen, Segmented } from '@/components/ui';
 import { isIOS, isStandalone, useInstall } from '@/lib/pwa';
 import { useWird } from '@/store/useWird';
 import { APP_VERSION } from '@/lib/version';
@@ -14,8 +14,7 @@ export default function Profile() {
   const standalone = isStandalone();
 
   return (
-    <Page>
-      <PageTitle sub="Réglages et confidentialité">Profil</PageTitle>
+    <Screen title="Profil" sub="Réglages et confidentialité">
 
       <section className="card p-5">
         <label>
@@ -49,13 +48,13 @@ export default function Profile() {
 
       <h2 className="label mb-2 mt-6">Réglages</h2>
       <ul className="card divide-y divide-line/60 overflow-hidden">
-        <NavRow to="/profil/wird" icon={<SlidersHorizontal size={20} />} title="Paramètres du Wird" sub={`Rotation ${settings.direction === 'forward' ? 'du début vers la fin' : 'de la fin vers le début'} · nouvel apprentissage ${settings.learningEnabled ? 'activé' : 'désactivé'}`} />
+        <NavRow to="/profil/wird" icon={<SlidersHorizontal size={20} />} title="Paramètres du Wird" sub={`${settings.learnPagesPerDay ? `${settings.learnPagesPerDay} p. à apprendre` : 'Pas d’apprentissage'} · ${settings.reviewPagesPerDay} p. à réviser par jour`} />
         <NavRow to="/profil/notifications" icon={<Bell size={20} />} title="Notifications" sub="Rappels, horaires et autorisation" />
         <NavRow to="/profil/donnees" icon={<Database size={20} />} title="Données et confidentialité" sub="Export, import, remise à zéro" />
         <NavRow to="/profil/apropos" icon={<Info size={20} />} title="À propos de WIRD" sub={`Version ${APP_VERSION}`} />
       </ul>
       <p className="mt-6 text-center text-xs text-muted">WIRD {APP_VERSION}{profile.demo ? ' · données de démonstration' : ''}</p>
-    </Page>
+    </Screen>
   );
 }
 

@@ -1,83 +1,64 @@
-@import '@fontsource/scheherazade-new/arabic-400.css';
-@import '@fontsource/scheherazade-new/arabic-700.css';
+@import '@fontsource/amiri-quran/arabic-400.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-  font-family: 'Manrope Variable';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 200 800;
-  src: url(@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2) format('woff2-variations');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Manrope Variable';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 200 800;
-  src: url(@fontsource-variable/manrope/files/manrope-latin-ext-wght-normal.woff2) format('woff2-variations');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Fraunces Variable';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url(@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2) format('woff2-variations');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Fraunces Variable';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url(@fontsource-variable/fraunces/files/fraunces-latin-ext-wght-normal.woff2) format('woff2-variations');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
 :root,
 :root[data-theme='light'] {
-  --bg: 247 243 234;
-  --surface: 252 250 245;
-  --surface2: 240 235 223;
-  --ink: 36 40 38;
-  --muted: 110 115 108;
-  --line: 227 221 207;
-  --primary: 47 93 74;
-  --primary-ink: 250 248 242;
-  --soft: 226 236 228;
-  --good: 70 128 92;
-  --good-soft: 222 236 224;
-  --warn: 160 116 40;
-  --warn-soft: 245 232 205;
-  --hard: 184 98 52;
-  --hard-soft: 247 227 210;
-  --alert: 156 62 66;
-  --alert-soft: 244 218 217;
-  --shadow: 40 50 44;
+  /* Palette de la référence visuelle (johnny-gms.github.io/Wird) */
+  --bg: 249 245 236; /* #f9f5ec */
+  --surface: 255 253 248; /* #fffdf8 — cartes */
+  --surface2: 240 233 218; /* #f0e9da — pastilles, tuiles */
+  --ink: 34 44 38; /* #222c26 */
+  --muted: 123 133 128; /* #7b8580 */
+  --line: 230 223 206; /* #e6dfce */
+  --primary: 31 77 58; /* #1f4d3a */
+  --primary-ink: 255 255 255;
+  --deep: 31 77 58;
+  --ivory: 255 255 255;
+  --gold: 143 168 150; /* sauge #8fa896 (ex-accent) */
+  --soft: 240 233 218;
+  --good: 47 138 87; /* #2f8a57 */
+  --good-soft: 222 239 228;
+  --blue: 63 127 209; /* #3f7fd1 */
+  --blue-soft: 224 236 250;
+  --warn: 176 135 20;
+  --warn-soft: 248 240 212;
+  --hard: 217 138 27; /* #d98a1b — à renforcer */
+  --hard-soft: 250 235 211;
+  --alert: 184 67 63;
+  --alert-soft: 246 222 220;
+  --neutral: 220 223 218; /* #dcdfda — non commencée */
+  --neutral-ink: 61 72 67;
+  --shadow: 31 45 36;
   color-scheme: light;
 }
 :root[data-theme='dark'] {
-  --bg: 17 21 19;
-  --surface: 26 32 29;
-  --surface2: 36 43 39;
-  --ink: 232 232 224;
-  --muted: 150 156 148;
-  --line: 48 56 52;
-  --primary: 124 180 150;
-  --primary-ink: 14 22 18;
-  --soft: 32 48 40;
-  --good: 124 180 142;
-  --good-soft: 30 48 38;
-  --warn: 214 170 96;
-  --warn-soft: 54 45 28;
-  --hard: 226 140 92;
-  --hard-soft: 58 38 28;
-  --alert: 220 134 130;
+  --bg: 15 21 18; /* #0f1512 */
+  --surface: 23 32 25; /* #172019 */
+  --surface2: 26 36 30; /* #1a241e */
+  --ink: 236 232 220; /* #ece8dc */
+  --muted: 152 163 156; /* #98a39c */
+  --line: 42 54 46; /* #2a362e */
+  --primary: 111 191 147; /* #6fbf93 */
+  --primary-ink: 12 22 16;
+  --deep: 31 77 58;
+  --ivory: 255 255 255;
+  --gold: 79 110 92;
+  --soft: 26 36 30;
+  --good: 111 191 147;
+  --good-soft: 28 48 38;
+  --blue: 120 170 230;
+  --blue-soft: 28 42 62;
+  --warn: 214 176 70;
+  --warn-soft: 54 46 24;
+  --hard: 232 160 60;
+  --hard-soft: 58 42 22;
+  --alert: 226 130 126;
   --alert-soft: 58 34 34;
+  --neutral: 42 52 47; /* #2a342f */
+  --neutral-ink: 170 181 174;
   --shadow: 0 0 0;
   color-scheme: dark;
 }
@@ -92,6 +73,7 @@
     margin: 0;
     min-height: 100dvh;
     overscroll-behavior-y: none;
+    line-height: 1.4;
   }
   button {
     @apply select-none;
@@ -109,16 +91,17 @@
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-line/70 bg-surface shadow-card;
+    @apply rounded-[14px] border border-line bg-surface;
+    box-shadow: 0 1px 2px rgb(var(--shadow) / 0.05), 0 6px 18px rgb(var(--shadow) / 0.04);
   }
   .btn {
-    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-5 text-[15px] font-semibold transition active:scale-[.98] disabled:opacity-50;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-[13px] text-base font-semibold transition active:scale-[.98] disabled:opacity-40;
   }
   .btn-primary {
     @apply btn bg-primary text-primary-ink hover:opacity-95;
   }
   .btn-soft {
-    @apply btn bg-soft text-primary hover:opacity-90;
+    @apply btn bg-surface2 text-ink hover:opacity-90;
   }
   .btn-ghost {
     @apply btn text-muted hover:text-ink;
@@ -129,14 +112,28 @@
   .btn-danger {
     @apply btn bg-alert-soft text-alert;
   }
+  /* libellé de section : petites capitales grises (comme la référence) */
   .label {
-    @apply text-xs font-semibold uppercase tracking-[.08em] text-muted;
+    @apply text-[13px] font-bold uppercase tracking-[.3px] text-muted;
   }
   .input {
-    @apply min-h-[48px] w-full rounded-xl border border-line bg-surface px-4 text-ink placeholder:text-muted/70 focus:border-primary focus:outline-none;
+    @apply min-h-[44px] w-full rounded-xl border border-line bg-surface px-3 text-ink placeholder:text-muted/70 focus:border-primary focus:outline-none;
+  }
+  .chip {
+    @apply inline-flex min-h-[36px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-transparent bg-surface2 px-3.5 text-[13px] font-medium text-ink transition;
+  }
+  .chip[aria-pressed='true'],
+  .chip[aria-checked='true'],
+  .chip[aria-selected='true'] {
+    @apply bg-primary text-primary-ink;
+  }
+  .hero {
+    background: linear-gradient(160deg, #1f4d3a, #2d6a50);
+    @apply rounded-[14px] text-white;
+    box-shadow: 0 1px 2px rgb(var(--shadow) / 0.05), 0 6px 18px rgb(var(--shadow) / 0.08);
   }
   .ar {
-    font-family: 'Scheherazade New', 'Geeza Pro', 'Traditional Arabic', serif;
+    font-family: 'Amiri Quran', 'Geeza Pro', 'Traditional Arabic', 'Noto Naskh Arabic', serif;
     direction: rtl;
   }
 }
@@ -154,11 +151,49 @@
   display: none;
 }
 
+/* écran de démarrage : l'icône WIRD sur fond crème, comme la référence */
+#spl {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #faf6ee;
+  transition: opacity 0.6s ease;
+}
+html[data-theme='dark'] #spl {
+  background: #121a16;
+}
+#spl img {
+  width: 116px;
+  height: 116px;
+  border-radius: 27px;
+  box-shadow: 0 10px 30px rgba(31, 77, 58, 0.22);
+  opacity: 0;
+  transform: scale(0.88);
+  animation: splIn 0.7s 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+#spl.out {
+  opacity: 0;
+  pointer-events: none;
+}
+@keyframes splIn {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  #spl img {
+    opacity: 1;
+    transform: none;
   }
 }

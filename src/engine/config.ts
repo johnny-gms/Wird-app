@@ -59,10 +59,10 @@ export const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
 
 export const DEFAULT_SETTINGS: Settings = {
   direction: 'forward',
-  reviewVersesPerDay: 20,
+  learnDirection: 'forward',
+  learnPagesPerDay: 0.5,
+  reviewPagesPerDay: 2,
   reinforceVersesPerDay: 15,
-  learningEnabled: true,
-  learningChunk: 5,
   theme: 'system',
   notifications: DEFAULT_NOTIFICATIONS,
 };

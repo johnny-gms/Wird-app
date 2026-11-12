@@ -87,8 +87,8 @@ export default function App() {
         <Route path="/wird" element={<Navigate to="/wird/aujourdhui" replace />} />
         <Route path="/wird/sourates/:id" element={<SurahDetail />} />
         <Route path="/wird/:tab" element={<WirdTab />} />
-        <Route path="/progression" element={<Navigate to="/progression/general" replace />} />
-        <Route path="/progression/:tab" element={<ProgressTab />} />
+        <Route path="/progression" element={<ProgressTab />} />
+        <Route path="/progression/*" element={<Navigate to="/progression" replace />} />
         <Route path="/profil" element={<Profile />} />
         <Route path="/profil/wird" element={<ProfileWird />} />
         <Route path="/profil/notifications" element={<ProfileNotifications />} />

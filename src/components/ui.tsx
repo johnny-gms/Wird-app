@@ -17,8 +17,8 @@ export const GRADE_STYLE: Record<Grade, { chip: string; solid: string; ring: str
 
 export const KIND_STYLE: Record<WorkKind, string> = {
   review: 'bg-soft text-primary',
-  reinforce: 'bg-warn-soft text-warn',
-  learn: 'bg-good-soft text-good',
+  reinforce: 'bg-hard-soft text-hard',
+  learn: 'bg-blue-soft text-blue',
 };
 
 export function GradeChip({ grade }: { grade: Grade }) {
@@ -29,11 +29,12 @@ export function KindBadge({ kind }: { kind: WorkKind }) {
   return <span className={cx('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold', KIND_STYLE[kind])}>{KIND_LABEL[kind]}</span>;
 }
 
-export function ProgressBar({ value, tone = 'primary', className }: { value: number; tone?: 'primary' | 'good' | 'warn'; className?: string }) {
+export function ProgressBar({ value, tone = 'primary', className }: { value: number; tone?: 'primary' | 'good' | 'warn' | 'blue' | 'gold'; className?: string }) {
   const pct = Math.max(0, Math.min(1, value)) * 100;
+  const fill = { primary: 'bg-primary', good: 'bg-good', warn: 'bg-warn', blue: 'bg-blue', gold: 'bg-primary' }[tone];
   return (
     <div className={cx('h-1.5 w-full overflow-hidden rounded-full bg-surface2', className)} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
-      <div className={cx('h-full rounded-full transition-[width] duration-500', tone === 'primary' ? 'bg-primary' : tone === 'good' ? 'bg-good' : 'bg-warn')} style={{ width: `${pct}%` }} />
+      <div className={cx('h-full rounded-full transition-[width] duration-500', fill)} style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -52,26 +53,39 @@ export function Ring({ value, size = 64, stroke = 6, children }: { value: number
   );
 }
 
+/** Numéro de sourate : petite tuile crème, chiffres en serif. */
 export function SurahNumber({ n, size = 40 }: { n: number; size?: number }) {
   return (
-    <div className="relative flex shrink-0 items-center justify-center text-sm font-bold text-primary" style={{ width: size, height: size }}>
-      <span className="absolute inset-[18%] rotate-45 rounded-[6px] border border-primary/40 bg-soft" />
-      <span className="relative tabular-nums">{n}</span>
+    <div className="flex shrink-0 items-center justify-center rounded-xl bg-surface2 font-display font-semibold tabular-nums text-primary" style={{ width: size, height: size, fontSize: size * 0.4 }}>
+      {n}
     </div>
   );
 }
 
+/** Conservé pour compatibilité : la référence n'utilise pas de filet orné. */
+export function Rule({ className }: { className?: string }) {
+  return <div className={cx('h-px bg-line', className)} aria-hidden />;
+}
+
+/** Choix d'une option parmi quelques-unes : pastilles crème, l'active en vert (comme la référence). */
 export function Segmented<T extends string>({ options, value, onChange, scroll }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; scroll?: boolean }) {
   return (
-    <div role="tablist" className={cx('flex gap-1 rounded-xl bg-surface2 p-1', scroll && 'no-scrollbar overflow-x-auto')}>
+    <div role="radiogroup" className={cx('flex gap-2', scroll ? 'no-scrollbar -mx-4 overflow-x-auto px-4' : 'flex-wrap')}>
       {options.map((o) => (
-        <button
-          key={o.value}
-          role="tab"
-          aria-selected={o.value === value}
-          onClick={() => onChange(o.value)}
-          className={cx('min-h-[40px] shrink-0 whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold transition', scroll ? '' : 'flex-1 px-2', o.value === value ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}
-        >
+        <button key={o.value} role="radio" aria-checked={o.value === value} onClick={() => onChange(o.value)} className={cx('chip', !scroll && 'flex-1 justify-center')}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Onglets de page : rangée de pastilles défilable. */
+export function Tabs<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <div role="tablist" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
+      {options.map((o) => (
+        <button key={o.value} role="tab" aria-selected={o.value === value} onClick={() => onChange(o.value)} className="chip">
           {o.label}
         </button>
       ))}
@@ -98,9 +112,9 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 animate-fade bg-ink/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="pb-safe relative max-h-[88dvh] w-full max-w-lg animate-sheet-up overflow-y-auto rounded-t-3xl bg-bg p-5 outline-none sm:rounded-3xl">
+      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="pb-safe relative max-h-[88dvh] w-full max-w-[520px] animate-sheet-up overflow-y-auto rounded-t-[22px] bg-bg p-4 pb-6 shadow-[0_-6px_30px_rgba(0,0,0,.2)] outline-none sm:rounded-[22px]">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="font-display text-xl font-semibold">{title}</h2>
+          <h2 className="font-display text-[22px] font-semibold">{title}</h2>
           <button onClick={onClose} aria-label="Fermer" className="flex h-10 w-10 items-center justify-center rounded-full bg-surface2 text-muted">
             <X size={18} />
           </button>
@@ -155,7 +169,7 @@ export function ToastHost() {
   if (!msg) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 lg:bottom-8" role="status" aria-live="polite">
-      <div className="flex animate-pop items-center gap-2 rounded-full bg-ink px-4 py-3 text-sm font-semibold text-bg shadow-lg">
+      <div className="flex animate-pop items-center gap-2 rounded-full bg-primary px-[18px] py-2.5 text-sm font-semibold text-primary-ink shadow-[0_6px_20px_rgba(0,0,0,.25)]">
         <Check size={16} /> {msg}
       </div>
     </div>
@@ -164,14 +178,33 @@ export function ToastHost() {
 
 // ---------- Mises en page ----------
 export function Page({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx('mx-auto w-full max-w-2xl animate-fade px-5 pb-8 pt-safe', className)}>{children}</div>;
+  return <div className={cx('mx-auto w-full max-w-[520px] animate-fade px-4 pb-8 pt-safe', className)}>{children}</div>;
+}
+
+/** Écran principal : titre serif sur fond crème, onglets en pastilles, contenu en cartes. */
+export function Screen({ title, sub, right, tabs, children }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; tabs?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="mx-auto w-full max-w-[520px] animate-fade px-4 pb-10 pt-safe">
+      <header className="pt-[18px]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            {sub && <p className="text-sm text-muted">{sub}</p>}
+            <h1 className="mb-1 mt-1 font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">{title}</h1>
+          </div>
+          {right}
+        </div>
+        {tabs && <div className="mt-3">{tabs}</div>}
+      </header>
+      <div className="mt-4">{children}</div>
+    </div>
+  );
 }
 
 export function PageTitle({ children, sub, right }: { children: ReactNode; sub?: string; right?: ReactNode }) {
   return (
-    <header className="flex items-end justify-between gap-3 pb-4 pt-8">
+    <header className="flex items-end justify-between gap-3 pb-4 pt-5">
       <div>
-        <h1 className="font-display text-[28px] font-semibold leading-tight tracking-tight">{children}</h1>
+        <h1 className="font-display text-[26px] font-semibold leading-tight">{children}</h1>
         {sub && <p className="mt-1 text-sm text-muted">{sub}</p>}
       </div>
       {right}
@@ -179,24 +212,25 @@ export function PageTitle({ children, sub, right }: { children: ReactNode; sub?:
   );
 }
 
-export function SubPage({ title, children, back = -1 }: { title: string; children: ReactNode; back?: number | string }) {
+export function SubPage({ title, children, back = -1, sub }: { title: string; children: ReactNode; back?: number | string; sub?: ReactNode }) {
   const nav = useNavigate();
   return (
-    <Page>
-      <header className="flex items-center gap-2 pb-4 pt-5">
-        <button onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} aria-label="Retour" className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-surface2">
-          <ChevronLeft size={22} />
+    <div className="mx-auto w-full max-w-[520px] animate-fade px-4 pb-10 pt-safe">
+      <header className="pt-3">
+        <button onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} className="-ml-1 flex min-h-[40px] items-center gap-0.5 py-1.5 pr-3 font-semibold text-primary">
+          <ChevronLeft size={20} /> Retour
         </button>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="mb-1 mt-2 font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">{title}</h1>
+        {sub && <div className="text-sm text-muted">{sub}</div>}
       </header>
-      {children}
-    </Page>
+      <div className="mt-4">{children}</div>
+    </div>
   );
 }
 
 export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
+    <div className="card px-6 py-8 text-center">
       <p className="font-display text-lg font-semibold">{title}</p>
       {children && <div className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-muted">{children}</div>}
       {action && <div className="mt-4 flex justify-center">{action}</div>}
