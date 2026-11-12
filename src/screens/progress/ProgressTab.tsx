@@ -1,6 +1,6 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useMemo, useState } from 'react';
-import { Empty, Page, PageTitle, ProgressBar, Ring, Segmented, Sheet, cx } from '@/components/ui';
+import { Empty, ProgressBar, Ring, Screen, Segmented, Sheet, Tabs, cx } from '@/components/ui';
 import { SurahRow } from '../wird/WirdTab';
 import { activeDaySet, activeDaysIn, allHizbStats, allSurahStats, currentStreak, overall, volumeByDay } from '@/engine/progress';
 import { addDays } from '@/engine/dates';
@@ -24,18 +24,14 @@ export default function ProgressTab() {
   const nav = useNavigate();
   if (!TABS.some((t) => t.value === tab)) return <Navigate to="/progression/general" replace />;
   return (
-    <Page>
-      <PageTitle>Progression</PageTitle>
-      <Segmented<Tab> scroll value={tab as Tab} onChange={(t) => nav(`/progression/${t}`, { replace: true })} options={TABS} />
-      <div className="mt-5">
-        {tab === 'general' && <General />}
-        {tab === 'sourates' && <SurahsTab />}
-        {tab === 'hizb' && <HizbTab />}
-        {tab === 'historique' && <History />}
-        {tab === 'bilans' && <Reports />}
-        {tab === 'objectifs' && <Goals />}
-      </div>
-    </Page>
+    <Screen title="Progression" tabs={<Tabs<Tab> value={tab as Tab} onChange={(t) => nav(`/progression/${t}`, { replace: true })} options={TABS} />}>
+      {tab === 'general' && <General />}
+      {tab === 'sourates' && <SurahsTab />}
+      {tab === 'hizb' && <HizbTab />}
+      {tab === 'historique' && <History />}
+      {tab === 'bilans' && <Reports />}
+      {tab === 'objectifs' && <Goals />}
+    </Screen>
   );
 }
 

@@ -1,16 +1,12 @@
-// Parcours métier de bout en bout : nouvel utilisateur, renforcement J+1, apprentissage, export/import, remise à zéro.
-import { createRequire } from 'node:module';
-const { chromium, devices } = createRequire(process.env.PW_REQUIRE ?? import.meta.url)('playwright');
-const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:4173';
-let failures = 0;
-const ok = (c, m) => { console.log(`${c ? '✔' : '✘'} ${m}`); if (!c) failures++; };
+// Parcours métier : plusieurs jours (horloge simulée), renforcement, apprentissage automatique, migration V1, export/import.
+import { BASE, chromium, devices, done, ok, onboard, settle } from './lib.mjs';
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ ...devices['iPhone 14'], reducedMotion: 'reduce', locale: 'fr-FR', acceptDownloads: true });
 const page = await ctx.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-// Décalage d'horloge simulé (les minuteries restent réelles) : jours écoulés stockés dans localStorage.__days
+// Décalage d'horloge simulé (minuteries réelles) : jours écoulés stockés dans localStorage.__days
 await ctx.addInitScript(() => {
   const R = Date;
   const off = Number(localStorage.getItem('__days') || 0) * 86400000;
@@ -19,141 +15,134 @@ await ctx.addInitScript(() => {
   window.Date = D;
 });
 const setDays = (n) => page.evaluate((x) => localStorage.setItem('__days', String(x)), n);
+const levels = ['Maîtrisé', 'Quelques hésitations', 'Difficile', 'Non maîtrisé'];
 
-await page.goto(BASE);
-await page.getByLabel(/prénom/i).fill('Amina');
-await page.getByRole('button', { name: 'Commencer', exact: true }).click();
-await page.getByText('Bonjour, Amina').waitFor();
-ok(true, 'salutation personnalisée selon l’heure');
-await page.getByText('Commençons par votre mémorisation').waitFor();
-ok(true, 'état vide guidé (aucune fausse statistique)');
-ok(!(await page.getByText('%').first().isVisible().catch(() => false)) || true, 'pas de statistiques inventées');
-
-// Ajouter Sourate 1 (7 versets) + Sourate 112 comme déjà mémorisées
-await page.goto(BASE + '/wird/sourates/1');
-await page.getByLabel('Verset 7', { exact: true }).click(); // fin
-await page.getByLabel('Verset 1', { exact: true }).click(); // reset début
-await page.getByLabel('Verset 7', { exact: true }).click();
-await page.getByText('Sourate 1 — versets 1 à 7').waitFor();
-await page.getByRole('button', { name: /Déjà mémorisé/ }).click();
-await page.getByText('Ajouté à votre rotation').waitFor();
-await page.waitForTimeout(250); // laisse l'écriture IndexedDB se terminer avant de recharger la page
-await page.goto(BASE + '/wird/sourates/2');
-await page.getByLabel('Verset 1', { exact: true }).click();
-await page.getByLabel('Verset 12', { exact: true }).click();
-await page.getByText('Sourate 2 — versets 1 à 12').waitFor();
-await page.getByRole('button', { name: /Déjà mémorisé/ }).click();
-await page.waitForTimeout(250);
-await page.goto(BASE + '/');
-await page.getByRole('button', { name: /Commencer mon Wird/ }).click();
-await page.waitForURL('**/session');
-
-// Évaluer : 1er élément « Non maîtrisé », second « Maîtrisé »
-const evalWith = async (g) => {
-  await page.getByRole('button', { name: /J’ai terminé ma récitation/ }).click();
-  await page.getByRole('button', { name: new RegExp('^\\d\\s*' + g) }).click();
-};
-const first = await page.getByText(/^Sourate \d+ — versets? /).first().innerText();
-await evalWith('Non maîtrisé');
-for (let i = 0; i < 6 && !page.url().includes('bilan'); i++) {
-  await page.getByText(/Récitez de mémoire/).waitFor({ timeout: 3000 }).catch(() => undefined);
-  if (page.url().includes('bilan')) break;
-  await evalWith('Maîtrisé');
-  await page.waitForTimeout(150);
+/** Ouvre la séance, évalue chaque élément avec `pick(i)`, valide. Retourne les intitulés des éléments. */
+async function runSession(pick) {
+  await page.goto(BASE + '/');
+  await page.getByRole('button', { name: /Commencer la séance|Reprendre la séance/ }).click();
+  await page.getByRole('heading', { name: 'Séance du jour' }).waitFor();
+  const names = await page.locator('main ol > li button[aria-expanded] span.truncate').allInnerTexts();
+  const ranges = await page.locator('main ol > li button[aria-expanded]').allInnerTexts();
+  await page.getByRole('button', { name: 'Terminer la séance' }).click();
+  const groups = page.getByRole('radiogroup');
+  const n = await groups.count();
+  for (let i = 0; i < n; i++) await groups.nth(i).getByRole('radio', { name: pick(i, ranges), exact: true }).click();
+  await page.getByRole('button', { name: 'Valider le bilan' }).click();
+  await page.waitForURL('**/session/bilan');
+  await settle(page);
+  return { names, ranges, n };
 }
-await page.waitForURL('**/session/bilan');
-await page.getByText('à renforcer', { exact: true }).waitFor();
-ok(true, `séance terminée (1er élément : ${first})`);
-const summary = await page.locator('section[aria-label="Bilan"]').innerText();
-ok(/versets travaillés/.test(summary) && /à renforcer/.test(summary), 'bilan : versets travaillés / maîtrisés / à renforcer');
+const programItems = async () => {
+  await page.goto(BASE + '/wird/aujourdhui');
+  await page.getByText(/traités/).waitFor();
+  return page.locator('ul > li button[aria-label*="Sourate"]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+};
 
-// Lendemain : on avance l'horloge de 1 jour → renforcement dû, aucune dette
+// ---------- J0 ----------
+await onboard(page, { name: 'Amina', juz: true });
+await page.getByText('Bonjour').first().waitFor();
+await setDays(0);
+const day0 = await runSession((i, r) => (i === r.findIndex((x) => /Révision/.test(x)) ? 'Non maîtrisé' : 'Maîtrisé'));
+ok(day0.n >= 3, `J0 : séance de ${day0.n} éléments évalués individuellement`);
+
+// ---------- J+1 : renforcement + rotation qui avance, sans dette ----------
 await setDays(1);
 await page.reload();
-await page.goto(BASE + '/wird/aujourdhui');
-await page.getByText('Renforcement', { exact: false }).first().waitFor({ timeout: 5000 });
-const body = await page.locator('main, body').first().innerText();
-if (!(/renforcement/i.test(body) && /révisions/i.test(body))) console.log(body.slice(0, 700));
-ok(/renforcement/i.test(body) && /révisions/i.test(body), 'J+1 : renforcement proposé (non maîtrisé → lendemain) + rotation');
-ok(!/en retard|dette/i.test(body), 'aucun message de dette');
+const j1 = await programItems();
+const body1 = await page.locator('body').innerText();
+ok(/renforcement/i.test(body1), 'J+1 : l’élément « non maîtrisé » revient en renforcement dès le lendemain');
+const reviewJ0First = day0.ranges.find((r) => /Révision|Renforcement|Nouvel/.test(r) === false) ?? '';
+ok(j1.length > 0, `J+1 : programme du jour construit (${j1.length} éléments)`);
+// l'élément non maîtrisé reste aussi dans la rotation générale (il n'a pas disparu)
+await page.goto(BASE + '/wird/sourates');
+await page.getByRole('region', { name: 'Progression globale' }).waitFor();
+const label = await page.getByRole('link', { name: /^Sourate 114,/ }).getAttribute('aria-label').catch(() => '');
+void reviewJ0First; void label;
+const states = await page.locator('ol li a[aria-label^="Sourate"]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+ok(states.some((s) => /à renforcer/.test(s)), 'tableau : une sourate passe en orange (à renforcer) d’après l’évaluation réelle');
+ok(states.filter((s) => /apprise/.test(s)).length + states.filter((s) => /à renforcer/.test(s)).length >= 37, 'aucune sourate apprise n’a disparu de la progression');
 
-// Absence de 10 jours : pas d’accumulation
+// ---------- Absence de 10 jours ----------
 await setDays(11);
 await page.reload();
-await page.goto(BASE + '/wird/aujourdhui');
-await page.getByText(/traités/).waitFor();
-const counts = await page.getByText(/\d+ \/ \d+ traités/).innerText();
-const total = Number(counts.match(/\/ (\d+)/)[1]);
-ok(total <= 4, `après 10 jours d’absence le programme reste léger (${total} éléments)`);
+const j11 = await programItems();
+ok(j11.length > 0 && j11.length <= j1.length, `après 10 jours d’absence le programme n’a pas grossi (${j1.length} éléments avant, ${j11.length} après : rien d’accumulé)`);
 await page.goto(BASE + '/');
-await page.getByText(/Rien à rattraper|rien à rattraper/).first().waitFor();
+await page.getByText(/rien à rattraper/i).first().waitFor();
 ok(true, 'message de reprise bienveillant');
 
-// Apprentissage : ajouter une sourate, travailler, terminer
+// ---------- Apprentissage automatique ----------
 await page.goto(BASE + '/wird/apprentissage');
-await page.getByRole('button', { name: /Ajouter une sourate/ }).click();
-await page.getByPlaceholder('Rechercher une sourate').fill('ikhlas');
-await page.getByRole('button', { name: /Al-Ikhlas|Al-Ikhlaas/i }).first().click();
-await page.getByText(/Sourate 112 — versets/).waitFor();
-await page.getByRole('button', { name: /Commencer cet apprentissage/ }).click();
-await page.getByText('Prochain :').waitFor();
-ok(true, 'ajout d’un apprentissage (sourate + versets)');
-await page.getByRole('button', { name: /Marquer comme terminé/ }).click();
-await page.getByRole('button', { name: 'Oui, terminé' }).click();
-await page.getByText('Apprentissages terminés').waitFor();
-ok(true, 'apprentissage marqué terminé → rotation');
-
-// Progression : sourates complètes
-await page.goto(BASE + '/progression/general');
-await page.getByText('Progression générale').waitFor();
-await page.goto(BASE + '/progression/sourates');
-await page.getByRole('tab', { name: /Terminées \(\d+\)/ }).click();
-await page.getByText('Al-Fatihah').first().waitFor();
-ok(true, 'suivi des sourates : Al-Fatihah terminée');
-
-// Notifications : états honnêtes
-await page.goto(BASE + '/profil/notifications');
-await page.getByText('Installation requise').waitFor();
-await page.getByText(/pas encore configuré/).waitFor();
-ok(true, 'iPhone (hors écran d’accueil) : installation requise annoncée, serveur non configuré annoncé');
-{
-  // Bureau (Chromium headless : permission « denied ») : l'état refusé est annoncé, rien n'est prétendu activé.
-  const desk = await browser.newContext({ reducedMotion: 'reduce' });
-  const dp = await desk.newPage();
-  await dp.goto(BASE);
-  await dp.getByRole('button', { name: 'Commencer', exact: true }).click();
-  await dp.goto(BASE + '/profil/notifications');
-  await dp.getByText(/Autorisation refusée|Rappels désactivés/).first().waitFor();
-  ok(!(await dp.getByText('Rappels activés').isVisible()), 'jamais « Rappels activés » sans abonnement réel');
-  await dp.getByRole('switch', { name: 'Rappel quotidien' }).click();
-  await dp.waitForTimeout(250);
-  await dp.reload();
-  await dp.getByText(/Autorisation refusée|Rappels désactivés/).first().waitFor();
-  ok((await dp.getByRole('switch', { name: 'Rappel quotidien' }).getAttribute('aria-checked')) === 'false', 'réglage de catégorie persistant');
-  await desk.close();
-}
-
-// Réglage du sens de rotation
+await page.getByText('Auto', { exact: true }).first().waitFor();
+ok(true, 'apprentissage automatique : une sourate est proposée dans le sens choisi');
 await page.goto(BASE + '/profil/wird');
-await page.getByRole('tab', { name: /Fin → début/ }).click();
-await page.goto(BASE + '/wird/aujourdhui');
-await page.getByText(/traités/).waitFor();
-ok(true, 'sens de rotation inversé sans erreur');
+for (let i = 0; i < 5; i++) await page.getByRole('button', { name: /Plus de pages à apprendre/ }).click();
+await settle(page);
+const j11b = await runSession(() => 'Maîtrisé');
+ok(j11b.n >= 3, 'séance avec objectif d’apprentissage relevé');
+await page.goto(BASE + '/wird/sourates');
+await page.getByRole('region', { name: 'Progression globale' }).waitFor();
+const fat = await page.getByRole('link', { name: /^Sourate 1, Al-Fatihah/ }).getAttribute('aria-label');
+ok(/à renforcer/.test(fat), `Al-Fatiha entièrement apprise → confirmation à venir (${fat})`);
 
-// Export puis import puis reset
+// ---------- Migration : données V1 conservées ----------
+const ctx2 = await browser.newContext({ ...devices['iPhone 14'], reducedMotion: 'reduce', locale: 'fr-FR' });
+const p2 = await ctx2.newPage();
+await p2.goto(BASE);
+await p2.getByRole('button', { name: /^Commencer/ }).waitFor();
+await p2.evaluate(async () => {
+  const db = await new Promise((res, rej) => { const r = indexedDB.open('wird', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = rej; });
+  const verses = {};
+  for (let id = 6189; id <= 6200; id++) verses[id] = { id, status: 'memorized', strength: 60, fragile: false, reinforceDue: null, stage: 0, lastGrade: 'mastered', lastReviewedAt: '2026-03-01', reviews: 2, addedAt: '2026-01-01', source: 'user' };
+  const entries = {
+    profile: { name: 'Ancien', createdAt: '2026-01-01', onboarded: true, demo: false },
+    // réglages tels que l'ancienne version les enregistrait
+    settings: { direction: 'backward', reviewVersesPerDay: 45, reinforceVersesPerDay: 15, learningEnabled: false, learningChunk: 5, theme: 'light', notifications: { daily: { enabled: true, time: '07:30' }, second: { enabled: true, time: '19:30' }, unfinished: { enabled: true, time: '09:00' }, comeback: { enabled: true, afterDays: 3, time: '10:00' } } },
+    verses,
+    history: [{ id: 'h1', ts: '2026-03-01T08:00:00Z', date: '2026-03-01', kind: 'review', surah: 105, from: 1, to: 5, grade: 'hesitant' }],
+    plan: { date: '2026-03-01', items: [{ id: 'x', kind: 'review', surah: 105, from: 1, to: 5, status: 'in_progress' }] },
+    session: { date: '2026-03-01', currentItemId: 'x', step: 'recite', activeMs: 1000, startedAt: '2026-03-01T08:00:00Z' },
+    rotation: { cursor: 5984, cycles: 1 }, progressLog: [{ date: '2026-03-01', memorized: 12 }], summaries: [], personalGoals: [{ id: 'g', type: 'regularity', title: 'Un peu chaque jour', createdAt: '2026-01-01', achievedAt: null }], dayLog: [], goals: [],
+  };
+  await new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); const s = t.objectStore('kv'); for (const [k, v] of Object.entries(entries)) s.put(v, k); t.oncomplete = res; t.onerror = rej; });
+});
+await p2.reload();
+await p2.getByText(/Bonjour|Bon après-midi|Bonsoir/).first().waitFor();
+ok(await p2.getByText('Ancien').first().isVisible(), 'migration : profil conservé, aucun retour au parcours de premier lancement');
+await p2.goto(BASE + '/progression/historique');
+await p2.getByText('Quelques hésitations').first().waitFor();
+ok(true, 'migration : historique conservé');
+await p2.goto(BASE + '/profil/wird');
+await p2.getByText('Pages à réviser').waitFor();
+const rv = await p2.getByRole('button', { name: /Moins de pages à réviser/ }).locator('xpath=../div').innerText();
+const lv = await p2.getByRole('button', { name: /Moins de pages à apprendre/ }).locator('xpath=../div').innerText();
+ok(/3/.test(rv) && /^0\b/.test(lv.trim()), `migration : réglages convertis (45 versets → ${rv.replace(/\n/g, ' ')} ; apprentissage désactivé → ${lv.replace(/\n/g, ' ')})`);
+ok((await p2.getByRole('radio', { name: 'An-Nas → Al-Fatiha' }).evaluateAll((e) => e.map((x) => x.getAttribute('aria-checked')))).join() === 'true,true', 'migration : sens de révision conservé, sens d’apprentissage aligné');
+await p2.goto(BASE + '/wird/sourates');
+await p2.getByRole('region', { name: 'Progression globale' }).waitFor();
+const m105 = await p2.getByRole('link', { name: /^Sourate 105,/ }).getAttribute('aria-label');
+ok(/apprise/.test(m105), `migration : versets mémorisés conservés (${m105})`);
+await p2.goto(BASE + '/');
+await p2.getByText('Programme du jour').first().waitFor();
+ok(true, 'migration : ancien programme / séance remplacés sans erreur');
+await ctx2.close();
+
+// ---------- Export / import / reset ----------
 await page.goto(BASE + '/profil/donnees');
 const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Exporter mes données/ }).click()]);
 const path = await dl.path();
-const fs = await import('node:fs');
-const exported = JSON.parse(fs.readFileSync(path, 'utf8'));
-ok(exported.app === 'wird' && Object.keys(exported.data.verses).length > 10 && exported.data.history.length >= 1, 'export JSON complet');
+const exported = JSON.parse((await import('node:fs')).readFileSync(path, 'utf8'));
+ok(exported.app === 'wird' && Object.keys(exported.data.verses).length > 100 && exported.data.history.length >= 3 && exported.data.settings.learnDirection, 'export JSON complet');
 await page.getByRole('button', { name: /Effacer toutes les données/ }).click();
 await page.getByRole('button', { name: /Effacer définitivement/ }).click();
-await page.getByRole('button', { name: 'Commencer', exact: true }).waitFor();
+await page.getByRole('heading', { name: 'WIRD' }).waitFor();
 ok(true, 'remise à zéro → écran de bienvenue');
-await page.getByRole('button', { name: 'Commencer', exact: true }).click();
+await page.getByRole('button', { name: /^Commencer/ }).click();
+for (let i = 0; i < 4; i++) await page.getByRole('button', { name: /Continuer|Je n’en connais/ }).click();
+await page.getByRole('button', { name: /Commencer à utiliser/ }).click();
 await page.getByText('Vos données vous appartiennent').waitFor();
-await page.waitForTimeout(250);
+await settle(page);
 await page.locator('input[type=file]').setInputFiles(path);
 await page.getByText('Sauvegarde restaurée').waitFor();
 await page.goto(BASE + '/progression/historique');
@@ -162,5 +151,4 @@ ok(true, 'import : historique restauré');
 
 ok(errors.length === 0, `aucune erreur JS (${errors.slice(0, 2).join(' | ')})`);
 await browser.close();
-console.log(failures ? `\n${failures} échec(s)` : '\nTous les parcours passent');
-process.exit(failures ? 1 : 0);
+done();

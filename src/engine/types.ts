@@ -32,6 +32,8 @@ export interface LearningGoal {
   to: number;
   /** Prochain verset à travailler. > to quand tout a été parcouru. */
   cursor: number;
+  /** Créé automatiquement par WIRD (prochaine sourate dans le sens d'apprentissage) ; terminé automatiquement. */
+  auto?: boolean;
   paused: boolean;
   createdAt: string;
   completedAt: string | null;
@@ -61,10 +63,19 @@ export interface DailyPlan {
   items: PlanItem[];
 }
 
+/** Évaluation en cours de saisie pour un élément : une note, ou « skip » (non travaillé). */
+export type DraftGrade = Grade | 'skip';
+
+/**
+ * Séance : on consulte le programme, on travaille, puis on évalue TOUT d'un coup (« Terminer la séance »).
+ * Les évaluations saisies restent un brouillon modifiable jusqu'à la validation du bilan.
+ */
 export interface SessionState {
   date: string;
-  currentItemId: string | null;
-  step: 'recite' | 'evaluate';
+  step: 'program' | 'evaluate';
+  /** Éléments du programme concernés par la séance (ordre du programme). */
+  scope: 'all' | string[];
+  draft: Record<string, DraftGrade>;
   /** Temps actif cumulé (ms), mesuré uniquement quand l'application est visible. */
   activeMs: number;
   startedAt: string;
@@ -120,14 +131,16 @@ export interface NotificationPrefs {
 }
 
 export interface Settings {
+  /** Sens de la rotation de RÉVISION des sourates déjà apprises. */
   direction: Direction;
-  /** Quantité de rotation par jour, en versets (indicatif, jamais une dette). */
-  reviewVersesPerDay: number;
+  /** Sens dans lequel on apprend de NOUVELLES sourates (indépendant du sens de révision). */
+  learnDirection: Direction;
+  /** Objectif quotidien d'apprentissage, en pages du Mushaf (0 = pas d'apprentissage). */
+  learnPagesPerDay: number;
+  /** Objectif quotidien de révision, en pages du Mushaf. */
+  reviewPagesPerDay: number;
   /** Plafond de versets de renforcement proposés par jour. */
   reinforceVersesPerDay: number;
-  learningEnabled: boolean;
-  /** Taille d'un élément d'apprentissage, en versets. */
-  learningChunk: number;
   theme: ThemeMode;
   notifications: NotificationPrefs;
 }

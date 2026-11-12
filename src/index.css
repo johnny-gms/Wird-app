@@ -21,60 +21,71 @@
   src: url(@fontsource-variable/manrope/files/manrope-latin-ext-wght-normal.woff2) format('woff2-variations');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
+
 @font-face {
-  font-family: 'Fraunces Variable';
+  font-family: 'Playfair Display Variable';
   font-style: normal;
   font-display: swap;
-  font-weight: 100 900;
-  src: url(@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2) format('woff2-variations');
+  font-weight: 400 900;
+  src: url(@fontsource-variable/playfair-display/files/playfair-display-latin-wght-normal.woff2) format('woff2-variations');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: 'Fraunces Variable';
+  font-family: 'Playfair Display Variable';
   font-style: normal;
   font-display: swap;
-  font-weight: 100 900;
-  src: url(@fontsource-variable/fraunces/files/fraunces-latin-ext-wght-normal.woff2) format('woff2-variations');
+  font-weight: 400 900;
+  src: url(@fontsource-variable/playfair-display/files/playfair-display-latin-ext-wght-normal.woff2) format('woff2-variations');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
 :root,
 :root[data-theme='light'] {
-  --bg: 247 243 234;
-  --surface: 252 250 245;
-  --surface2: 240 235 223;
-  --ink: 36 40 38;
-  --muted: 110 115 108;
-  --line: 227 221 207;
-  --primary: 47 93 74;
-  --primary-ink: 250 248 242;
-  --soft: 226 236 228;
-  --good: 70 128 92;
-  --good-soft: 222 236 224;
-  --warn: 160 116 40;
-  --warn-soft: 245 232 205;
-  --hard: 184 98 52;
-  --hard-soft: 247 227 210;
-  --alert: 156 62 66;
-  --alert-soft: 244 218 217;
+  --bg: 245 240 227;
+  --surface: 253 250 242;
+  --surface2: 236 230 213;
+  --ink: 28 35 31;
+  --muted: 105 108 98;
+  --line: 215 206 182;
+  --primary: 24 66 53;
+  --primary-ink: 247 243 232;
+  --deep: 22 61 49;
+  --ivory: 247 243 232;
+  --gold: 163 127 56;
+  --soft: 230 231 214;
+  --good: 38 105 74;
+  --good-soft: 217 231 216;
+  --blue: 45 98 148;
+  --blue-soft: 214 226 238;
+  --warn: 160 116 30;
+  --warn-soft: 243 230 195;
+  --hard: 190 98 36;
+  --hard-soft: 246 224 200;
+  --alert: 148 48 52;
+  --alert-soft: 243 216 214;
   --shadow: 40 50 44;
   color-scheme: light;
 }
 :root[data-theme='dark'] {
-  --bg: 17 21 19;
-  --surface: 26 32 29;
-  --surface2: 36 43 39;
-  --ink: 232 232 224;
-  --muted: 150 156 148;
-  --line: 48 56 52;
-  --primary: 124 180 150;
-  --primary-ink: 14 22 18;
-  --soft: 32 48 40;
-  --good: 124 180 142;
-  --good-soft: 30 48 38;
+  --bg: 13 19 16;
+  --surface: 21 29 25;
+  --surface2: 31 40 35;
+  --ink: 235 231 218;
+  --muted: 148 152 142;
+  --line: 44 54 48;
+  --primary: 143 196 165;
+  --primary-ink: 12 20 16;
+  --deep: 19 52 41;
+  --ivory: 240 236 224;
+  --gold: 204 168 96;
+  --soft: 28 40 34;
+  --good: 120 180 140;
+  --good-soft: 28 46 36;
+  --blue: 128 176 220;
+  --blue-soft: 28 42 58;
   --warn: 214 170 96;
   --warn-soft: 54 45 28;
-  --hard: 226 140 92;
+  --hard: 230 144 92;
   --hard-soft: 58 38 28;
   --alert: 220 134 130;
   --alert-soft: 58 34 34;
@@ -109,16 +120,19 @@
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-line/70 bg-surface shadow-card;
+    @apply rounded-xl border border-line bg-surface;
   }
   .btn {
-    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-5 text-[15px] font-semibold transition active:scale-[.98] disabled:opacity-50;
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[10px] px-5 text-[15px] font-semibold transition active:scale-[.98] disabled:opacity-40;
   }
   .btn-primary {
-    @apply btn bg-primary text-primary-ink hover:opacity-95;
+    @apply btn bg-deep text-ivory hover:opacity-95;
+  }
+  :root[data-theme='dark'] .btn-primary {
+    @apply bg-primary text-primary-ink;
   }
   .btn-soft {
-    @apply btn bg-soft text-primary hover:opacity-90;
+    @apply btn border border-line bg-surface text-primary hover:bg-surface2;
   }
   .btn-ghost {
     @apply btn text-muted hover:text-ink;
@@ -127,13 +141,13 @@
     @apply btn border border-line bg-surface text-ink hover:bg-surface2;
   }
   .btn-danger {
-    @apply btn bg-alert-soft text-alert;
+    @apply btn border border-alert/30 bg-alert-soft text-alert;
   }
   .label {
-    @apply text-xs font-semibold uppercase tracking-[.08em] text-muted;
+    @apply text-[11px] font-bold uppercase tracking-[.14em] text-muted;
   }
   .input {
-    @apply min-h-[48px] w-full rounded-xl border border-line bg-surface px-4 text-ink placeholder:text-muted/70 focus:border-primary focus:outline-none;
+    @apply min-h-[48px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-muted/70 focus:border-primary focus:outline-none;
   }
   .ar {
     font-family: 'Scheherazade New', 'Geeza Pro', 'Traditional Arabic', serif;

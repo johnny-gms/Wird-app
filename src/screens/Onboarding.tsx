@@ -1,42 +1,294 @@
-import { useState } from 'react';
+import { ArrowLeft, ArrowRight, Check, Minus, Plus } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { FastScroll } from '@/components/FastScroll';
+import { SurahNumber, Rule, cx } from '@/components/ui';
+import { matchSurah } from '@/components/SurahPickerList';
+import { nextLearnTarget } from '@/engine/plan';
+import { formatPages, rangePages } from '@/engine/pages';
+import { SURAHS, surahMeta } from '@/engine/quran';
+import { newMemorizedVerse } from '@/engine/scheduling';
+import { ayahId } from '@/engine/quran';
+import type { Direction, VerseState } from '@/engine/types';
+import { DEFAULT_SETTINGS } from '@/engine/config';
 import { useWird } from '@/store/useWird';
+
+const STEPS = 6; // 0 bienvenue · 1 sourates · 2 apprentissage · 3 révision · 4 programme · 5 récapitulatif
+const surahPages = (id: number) => rangePages(id, 1, surahMeta(id).n);
 
 export default function Onboarding() {
   const complete = useWird((s) => s.completeOnboarding);
+  const [step, setStep] = useState(0);
   const [name, setName] = useState('');
+  const [known, setKnown] = useState<Set<number>>(new Set());
+  const [learnDir, setLearnDir] = useState<Direction>('forward');
+  const [reviewDir, setReviewDir] = useState<Direction>('forward');
+  const [learnPages, setLearnPages] = useState(DEFAULT_SETTINGS.learnPagesPerDay);
+  const [reviewPages, setReviewPages] = useState(DEFAULT_SETTINGS.reviewPagesPerDay);
+
+  const knownPages = useMemo(() => [...known].reduce((a, id) => a + surahPages(id), 0), [known]);
+  const next = () => setStep((s) => Math.min(STEPS - 1, s + 1));
+  const back = () => setStep((s) => Math.max(0, s - 1));
+  const finish = (demo = false) => complete({ name, knownSurahs: [...known], learnDirection: learnDir, reviewDirection: reviewDir, learnPagesPerDay: learnPages, reviewPagesPerDay: reviewPages, demo });
+
+  if (step === 0) return <Welcome name={name} setName={setName} onStart={next} onDemo={() => complete({ name, knownSurahs: [], learnDirection: 'forward', reviewDirection: 'forward', learnPagesPerDay: 0.5, reviewPagesPerDay: 2, demo: true })} />;
+
   return (
-    <div className="pt-safe pb-safe mx-auto flex min-h-dvh max-w-md flex-col px-6">
-      <div className="flex flex-1 flex-col justify-center py-10">
-        <p className="font-display text-5xl font-semibold tracking-tight text-primary">WIRD</p>
-        <p className="ar mt-1 text-right text-3xl text-primary/70" lang="ar">
-          وِرْد
-        </p>
-        <h1 className="mt-8 font-display text-2xl font-semibold leading-snug">Entretenir ce que vous avez mémorisé, avec régularité.</h1>
-        <ul className="mt-5 space-y-3 text-[15px] leading-relaxed text-muted">
-          <li>
-            <b className="text-ink">La régularité</b> plutôt que la quantité.
-          </li>
-          <li>
-            <b className="text-ink">La consolidation</b> plutôt que l’accumulation.
-          </li>
-          <li>
-            <b className="text-ink">L’encouragement</b> plutôt que la culpabilisation : aucune dette de travail après une absence.
-          </li>
-        </ul>
+    <div className="flex min-h-dvh flex-col bg-bg">
+      <header className="pt-safe sticky top-0 z-20 bg-deep text-ivory">
+        <div className="mx-auto flex max-w-2xl items-center gap-3 px-5 py-3">
+          <button onClick={back} aria-label="Retour" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10">
+            <ArrowLeft size={20} />
+          </button>
+          <div className="flex flex-1 gap-1.5" aria-label={`Étape ${step} sur ${STEPS - 1}`}>
+            {Array.from({ length: STEPS - 1 }, (_, i) => (
+              <span key={i} className={cx('h-[3px] flex-1 rounded-full', i < step ? 'bg-gold' : 'bg-ivory/20')} />
+            ))}
+          </div>
+          <span className="text-xs font-semibold tabular-nums text-ivory/70">{step}/{STEPS - 1}</span>
+        </div>
+      </header>
+
+      {step === 1 && <KnownStep known={known} setKnown={setKnown} knownPages={knownPages} onNext={next} />}
+      {step === 2 && <DirectionStep key="learn" title="Dans quel sens apprendre de nouvelles sourates ?" hint="WIRD vous proposera la prochaine sourate à apprendre dans cet ordre, parmi celles que vous ne connaissez pas encore." value={learnDir} onChange={setLearnDir} known={known} showNext onNext={next} />}
+      {step === 3 && <DirectionStep key="review" title="Dans quel sens réviser vos sourates apprises ?" hint="Votre révision parcourt en continu ce que vous connaissez. Ce sens est indépendant de celui de l’apprentissage." value={reviewDir} onChange={setReviewDir} known={known} onNext={next} />}
+      {step === 4 && <ProgramStep learnPages={learnPages} reviewPages={reviewPages} setLearn={setLearnPages} setReview={setReviewPages} known={known} knownPages={knownPages} learnDir={learnDir} onNext={next} />}
+      {step === 5 && <Recap known={known} knownPages={knownPages} learnDir={learnDir} reviewDir={reviewDir} learnPages={learnPages} reviewPages={reviewPages} goTo={setStep} onFinish={() => finish()} />}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ 1 · Bienvenue
+function Welcome({ name, setName, onStart, onDemo }: { name: string; setName: (s: string) => void; onStart: () => void; onDemo: () => void }) {
+  return (
+    <div className="pt-safe pb-safe relative flex min-h-dvh flex-col overflow-hidden bg-deep text-ivory">
+      {/* motif : grand rub‘ al-hizb en filigrane */}
+      <svg viewBox="0 0 200 200" className="pointer-events-none absolute -right-24 -top-16 h-[420px] w-[420px] text-gold opacity-[0.13]" aria-hidden>
+        <rect x="45" y="45" width="110" height="110" fill="none" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="45" y="45" width="110" height="110" fill="none" stroke="currentColor" strokeWidth="1.2" transform="rotate(45 100 100)" />
+        <circle cx="100" cy="100" r="62" fill="none" stroke="currentColor" strokeWidth="0.8" />
+      </svg>
+      <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-7 py-12">
+        <p className="ar text-5xl text-gold" lang="ar">وِرْد</p>
+        <h1 className="mt-3 font-display text-[56px] font-semibold leading-none tracking-tight">WIRD</h1>
+        <Rule className="my-6 max-w-[180px]" />
+        <p className="font-display text-[22px] leading-snug text-ivory/95">Entretenir ce que vous avez mémorisé, et apprendre avec régularité.</p>
+        <p className="mt-4 text-[15px] leading-relaxed text-ivory/70">WIRD vous accompagne chaque jour dans l’apprentissage et la révision du Coran : une rotation continue, un renforcement doux de ce qui est fragile, et jamais de culpabilité.</p>
         <label className="mt-8 block">
-          <span className="label">Votre prénom (facultatif)</span>
-          <input className="input mt-2" value={name} onChange={(e) => setName(e.target.value)} placeholder="Pour une salutation personnalisée" autoComplete="given-name" maxLength={40} />
+          <span className="text-[11px] font-bold uppercase tracking-[.14em] text-ivory/60">Votre prénom (facultatif)</span>
+          <input className="mt-2 min-h-[48px] w-full rounded-[10px] border border-ivory/25 bg-white/5 px-4 text-ivory placeholder:text-ivory/40 focus:border-gold focus:outline-none" value={name} onChange={(e) => setName(e.target.value)} placeholder="Pour une salutation personnalisée" autoComplete="given-name" maxLength={40} />
         </label>
       </div>
-      <div className="flex flex-col gap-2 pb-6">
-        <button className="btn-primary" onClick={() => complete(name, false)}>
-          Commencer
+      <div className="relative mx-auto w-full max-w-md px-7 pb-8">
+        <button onClick={onStart} className="btn min-h-[52px] w-full bg-ivory text-deep hover:opacity-95">
+          Commencer <ArrowRight size={18} />
         </button>
-        <button className="btn-outline" onClick={() => complete(name, true)}>
-          Essayer avec des données de démonstration
+        <button onClick={onDemo} className="mt-2 w-full py-3 text-sm font-medium text-ivory/60 underline-offset-4 hover:text-ivory hover:underline">
+          Découvrir avec des données de démonstration
         </button>
-        <p className="mt-2 text-center text-xs leading-relaxed text-muted">Aucun compte requis. Vos données restent sur cet appareil. Les données de démonstration sont clairement identifiées et effaçables à tout moment.</p>
+        <p className="mt-1 text-center text-xs text-ivory/45">Sans compte · vos données restent sur cet appareil</p>
       </div>
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ 2 · Sourates déjà apprises
+function KnownStep({ known, setKnown, knownPages, onNext }: { known: Set<number>; setKnown: (s: Set<number>) => void; knownPages: number; onNext: () => void }) {
+  const [q, setQ] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const listRef = useRef<HTMLUListElement>(null);
+  const list = useMemo(() => SURAHS.filter((s) => matchSurah(s, q)), [q]);
+  const toggle = (id: number) => {
+    const n = new Set(known);
+    if (n.has(id)) n.delete(id);
+    else n.add(id);
+    setKnown(n);
+  };
+  const setMany = (ids: number[], on: boolean) => {
+    const n = new Set(known);
+    ids.forEach((i) => (on ? n.add(i) : n.delete(i)));
+    setKnown(n);
+  };
+  const range = (a: number, b: number) => Array.from({ length: Math.max(0, b - a + 1) }, (_, i) => a + i);
+  const f = Math.max(1, Math.min(114, parseInt(from) || 0));
+  const t = Math.max(1, Math.min(114, parseInt(to) || 0));
+
+  return (
+    <>
+      <div className="mx-auto w-full max-w-2xl flex-1 px-5 pb-32 pt-6">
+        <h1 className="font-display text-[26px] font-semibold leading-tight">Quelles sourates connaissez-vous déjà ?</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">Cochez celles que vous avez apprises. Elles entreront dans votre révision : « connue » ne veut pas dire « plus besoin de réviser ». Vous pourrez préciser verset par verset plus tard.</p>
+        <input className="input mt-4" placeholder="Rechercher (nom, numéro, arabe)" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une sourate" />
+        <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
+          <Chip onClick={() => setMany(range(1, 114), true)}>Tout cocher</Chip>
+          <Chip onClick={() => setKnown(new Set())}>Tout décocher</Chip>
+          <Chip onClick={() => setMany(range(78, 114), true)}>Juz ʿAmma (78–114)</Chip>
+          <Chip onClick={() => setMany(list.map((s) => s.id), true)}>Cocher la recherche</Chip>
+        </div>
+        <div className="mt-3 flex items-center gap-2 rounded-[10px] border border-line bg-surface px-3 py-2 text-sm">
+          <span className="text-muted">Cocher de la sourate</span>
+          <input inputMode="numeric" className="h-9 w-14 rounded-md border border-line bg-bg text-center" value={from} onChange={(e) => setFrom(e.target.value.replace(/\D/g, ''))} aria-label="De la sourate" />
+          <span className="text-muted">à</span>
+          <input inputMode="numeric" className="h-9 w-14 rounded-md border border-line bg-bg text-center" value={to} onChange={(e) => setTo(e.target.value.replace(/\D/g, ''))} aria-label="À la sourate" />
+          <button className="ml-auto rounded-md bg-deep px-3 py-2 text-xs font-semibold text-ivory disabled:opacity-40" disabled={!from || !to} onClick={() => setMany(range(Math.min(f, t), Math.max(f, t)), true)}>
+            Cocher
+          </button>
+        </div>
+        <ul ref={listRef} className="mt-4 divide-y divide-line/70 overflow-hidden rounded-xl border border-line bg-surface">
+          {list.map((s) => {
+            const on = known.has(s.id);
+            return (
+              <li key={s.id}>
+                <button role="checkbox" aria-checked={on} onClick={() => toggle(s.id)} className={cx('flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition active:bg-surface2', on && 'bg-good-soft/60')}>
+                  <SurahNumber n={s.id} size={38} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-semibold">{s.tr}</span>
+                    <span className="block text-xs text-muted">{s.fr} · {s.n} versets</span>
+                  </span>
+                  <span className="ar mr-1 text-xl leading-none" lang="ar">{s.ar}</span>
+                  <span className={cx('flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition', on ? 'border-good bg-good text-white' : 'border-line')}>{on && <Check size={15} strokeWidth={3} />}</span>
+                </button>
+              </li>
+            );
+          })}
+          {!list.length && <li className="p-8 text-center text-sm text-muted">Aucune sourate trouvée.</li>}
+        </ul>
+      </div>
+      <FastScroll targetRef={listRef} count={list.length} label={(i) => `${list[i]?.id}. ${list[i]?.tr}`} top={72} bottom={120} />
+      <Footer>
+        <div className="mb-2 flex items-center justify-between text-sm">
+          <span><b className="tabular-nums">{known.size}</b> <span className="text-muted">/ 114 sourates</span></span>
+          <span className="text-muted">≈ {formatPages(knownPages)}</span>
+        </div>
+        <div className="mb-3 h-1 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-gold transition-[width]" style={{ width: `${(known.size / 114) * 100}%` }} /></div>
+        <button className="btn-primary w-full" onClick={onNext}>{known.size ? 'Continuer' : 'Je n’en connais pas encore'}</button>
+      </Footer>
+    </>
+  );
+}
+
+const Chip = ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => (
+  <button onClick={onClick} className="shrink-0 rounded-full border border-line bg-surface px-3.5 py-2 text-[13px] font-semibold text-primary active:bg-surface2">{children}</button>
+);
+
+function Footer({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur-xl">
+      <div className="mx-auto max-w-2xl px-5 pb-4 pt-3">{children}</div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ 3 & 4 · Sens
+function DirectionStep({ title, hint, value, onChange, known, showNext, onNext }: { title: string; hint: string; value: Direction; onChange: (d: Direction) => void; known: Set<number>; showNext?: boolean; onNext: () => void }) {
+  const opts: { v: Direction; label: string; sub: string }[] = [
+    { v: 'forward', label: 'De Al-Fatiha vers An-Nas', sub: 'Sourate 1 → sourate 114' },
+    { v: 'backward', label: 'De An-Nas vers Al-Fatiha', sub: 'Sourate 114 → sourate 1' },
+  ];
+  const target = useMemo(() => {
+    if (!showNext) return null;
+    const verses: Record<number, VerseState> = {};
+    for (const id of known) for (let a = 1; a <= surahMeta(id).n; a++) verses[ayahId(id, a)] = newMemorizedVerse(ayahId(id, a), '2000-01-01');
+    return nextLearnTarget(verses, [], value);
+  }, [known, value, showNext]);
+  return (
+    <>
+      <div className="mx-auto w-full max-w-2xl flex-1 px-5 pb-32 pt-6">
+        <h1 className="font-display text-[26px] font-semibold leading-tight">{title}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">{hint}</p>
+        <div className="mt-6 space-y-3" role="radiogroup">
+          {opts.map((o) => (
+            <button key={o.v} role="radio" aria-checked={value === o.v} onClick={() => onChange(o.v)} className={cx('flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition', value === o.v ? 'border-deep bg-surface' : 'border-line bg-surface/60')}>
+              <span className={cx('flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2', value === o.v ? 'border-deep bg-deep text-ivory' : 'border-line')}>{value === o.v && <Check size={14} strokeWidth={3} />}</span>
+              <span className="flex-1">
+                <span className="block font-display text-[18px] font-semibold">{o.label}</span>
+                <span className="block text-sm text-muted">{o.sub}</span>
+              </span>
+              <span className="font-display text-2xl text-gold" aria-hidden>{o.v === 'forward' ? '→' : '←'}</span>
+            </button>
+          ))}
+        </div>
+        {showNext && (
+          <p className="mt-5 rounded-xl border border-line bg-surface px-4 py-3 text-sm leading-relaxed">
+            {target ? (<>Prochaine sourate proposée : <b>{target.surah}. {surahMeta(target.surah).tr}</b>{target.from > 1 ? ` (à partir du verset ${target.from})` : ''}.</>) : 'Vous avez coché tout le Coran : il n’y a plus de nouvelle sourate à apprendre.'}
+          </p>
+        )}
+      </div>
+      <Footer><button className="btn-primary w-full" onClick={onNext}>Continuer</button></Footer>
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ 5 · Programme quotidien
+export function PagesStepper({ value, onChange, min, max, label }: { value: number; onChange: (n: number) => void; min: number; max: number; label: string }) {
+  const set = (n: number) => onChange(Math.max(min, Math.min(max, Math.round(n * 2) / 2)));
+  return (
+    <div className="flex items-center gap-2">
+      <button aria-label={`Moins de pages ${label}`} className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface disabled:opacity-35" disabled={value <= min} onClick={() => set(value - 0.5)}><Minus size={18} /></button>
+      <div className="w-[88px] text-center">
+        <p className="font-display text-[30px] font-semibold leading-none tabular-nums">{new Intl.NumberFormat('fr-FR').format(value)}</p>
+        <p className="mt-1 text-[11px] font-bold uppercase tracking-[.12em] text-muted">{value > 1 ? 'pages' : 'page'}</p>
+      </div>
+      <button aria-label={`Plus de pages ${label}`} className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface disabled:opacity-35" disabled={value >= max} onClick={() => set(value + 0.5)}><Plus size={18} /></button>
+    </div>
+  );
+}
+
+function ProgramStep({ learnPages, reviewPages, setLearn, setReview, known, knownPages, learnDir, onNext }: { learnPages: number; reviewPages: number; setLearn: (n: number) => void; setReview: (n: number) => void; known: Set<number>; knownPages: number; learnDir: Direction; onNext: () => void }) {
+  void learnDir;
+  const allKnown = known.size === 114;
+  return (
+    <>
+      <div className="mx-auto w-full max-w-2xl flex-1 px-5 pb-32 pt-6">
+        <h1 className="font-display text-[26px] font-semibold leading-tight">Votre programme quotidien</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">Combien de pages du Mushaf souhaitez-vous apprendre et réviser chaque jour ? C’est un objectif, jamais une dette. Vous pourrez le modifier à tout moment dans Profil.</p>
+        <section className="mt-6 rounded-xl border border-line bg-surface p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div><p className="font-display text-lg font-semibold">À apprendre</p><p className="text-xs text-muted">0 pour ne pas apprendre de nouveau</p></div>
+            <PagesStepper value={learnPages} onChange={setLearn} min={0} max={5} label="à apprendre" />
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-muted">{allKnown ? 'Vous avez coché tout le Coran : rien de nouveau à apprendre.' : learnPages === 0 ? 'Aucun nouvel apprentissage ne sera proposé.' : 'Les nouvelles sourates sont proposées dans le sens choisi, par plages de versets.'}</p>
+        </section>
+        <section className="mt-3 rounded-xl border border-line bg-surface p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div><p className="font-display text-lg font-semibold">À réviser</p><p className="text-xs text-muted">Rotation de vos sourates apprises</p></div>
+            <PagesStepper value={reviewPages} onChange={setReview} min={0} max={20} label="à réviser" />
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-muted">
+            {known.size === 0 ? 'Aucune sourate apprise pour l’instant : la révision démarrera dès que vous aurez du contenu à réviser.' : reviewPages > knownPages ? `Vous connaissez environ ${formatPages(knownPages)} : la révision s’adaptera à ce contenu, sans rien inventer.` : `Vous connaissez environ ${formatPages(knownPages)} : un tour complet prendra environ ${Math.max(1, Math.ceil(knownPages / Math.max(0.5, reviewPages)))} jour(s).`}
+          </p>
+        </section>
+        <p className="mt-4 text-xs leading-relaxed text-muted">1 page = une page du Mushaf de Médine (604 pages). Le programme s’adapte à votre progression réelle ; une journée manquée ne crée aucun retard.</p>
+      </div>
+      <Footer><button className="btn-primary w-full" onClick={onNext}>Continuer</button></Footer>
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ 6 · Récapitulatif
+function Recap({ known, knownPages, learnDir, reviewDir, learnPages, reviewPages, goTo, onFinish }: { known: Set<number>; knownPages: number; learnDir: Direction; reviewDir: Direction; learnPages: number; reviewPages: number; goTo: (s: number) => void; onFinish: () => void }) {
+  const dir = (d: Direction) => (d === 'forward' ? 'Al-Fatiha → An-Nas' : 'An-Nas → Al-Fatiha');
+  const rows: { label: string; value: string; step: number }[] = [
+    { label: 'Sourates déjà apprises', value: known.size ? `${known.size} sourate${known.size > 1 ? 's' : ''} · ≈ ${formatPages(knownPages)}` : 'Aucune pour l’instant', step: 1 },
+    { label: 'Sens d’apprentissage', value: dir(learnDir), step: 2 },
+    { label: 'Sens de révision', value: dir(reviewDir), step: 3 },
+    { label: 'Programme quotidien', value: `${learnPages ? formatPages(learnPages) : 'Pas d’apprentissage'} à apprendre · ${reviewPages ? formatPages(reviewPages) : 'pas de révision'} à réviser`, step: 4 },
+  ];
+  return (
+    <>
+      <div className="mx-auto w-full max-w-2xl flex-1 px-5 pb-32 pt-6">
+        <h1 className="font-display text-[26px] font-semibold leading-tight">Tout est prêt</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">Voici votre configuration. Elle est enregistrée sur cet appareil et modifiable à tout moment depuis Profil › Paramètres du Wird.</p>
+        <ul className="mt-6 divide-y divide-line/70 overflow-hidden rounded-xl border border-line bg-surface">
+          {rows.map((r) => (
+            <li key={r.label} className="flex items-center gap-3 px-4 py-3.5">
+              <div className="min-w-0 flex-1"><p className="label">{r.label}</p><p className="mt-1 text-[15px] font-semibold">{r.value}</p></div>
+              <button onClick={() => goTo(r.step)} className="text-sm font-semibold text-primary">Modifier</button>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <Footer><button className="btn-primary w-full" onClick={onFinish}>Commencer à utiliser WIRD</button></Footer>
+    </>
   );
 }

@@ -62,15 +62,16 @@ function Detail({ surah }: { surah: number }) {
   }, [verses, surah, from, to]);
 
   return (
-    <SubPage title="" back="/wird/sourates">
-      <div className="-mt-12 mb-5 pl-12">
-        <p className="ar text-4xl leading-tight" lang="ar">{meta.ar}</p>
-        <h1 className="mt-1 font-display text-2xl font-semibold">{meta.tr}</h1>
-        <p className="text-sm text-muted">
-          Sourate {meta.id} · {meta.fr} · {meta.n} versets · {meta.t === 'M' ? 'mecquoise' : 'médinoise'}
-        </p>
-      </div>
-
+    <SubPage
+      title={meta.tr}
+      back="/wird/sourates"
+      sub={
+        <span className="flex items-baseline justify-between gap-3">
+          <span>Sourate {meta.id} · {meta.fr} · {meta.n} versets · {meta.t === 'M' ? 'mecquoise' : 'médinoise'}</span>
+          <span className="ar text-3xl leading-none text-gold" lang="ar">{meta.ar}</span>
+        </span>
+      }
+    >
       <section className="card p-5" aria-label="Progression de la sourate">
         <div className="flex items-center justify-between">
           <h2 className="label">Progression</h2>

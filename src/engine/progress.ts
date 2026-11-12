@@ -1,6 +1,7 @@
 import { ENGINE } from './config';
 import { addDays, diffDays } from './dates';
-import { HIZB_STARTS, SURAHS, TOTAL_VERSES, ayahId, hizbRange, surahMeta } from './quran';
+import { rangePages, verseWeight } from './pages';
+import { HIZB_STARTS, SURAHS, TOTAL_VERSES, ayahId, fromAyahId, hizbRange, surahMeta } from './quran';
 import type { HistoryEntry, VerseState } from './types';
 
 export type SurahState = 'none' | 'learning' | 'partial' | 'complete';
@@ -131,4 +132,49 @@ export function volumeByDay(history: HistoryEntry[], today: string, n: number): 
     out.push({ date: d, verses: map.get(d) ?? 0 });
   }
   return out;
+}
+
+// ---------- Vue des 114 sourates ----------
+
+/**
+ * État visuel d'une sourate (tableau des 114 cases). Dérivé uniquement des données réelles :
+ *  - reinforce : au moins un verset mémorisé est dans le circuit de renforcement (fragile) ;
+ *  - learned   : tous les versets sont mémorisés, aucun fragile ;
+ *  - learning  : des versets en apprentissage, ou sourate partiellement mémorisée ;
+ *  - none      : non commencée.
+ */
+export type CellState = 'learned' | 'learning' | 'reinforce' | 'none';
+
+export function cellState(st: SurahStats): CellState {
+  if (st.needsReinforcement) return 'reinforce';
+  if (st.state === 'complete') return 'learned';
+  if (st.state === 'partial' || st.state === 'learning') return 'learning';
+  return 'none';
+}
+
+/** Pages du Mushaf mémorisées (somme pondérée des versets mémorisés). */
+export function memorizedPages(verses: Record<number, VerseState>): number {
+  let s = 0;
+  for (const k in verses) if (verses[k].status === 'memorized') s += verseWeight(Number(k));
+  return s;
+}
+
+/** Pages travaillées par jour sur les N derniers jours (ancien → récent). */
+export function pagesByDay(history: HistoryEntry[], today: string, n: number): { date: string; pages: number }[] {
+  const map = new Map<string, number>();
+  for (const h of history) map.set(h.date, (map.get(h.date) ?? 0) + rangePages(h.surah, h.from, h.to));
+  const out: { date: string; pages: number }[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = addDays(today, -i);
+    out.push({ date: d, pages: map.get(d) ?? 0 });
+  }
+  return out;
+}
+
+/** Sourates dont au moins un verset appartient au hizb. */
+export function hizbSurahs(h: number): number[] {
+  const [a, b] = hizbRange(h);
+  const s1 = fromAyahId(a).surah;
+  const s2 = fromAyahId(b).surah;
+  return Array.from({ length: s2 - s1 + 1 }, (_, i) => s1 + i);
 }

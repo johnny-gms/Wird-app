@@ -1,6 +1,7 @@
 import { Bell, BellOff, CheckCircle2, Download, Minus, Plus, TriangleAlert, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ConfirmSheet, SubPage, Segmented, Toggle, toast } from '@/components/ui';
+import { PagesStepper } from '@/screens/Onboarding';
 import type { Direction, NotificationPrefs } from '@/engine/types';
 import { disableNotifications, enableNotifications, getPushStatus, sendLocalTest, serverConfigured, type PushStatus } from '@/notifications/client';
 import { dateKey } from '@/engine/dates';
@@ -30,34 +31,40 @@ function Field({ title, hint, children }: { title: string; hint?: string; childr
 }
 
 // ------------------------------------------------------------------ Paramètres du Wird
+const DIR_OPTS: { value: Direction; label: string }[] = [
+  { value: 'forward', label: 'Al-Fatiha → An-Nas' },
+  { value: 'backward', label: 'An-Nas → Al-Fatiha' },
+];
+
 export function ProfileWird() {
   const { settings, updateSettings } = useWird();
   return (
     <SubPage title="Paramètres du Wird" back="/profil">
-      <h2 className="label mb-2">Rotation des révisions</h2>
-      <section className="card p-4">
-        <Segmented<Direction> value={settings.direction} onChange={(direction) => updateSettings({ direction })} options={[{ value: 'forward', label: 'Début → fin' }, { value: 'backward', label: 'Fin → début' }]} />
-        <p className="mt-3 text-xs leading-relaxed text-muted">Votre position dans la rotation est conservée : en changeant de sens, vous repartez de là où vous en êtes. Un verset mal récité ne quitte jamais la rotation.</p>
-      </section>
-      <section className="card mt-3 divide-y divide-line/60">
-        <Field title="Révision par jour" hint="Quantité indicative de la rotation générale. Ce n’est jamais une dette : ce qui n’est pas fait n’est pas reporté.">
-          <Stepper value={settings.reviewVersesPerDay} min={5} max={100} step={5} unit="versets" onChange={(n) => updateSettings({ reviewVersesPerDay: n })} />
+      <h2 className="label mb-2">Programme quotidien</h2>
+      <section className="card divide-y divide-line/70">
+        <Field title="Pages à apprendre" hint="Nouvelles sourates, en pages du Mushaf de Médine. 0 = pas de nouvel apprentissage. Si rien ne reste à apprendre, rien n’est inventé.">
+          <PagesStepper value={settings.learnPagesPerDay} min={0} max={5} onChange={(n) => updateSettings({ learnPagesPerDay: n })} label="à apprendre" />
+        </Field>
+        <Field title="Pages à réviser" hint="Rotation de vos sourates apprises. Si vous en connaissez moins, la révision se limite à ce contenu. Jamais une dette : ce qui n’est pas fait n’est pas reporté.">
+          <PagesStepper value={settings.reviewPagesPerDay} min={0} max={20} onChange={(n) => updateSettings({ reviewPagesPerDay: n })} label="à réviser" />
         </Field>
         <Field title="Renforcement maximum" hint="Plafond de versets fragiles proposés par jour, pour ne jamais surcharger.">
           <Stepper value={settings.reinforceVersesPerDay} min={5} max={60} step={5} unit="versets" onChange={(n) => updateSettings({ reinforceVersesPerDay: n })} />
         </Field>
       </section>
 
-      <h2 className="label mb-2 mt-6">Nouvel apprentissage</h2>
-      <section className="card divide-y divide-line/60">
-        <Field title="Proposer un apprentissage" hint="Si désactivé, aucun nouvel apprentissage n’apparaît dans le programme du jour.">
-          <Toggle label="Proposer un nouvel apprentissage" checked={settings.learningEnabled} onChange={(learningEnabled) => updateSettings({ learningEnabled })} />
-        </Field>
-        <Field title="Taille d’un élément" hint="Nombre de versets travaillés à chaque fois. Vous n’êtes soumis à aucune quantité quotidienne.">
-          <Stepper value={settings.learningChunk} min={1} max={10} unit="versets" onChange={(n) => updateSettings({ learningChunk: n })} />
-        </Field>
+      <h2 className="label mb-2 mt-6">Sens d’apprentissage</h2>
+      <section className="card p-4">
+        <Segmented<Direction> value={settings.learnDirection} onChange={(learnDirection) => updateSettings({ learnDirection })} options={DIR_OPTS} />
+        <p className="mt-3 text-xs leading-relaxed text-muted">Ordre dans lequel WIRD propose les nouvelles sourates à apprendre. Un apprentissage déjà en cours n’est pas interrompu.</p>
       </section>
-      <p className="mt-4 text-xs leading-relaxed text-muted">Les intervalles de renforcement (lendemain, 2 jours, 4 jours, 7 puis 21 jours) sont centralisés dans <code>src/engine/config.ts</code>.</p>
+
+      <h2 className="label mb-2 mt-6">Sens de révision</h2>
+      <section className="card p-4">
+        <Segmented<Direction> value={settings.direction} onChange={(direction) => updateSettings({ direction })} options={DIR_OPTS} />
+        <p className="mt-3 text-xs leading-relaxed text-muted">Indépendant du sens d’apprentissage. Votre position dans la rotation est conservée : en changeant de sens, vous repartez de là où vous en êtes. Un verset mal récité ne quitte jamais la rotation.</p>
+      </section>
+      <p className="mt-4 text-xs leading-relaxed text-muted">Les intervalles de renforcement (lendemain, 2 jours, 4 jours, puis 7 et 21 jours) sont centralisés dans <code>src/engine/config.ts</code>.</p>
     </SubPage>
   );
 }
@@ -242,9 +249,10 @@ export function ProfileAbout() {
       </section>
       <h2 className="label mb-2 mt-6">Sources et crédits</h2>
       <ul className="card space-y-2 p-5 text-sm leading-relaxed text-muted">
-        <li><b className="text-ink">Texte coranique de référence</b> : texte uthmani de The Noble Qur’an Encyclopedia, via le paquet <i>quran-json</i> (licence CC BY 4.0). Noms et nombres de versets des 114 sourates issus des mêmes données.</li>
-        <li><b className="text-ink">Découpage en hizb</b> : paquet <i>quran-meta</i> (licence MIT), Mushaf de Médine (Hafs).</li>
-        <li><b className="text-ink">Polices</b> : Manrope, Fraunces, Scheherazade New (SIL OFL).</li>
+        <li><b className="text-ink">Texte coranique</b> : <i>Tanzil Quran Text (Uthmani, version 1.0.2)</i>, © 2008-2010 <a className="font-semibold text-primary underline" href="http://tanzil.net" target="_blank" rel="noreferrer">Tanzil.net</a>, licence Creative Commons Attribution 3.0. Texte reproduit sans modification ; seule la Basmala, écrite en tête du verset 1 dans le fichier source, est séparée pour conserver la numérotation exacte des versets. Mises à jour : tanzil.net/updates.</li>
+        <li><b className="text-ink">Noms des sourates</b> (translittération, titres français) : paquet <i>quran-json</i> (CC BY 4.0).</li>
+        <li><b className="text-ink">Hizb et pages du Mushaf de Médine</b> : paquet <i>quran-meta</i> (MIT).</li>
+        <li><b className="text-ink">Polices</b> : Manrope, Playfair Display, Scheherazade New (SIL OFL).</li>
       </ul>
       <p className="mt-4 text-xs leading-relaxed text-muted">Le texte affiché sert d’aide à la mémorisation. Pour une récitation exacte, référez-vous toujours à un Mushaf imprimé et à un enseignant qualifié.</p>
     </SubPage>

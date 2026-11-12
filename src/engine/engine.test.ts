@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, ENGINE } from './config';
-import { buildPlan, completeGoal, evaluateItem, goalProgress, memorizedIds, startItem, skipItem, type Core } from './plan';
+import { buildPlan, completeGoal, evaluateItem, goalProgress, memorizedIds, nextLearnTarget, skipItem, itemPages, type Core } from './plan';
+import { TOTAL_PAGES, idsPages, rangePages } from './pages';
 import { allHizbStats, currentStreak, overall, surahStats } from './progress';
 import { ayahId, fromAyahId, hizbRange, SURAHS, TOTAL_VERSES } from './quran';
+import { readFileSync } from 'node:fs';
 import { periodReport } from './reports';
 import { nextChunk } from './rotation';
 import { applyGrade, newLearningVerse, newMemorizedVerse } from './scheduling';
@@ -17,7 +19,7 @@ const mkCore = (verses: Record<number, VerseState>, over: Partial<Core> = {}): C
   verses,
   goals: [],
   rotation: { cursor: null, cycles: 0 },
-  settings: { ...DEFAULT_SETTINGS, reviewVersesPerDay: 20 },
+  settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 1.5, learnPagesPerDay: 0.5 },
   plan: null,
   history: [],
   ...over,
@@ -41,6 +43,26 @@ describe('données du Coran', () => {
     }
     expect(prevEnd).toBe(TOTAL_VERSES);
     expect(fromAyahId(hizbRange(2)[0])).toEqual({ surah: 2, ayah: 75 });
+  });
+});
+
+describe('texte Tanzil intégré', () => {
+  const t = JSON.parse(readFileSync('public/data/quran-uthmani.json', 'utf8')) as { s: string[][]; bismillah: string; bismillahVariants: Record<string, string>; license: string };
+  it('114 sourates, 6236 versets, numérotation exacte', () => {
+    expect(t.s).toHaveLength(114);
+    expect(t.s.flat()).toHaveLength(TOTAL_VERSES);
+    t.s.forEach((v, i) => expect(v.length).toBe(SURAHS[i].n));
+  });
+  it('Basmala : verset 1 d’Al-Fatiha ; séparée du verset 1 des autres sourates (sauf At-Tawba)', () => {
+    expect(t.s[0][0]).toBe(t.bismillah);
+    expect(t.s[1][0]).toBe('الٓمٓ');
+    expect(t.s[8][0].startsWith(t.bismillah.slice(0, 6))).toBe(false); // At-Tawba : pas de Basmala
+    expect(Object.keys(t.bismillahVariants)).toEqual(['95', '97']);
+    expect(t.s.flat().every((v) => v.length > 0 && !v.includes('\r'))).toBe(true);
+  });
+  it('conserve la mention de licence et de provenance', () => {
+    expect(t.license).toMatch(/Tanzil/);
+    expect(t.license).toMatch(/Creative Commons Attribution 3.0/);
   });
 });
 
@@ -147,12 +169,12 @@ describe('programme du jour', () => {
 
   it('évaluer fait avancer la rotation ; un élément ignoré la retient', () => {
     const verses = { ...mem(1, 1, 7), ...mem(2, 1, 60) };
-    let c = mkCore(verses, { settings: { ...DEFAULT_SETTINGS, reviewVersesPerDay: 30 } });
+    let c = mkCore(verses, { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 3 } });
     c = { ...c, plan: buildPlan(c, D, null) };
     const rev = c.plan!.items.filter((i) => i.kind === 'review');
     expect(rev.length).toBeGreaterThanOrEqual(3);
     // on évalue le 2e avant le 1er : le curseur ne bouge pas
-    c = evaluateItem(startItem(c, rev[1].id), rev[1].id, 'mastered', new Date(), D);
+    c = evaluateItem(c, rev[1].id, 'mastered', new Date(), D);
     expect(c.rotation.cursor).toBeNull();
     c = evaluateItem(c, rev[0].id, 'hesitant', new Date(), D);
     expect(c.rotation.cursor).toBe(rev[1].endCursor);
@@ -183,33 +205,90 @@ describe('programme du jour', () => {
     const keys = rebuilt.items.map((i) => `${i.kind}${i.surah}:${i.from}-${i.to}`);
     expect(new Set(keys).size).toBe(keys.length);
     expect(rebuilt.items.find((i) => i.id === first.id)!.status).toBe('done');
-    const total = rebuilt.items.filter((i) => i.kind === 'review').reduce((a, i) => a + (i.to - i.from + 1), 0);
-    expect(total).toBe(20);
+    const pages = rebuilt.items.filter((i) => i.kind === 'review').reduce((a, i) => a + itemPages(i), 0);
+    expect(pages).toBeGreaterThanOrEqual(1.5 - 0.05); // objectif atteint (au morceau près)
+    expect(pages).toBeLessThan(1.5 + 1);
   });
 });
 
 describe('nouvel apprentissage', () => {
   it('avance par segments, reste en place si difficile, puis passe en mémorisé', () => {
-    const goal: LearningGoal = { id: 'g1', surah: 78, from: 1, to: 12, cursor: 1, paused: false, createdAt: D, completedAt: null };
+    const goal: LearningGoal = { id: 'g1', surah: 78, from: 1, to: 25, cursor: 1, paused: false, createdAt: D, completedAt: null };
     const verses: Record<number, VerseState> = {};
-    for (let a = 1; a <= 12; a++) verses[ayahId(78, a)] = newLearningVerse(ayahId(78, a), D);
-    let c = mkCore(verses, { goals: [goal] });
+    for (let a = 1; a <= 25; a++) verses[ayahId(78, a)] = newLearningVerse(ayahId(78, a), D);
+    let c = mkCore(verses, { goals: [goal], settings: { ...DEFAULT_SETTINGS, learnPagesPerDay: 0.5, reviewPagesPerDay: 0 } });
     c = { ...c, plan: buildPlan(c, D, null) };
     let learn = c.plan!.items.find((i) => i.kind === 'learn')!;
-    expect([learn.from, learn.to]).toEqual([1, 5]);
+    expect(learn.from).toBe(1);
+    const firstTo = learn.to;
+    expect(firstTo).toBeLessThanOrEqual(ENGINE.chunkSize);
     c = evaluateItem(c, learn.id, 'difficult', new Date(), D);
     expect(c.goals[0].cursor).toBe(1); // difficile : on reste sur ces versets
     c = { ...c, plan: buildPlan(c, '2026-03-11', c.plan) };
     learn = c.plan!.items.find((i) => i.kind === 'learn')!;
-    expect([learn.from, learn.to]).toEqual([1, 5]);
+    expect([learn.from, learn.to]).toEqual([1, firstTo]);
     c = evaluateItem(c, learn.id, 'mastered', new Date(), '2026-03-11');
-    expect(c.goals[0].cursor).toBe(6);
-    expect(goalProgress(c.goals[0])).toEqual({ done: 5, total: 12 });
-    expect(memorizedIds(c.verses)).toHaveLength(0); // pas encore mémorisé : marquage manuel
+    expect(c.goals[0].cursor).toBe(firstTo + 1);
+    expect(goalProgress(c.goals[0])).toEqual({ done: firstTo, total: 25 });
+    expect(memorizedIds(c.verses)).toHaveLength(0); // objectif manuel : marquage manuel
     c = completeGoal(c, 'g1', '2026-03-12');
-    expect(memorizedIds(c.verses)).toHaveLength(12);
+    expect(memorizedIds(c.verses)).toHaveLength(25);
     expect(c.verses[ayahId(78, 1)].reinforceDue).toBe('2026-03-13'); // confirmation dès le lendemain
-    expect(c.goals[0].completedAt).toBe('2026-03-12');
+  });
+
+  it('un élément difficile ne fait pas « sauter » les suivants (budget de 2 pages → plusieurs segments)', () => {
+    const goal: LearningGoal = { id: 'g1', surah: 2, from: 1, to: 60, cursor: 1, paused: false, createdAt: D, completedAt: null };
+    const verses: Record<number, VerseState> = {};
+    for (let a = 1; a <= 60; a++) verses[ayahId(2, a)] = newLearningVerse(ayahId(2, a), D);
+    let c = mkCore(verses, { goals: [goal], settings: { ...DEFAULT_SETTINGS, learnPagesPerDay: 2, reviewPagesPerDay: 0 } });
+    c = { ...c, plan: buildPlan(c, D, null) };
+    const learn = c.plan!.items.filter((i) => i.kind === 'learn');
+    expect(learn.length).toBeGreaterThanOrEqual(2);
+    c = evaluateItem(c, learn[0].id, 'failed', new Date(), D);
+    c = evaluateItem(c, learn[1].id, 'mastered', new Date(), D);
+    expect(c.goals[0].cursor).toBe(1);
+  });
+
+  it('apprentissage automatique : prochaine sourate selon le sens, indépendant du sens de révision', () => {
+    const known = mem(1, 1, 7, mem(2, 1, 286, mem(3, 1, 150)));
+    expect(nextLearnTarget(known, [], 'forward')).toMatchObject({ surah: 3, from: 151 });
+    expect(nextLearnTarget(known, [], 'backward')).toMatchObject({ surah: 114, from: 1, to: 6 });
+    const all: Record<number, VerseState> = {};
+    for (const s of SURAHS) mem(s.id, 1, s.n, all);
+    expect(nextLearnTarget(all, [], 'forward')).toBeNull();
+  });
+
+  it('objectif auto : terminé et mémorisé dès que tout est parcouru', () => {
+    const goal: LearningGoal = { id: 'a1', surah: 112, from: 1, to: 4, cursor: 1, paused: false, createdAt: D, completedAt: null, auto: true };
+    const verses: Record<number, VerseState> = {};
+    for (let a = 1; a <= 4; a++) verses[ayahId(112, a)] = newLearningVerse(ayahId(112, a), D);
+    let c = mkCore(verses, { goals: [goal], settings: { ...DEFAULT_SETTINGS, learnPagesPerDay: 1, reviewPagesPerDay: 0 } });
+    c = { ...c, plan: buildPlan(c, D, null) };
+    c = evaluateItem(c, c.plan!.items[0].id, 'mastered', new Date(), D);
+    expect(c.goals[0].completedAt).toBe(D);
+    expect(memorizedIds(c.verses)).toHaveLength(4);
+  });
+});
+
+describe('pages du Mushaf', () => {
+  it('604 pages, poids cohérents', () => {
+    expect(TOTAL_PAGES).toBe(604);
+    const all = Array.from({ length: TOTAL_VERSES }, (_, i) => i + 1);
+    expect(idsPages(all)).toBeCloseTo(604, 6);
+    expect(rangePages(1, 1, 7)).toBeCloseTo(1, 6); // Al-Fatiha = page 1
+  });
+});
+
+describe('adaptation du programme', () => {
+  it('peu de contenu : la révision se limite à ce que l’utilisateur connaît, sans inventer', () => {
+    const c = mkCore(mem(112, 1, 4), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 10, learnPagesPerDay: 2 } });
+    const plan = buildPlan(c, D, null);
+    expect(plan.items.filter((i) => i.kind === 'review')).toHaveLength(1);
+    expect(plan.items.some((i) => i.kind === 'learn')).toBe(false); // aucun objectif d'apprentissage : rien d'inventé
+  });
+  it('objectifs à 0 : pas de travail de ce type', () => {
+    const c = mkCore(mem(1, 1, 7), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 0, learnPagesPerDay: 0 } });
+    expect(buildPlan(c, D, null).items).toHaveLength(0);
   });
 });
 

@@ -7,7 +7,9 @@ import { formatDuration, rangeLabel, surahMeta } from '@/engine/quran';
 import { useToday } from '@/lib/hooks';
 import { planCounts } from '@/lib/plan';
 import { useWird } from '@/store/useWird';
-import { Page, ProgressBar } from '@/components/ui';
+import { ProgressBar, Screen } from '@/components/ui';
+import { formatPages } from '@/engine/pages';
+import { itemPages } from '@/engine/plan';
 
 export default function Bilan() {
   const nav = useNavigate();
@@ -20,19 +22,15 @@ export default function Bilan() {
   const complete = c.open === 0;
   const learnToday = (plan?.items ?? []).filter((i) => i.kind === 'learn' && i.status === 'done');
 
+  const donePages = (plan?.items ?? []).filter((i) => i.status === 'done').reduce((a, i) => a + itemPages(i), 0);
   return (
-    <Page className="pt-10">
-      <div className="text-center">
-        <span className="mx-auto flex h-16 w-16 animate-pop items-center justify-center rounded-full bg-soft text-primary">
-          <Check size={30} strokeWidth={2.4} />
-        </span>
-        <h1 className="mt-5 font-display text-3xl font-semibold leading-tight">{complete ? 'Votre Wird du jour est accompli' : 'Bien joué pour aujourd’hui'}</h1>
-        <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-muted">
-          {complete ? 'Qu’Allah accepte votre effort. À demain, in châ’ Allah.' : 'Ce qui reste peut attendre : rien n’est reporté ni dû. Reprenez quand vous voulez.'}
-        </p>
+    <Screen title={complete ? 'Séance accomplie' : 'Bien joué pour aujourd’hui'} sub={complete ? 'Qu’Allah accepte votre effort. À demain, in châ’ Allah.' : 'Ce qui reste peut attendre : rien n’est reporté ni dû.'}>
+      <div className="flex items-center gap-4 rounded-xl border border-gold/40 bg-surface p-4">
+        <span className="flex h-12 w-12 shrink-0 animate-pop items-center justify-center rounded-full bg-deep text-gold"><Check size={24} strokeWidth={2.4} /></span>
+        <p className="text-sm leading-relaxed text-muted">Votre bilan est enregistré : les règles de progression et de renforcement ont été appliquées. <b className="text-ink">{formatPages(donePages)}</b> travaillées aujourd’hui.</p>
       </div>
 
-      <section className="card mt-8 p-5" aria-label="Bilan">
+      <section className="card mt-4 p-5" aria-label="Bilan">
         <div className="grid grid-cols-3 gap-2 text-center">
           <Big n={summary.verses} l="versets travaillés" />
           <Big n={summary.mastered} l="maîtrisés" tone="text-good" />
@@ -91,7 +89,7 @@ export default function Bilan() {
         <Link to="/" className="btn-primary">Retour à l’accueil</Link>
         <Link to="/progression/general" className="btn-ghost">Voir ma progression</Link>
       </div>
-    </Page>
+    </Screen>
   );
 }
 
