@@ -160,7 +160,7 @@ describe('rotation par Hizb', () => {
     for (let i = 1; i < chunks.length; i++) expect(chunks[i].hizb).toBeGreaterThanOrEqual(chunks[i - 1].hizb);
     expect(chunks.some((c) => c.hizb === 1) && chunks.some((c) => c.hizb === 2)).toBe(true);
     expect(chunks.find((c) => c.hizb === 2)!.from).toBe(75);
-    expect(chunks.find((c) => c.hizb === 1)!.to).toBe(74);
+    expect(Math.max(...chunks.filter((c) => c.hizb === 1).map((c) => c.to))).toBe(74);
   });
   it('un verset difficile reste dans la rotation et revient aussi en renforcement', () => {
     let c = mkCore(mem(2, 1, 10));
