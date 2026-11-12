@@ -8,3 +8,9 @@
 - **Conservé en plus** (exigé par la spécification, absent de la référence) : suivi des hizb, objectifs personnels, lien vers le tableau des 114 sourates.
 - **Adaptations** : « versets » au lieu de « passages » ; tuile « pages mémorisées » à la place de « versets mémorisés » (le nombre de versets n'est pas une statistique principale) ; « temps actif mesuré » au lieu de « estimé » ; l'objectif de jours par semaine n'est affiché que s'il a été défini (aucun objectif imposé).
 - Les anciennes URL `/progression/<onglet>` redirigent vers `/progression`.
+
+## Synchronisation multi-appareils (état : moteur et serveur prêts, non activés)
+- Fusion **par enregistrement** (verset, objectif, corbeille, réglage, profil, rotation, évaluation) avec une horloge hybride (HLC) : la modification la plus récente gagne, les suppressions sont propagées, l'historique est fusionné (aucune évaluation perdue), rien n'est renvoyé en écho. Code : `src/sync/{hlc,records,merge,engine}.ts`, testé avec deux appareils simulés.
+- Serveur : `/api/sync/push|pull` (`worker/src/sync.ts`, table `sync_records`), isolés par compte. Sans authentificateur branché, ils répondent 501 `auth_not_configured`.
+- **Non activée dans l'application** tant que la connexion Google / Apple n'existe pas (reportée à ta demande). Programme du jour et séance en cours restent propres à chaque appareil.
+- Reste à faire à l'activation : brancher `SyncEngine.track` sur la persistance, persister `meta`/`cursor`, déclencher `sync` au retour réseau, ajouter l'authentificateur Google/Apple.
