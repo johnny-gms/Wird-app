@@ -1,13 +1,11 @@
-import { Check, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { SurahPickerList } from '@/components/SurahPickerList';
 import { ConfirmSheet, Empty, GradeChip, KindBadge, ProgressBar, Segmented, Sheet, cx } from '@/components/ui';
-import { GRADE_LABEL } from '@/engine/config';
-import { addDays, endOfMonth, parseKey, startOfMonth, startOfWeek } from '@/engine/dates';
+import { addDays, startOfWeek } from '@/engine/dates';
 import { activeDaySet, activeDaysIn, surahStats } from '@/engine/progress';
 import { rangeLabel, surahMeta } from '@/engine/quran';
-import { periodReport } from '@/engine/reports';
-import type { Grade, GoalType, PersonalGoal } from '@/engine/types';
+import type { GoalType, PersonalGoal } from '@/engine/types';
 import { formatDateShort, useToday } from '@/lib/hooks';
 import { useWird } from '@/store/useWird';
 
@@ -54,82 +52,6 @@ export function History() {
         );
       })}
       {groups.length > limit && <button className="btn-outline w-full" onClick={() => setLimit(limit + 7)}>Voir plus</button>}
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------ Bilans
-export function Reports() {
-  const today = useToday();
-  const { history, progressLog } = useWird();
-  const [mode, setMode] = useState<'week' | 'month'>('week');
-  const [offset, setOffset] = useState(0);
-  const { from, to, label } = useMemo(() => {
-    if (mode === 'week') {
-      const f = addDays(startOfWeek(today), offset * 7);
-      const t = addDays(f, 6);
-      return { from: f, to: t, label: `${formatDateShort(f)} → ${formatDateShort(t)}` };
-    }
-    const d = parseKey(today);
-    const m = new Date(d.getFullYear(), d.getMonth() + offset, 1, 12);
-    const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-01`;
-    return { from: startOfMonth(key), to: endOfMonth(key), label: new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(m) };
-  }, [mode, offset, today]);
-  const r = useMemo(() => periodReport(history, progressLog, from, to), [history, progressLog, from, to]);
-  const total = r.verses || 1;
-  const GR: Grade[] = ['mastered', 'hesitant', 'difficult', 'failed'];
-  const barTone: Record<Grade, string> = { mastered: 'bg-good', hesitant: 'bg-warn', difficult: 'bg-hard', failed: 'bg-alert' };
-
-  return (
-    <div className="space-y-3">
-      <Segmented value={mode} onChange={(m) => { setMode(m); setOffset(0); }} options={[{ value: 'week', label: 'Semaine' }, { value: 'month', label: 'Mois' }]} />
-      <div className="flex items-center justify-between">
-        <button onClick={() => setOffset(offset - 1)} aria-label="Période précédente" className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-surface2"><ChevronLeft /></button>
-        <p className="text-sm font-semibold capitalize">{label}</p>
-        <button onClick={() => setOffset(offset + 1)} disabled={offset >= 0} aria-label="Période suivante" className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-surface2 disabled:opacity-30"><ChevronRight /></button>
-      </div>
-      {r.items === 0 ? (
-        <Empty title="Aucun travail sur cette période">Les bilans se construisent à partir de vos évaluations réelles. Rien n’est estimé.</Empty>
-      ) : (
-        <>
-          <section className="card grid grid-cols-3 gap-2 p-5 text-center">
-            <div><p className="font-display text-3xl font-semibold tabular-nums">{r.activeDays}</p><p className="text-xs text-muted">jour{r.activeDays > 1 ? 's' : ''} actif{r.activeDays > 1 ? 's' : ''} / {r.periodDays}</p></div>
-            <div><p className="font-display text-3xl font-semibold tabular-nums">{r.verses}</p><p className="text-xs text-muted">versets travaillés</p></div>
-            <div><p className="font-display text-3xl font-semibold tabular-nums">{r.surahs.length}</p><p className="text-xs text-muted">sourate{r.surahs.length > 1 ? 's' : ''}</p></div>
-          </section>
-          <section className="card p-5">
-            <h3 className="label mb-3">Évaluations</h3>
-            <div className="flex h-2.5 overflow-hidden rounded-full bg-surface2">
-              {GR.map((g) => r.byGrade[g] > 0 && <div key={g} className={barTone[g]} style={{ width: `${(r.byGrade[g] / total) * 100}%` }} />)}
-            </div>
-            <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-              {GR.map((g) => <li key={g} className="flex items-center gap-2"><i className={cx('h-2.5 w-2.5 rounded-full', barTone[g])} /><span className="text-muted">{GRADE_LABEL[g]}</span><b className="ml-auto tabular-nums">{r.byGrade[g]}</b></li>)}
-            </ul>
-          </section>
-          {r.memorizedDelta !== null && r.memorizedDelta !== 0 && (
-            <section className="card p-5"><h3 className="label">Progrès</h3><p className="mt-2 text-sm">{r.memorizedDelta > 0 ? `Votre mémorisation suivie a progressé de ${r.memorizedDelta} verset${r.memorizedDelta > 1 ? 's' : ''} sur cette période.` : `${-r.memorizedDelta} verset${-r.memorizedDelta > 1 ? 's' : ''} retiré${-r.memorizedDelta > 1 ? 's' : ''} du suivi sur cette période.`}</p></section>
-          )}
-          <section className="card p-5">
-            <h3 className="label">Difficultés récurrentes</h3>
-            {r.difficulties.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">Aucun verset n’a été jugé difficile à répétition. 👍</p>
-            ) : (
-              <>
-                <p className="mb-2 mt-1 text-xs text-muted">Versets évalués « difficile » ou « non maîtrisé » au moins deux fois.</p>
-                <ul className="divide-y divide-line/60">
-                  {r.difficulties.map((d) => <li key={`${d.surah}-${d.from}`} className="py-2.5 text-sm"><b>{surahMeta(d.surah).tr}</b> <span className="text-muted">· {rangeLabel(d.surah, d.from, d.to).replace(/^Sourate \d+ — /, '')}</span></li>)}
-                </ul>
-              </>
-            )}
-          </section>
-          <section className="card p-5">
-            <h3 className="label mb-2">Sourates travaillées</h3>
-            <ul className="space-y-1.5">
-              {r.surahs.slice(0, 8).map((s) => <li key={s.surah} className="flex justify-between text-sm"><span>{s.surah}. {surahMeta(s.surah).tr}</span><span className="text-muted tabular-nums">{s.verses} versets</span></li>)}
-            </ul>
-          </section>
-        </>
-      )}
     </div>
   );
 }

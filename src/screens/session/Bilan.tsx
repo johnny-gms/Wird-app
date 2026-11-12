@@ -87,7 +87,7 @@ export default function Bilan() {
           </button>
         )}
         <Link to="/" className="btn-primary">Retour à l’accueil</Link>
-        <Link to="/progression/general" className="btn-ghost">Voir ma progression</Link>
+        <Link to="/progression" className="btn-ghost">Voir ma progression</Link>
       </div>
     </Screen>
   );

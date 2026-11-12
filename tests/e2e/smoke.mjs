@@ -169,12 +169,12 @@ await page.screenshot({ path: `${OUT}/09-bilan.png`, fullPage: true });
 
 // ---------- Persistance & hors ligne ----------
 await settle(page);
-await page.goto(BASE + '/progression/historique');
+await page.goto(BASE + '/progression');
 await page.getByText(/Non maîtrisé/).first().waitFor();
 await page.reload();
 await page.getByText(/Non maîtrisé/).first().waitFor();
 ok(true, 'historique persistant après rechargement');
-for (const [path, text, shot] of [['/progression/general', 'Progression générale', '10-progress'], ['/progression/hizb', 'Un hizb est', '11-hizb'], ['/profil', 'Apparence', '12-profile'], ['/profil/notifications', 'Nos règles', '13-notifs']]) {
+for (const [path, text, shot] of [['/progression', 'Vue d’ensemble', '10-progress'], ['/progression', 'Un hizb est', '11-hizb'], ['/profil', 'Apparence', '12-profile'], ['/profil/notifications', 'Nos règles', '13-notifs']]) {
   await page.goto(BASE + path);
   await page.getByText(text).first().waitFor();
   await page.screenshot({ path: `${OUT}/${shot}.png` });

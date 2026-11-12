@@ -110,7 +110,7 @@ await p2.evaluate(async () => {
 await p2.reload();
 await p2.getByText(/Bonjour|Bon après-midi|Bonsoir/).first().waitFor();
 ok(await p2.getByText('Ancien').first().isVisible(), 'migration : profil conservé, aucun retour au parcours de premier lancement');
-await p2.goto(BASE + '/progression/historique');
+await p2.goto(BASE + '/progression');
 await p2.getByText('Quelques hésitations').first().waitFor();
 ok(true, 'migration : historique conservé');
 await p2.goto(BASE + '/profil/wird');
@@ -145,7 +145,7 @@ await page.getByText('Vos données vous appartiennent').waitFor();
 await settle(page);
 await page.locator('input[type=file]').setInputFiles(path);
 await page.getByText('Sauvegarde restaurée').waitFor();
-await page.goto(BASE + '/progression/historique');
+await page.goto(BASE + '/progression');
 await page.getByText(/Maîtrisé|Non maîtrisé/).first().waitFor();
 ok(true, 'import : historique restauré');
 

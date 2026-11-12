@@ -30,6 +30,7 @@ export default {
         'hard-soft': v('hard-soft'),
         alert: v('alert'),
         'alert-soft': v('alert-soft'),
+        sage: '#8fa896',
         neutral: v('neutral'),
         'neutral-ink': v('neutral-ink'),
       },
