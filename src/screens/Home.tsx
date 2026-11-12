@@ -1,7 +1,7 @@
 import { ArrowRight, Check, Play } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Screen, SurahNumber, ProgressBar, Rule, cx } from '@/components/ui';
+import { Screen, SurahNumber, ProgressBar, cx } from '@/components/ui';
 import { itemPages } from '@/engine/plan';
 import { formatPages } from '@/engine/pages';
 import { activeDaySet, activeDaysIn, allSurahStats, cellState, currentStreak, memorizedPages, overall, pagesByDay } from '@/engine/progress';
@@ -39,106 +39,110 @@ export default function Home() {
     if (startSession()) nav('/session');
   };
 
+  const headline = items.length === 0 ? 'Commençons doucement' : finished ? 'Séance terminée' : started ? 'Reprenons là où vous en étiez' : 'Prêt pour votre séance';
+  const sub =
+    items.length === 0
+      ? hasAny ? 'Rien de prévu aujourd’hui. Ajustez vos objectifs ou ajoutez des versets.' : 'Indiquez les sourates que vous connaissez pour lancer la révision.'
+      : finished ? 'Qu’Allah accepte votre effort. À demain, in châ’ Allah.' : 'Vous voyez tout le programme, puis vous évaluez à la fin.';
+
   return (
     <Screen
-      title={<>{greeting()}{profile.name ? <>, <span className="text-gold">{profile.name}</span></> : ''}</>}
+      title={<>{greeting()}{profile.name ? `, ${profile.name}` : ''}</>}
       sub={formatDateLong()}
       right={
-        <Link to="/profil" aria-label="Profil" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/60 font-display text-lg font-semibold text-gold">
+        <Link to="/profil" aria-label="Profil" className="mt-1 flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-surface2 font-display text-lg font-bold">
           {(profile.name[0] ?? 'W').toUpperCase()}
         </Link>
       }
-      tabs={
-        <div className="grid grid-cols-3 divide-x divide-ivory/15 pb-5 pt-1 text-center">
-          <Figure label="À apprendre" value={pagesOf('learn')} />
-          <Figure label="À réviser" value={pagesOf('review')} sub={pagesOf('reinforce') > 0 ? `+ ${formatPages(pagesOf('reinforce'))} de renforcement` : undefined} />
-          <div className="px-2">
-            <p className="font-display text-[26px] font-semibold leading-none tabular-nums">{done.length}<span className="text-lg text-ivory/60"> / {items.length}</span></p>
-            <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-ivory/60">Terminé</p>
-          </div>
-        </div>
-      }
     >
       {profile.demo && (
-        <Link to="/profil/donnees" className="mb-4 block rounded-lg border border-gold/40 bg-warn-soft px-4 py-2.5 text-xs font-medium text-warn">
+        <Link to="/profil/donnees" className="mb-3 block rounded-xl bg-warn-soft px-4 py-2.5 text-xs font-medium text-warn">
           Données de démonstration — effaçables depuis Profil › Données.
         </Link>
       )}
 
-      {/* ---------- Programme du jour ---------- */}
-      <section aria-labelledby="prog">
-        <div className="flex items-end justify-between">
-          <h2 id="prog" className="font-display text-[22px] font-semibold">Programme du jour</h2>
-          {items.length > 0 && <span className="text-xs text-muted">{open.length ? `${open.length} à faire` : 'Tout est fait'}</span>}
-        </div>
-
-        {items.length === 0 ? (
-          <div className="mt-3 rounded-xl border border-dashed border-line p-6 text-center">
-            <p className="font-display text-lg font-semibold">{hasAny ? 'Rien de prévu aujourd’hui.' : 'Votre programme apparaîtra ici.'}</p>
-            <p className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-muted">{hasAny ? 'Ajustez vos objectifs quotidiens ou ajoutez des versets depuis Mon Wird.' : 'Indiquez les sourates que vous connaissez pour lancer la révision.'}</p>
-            <Link to={hasAny ? '/profil/wird' : '/wird/sourates'} className="btn-primary mt-4">{hasAny ? 'Régler mes objectifs' : 'Choisir mes sourates'}</Link>
-          </div>
-        ) : (
-          <>
-            <div className="mt-3 space-y-4">
-              {GROUPS.map(({ kind, label }) => {
-                const list = items.filter((i) => i.kind === kind);
-                if (!list.length) return null;
-                return (
-                  <div key={kind}>
-                    <p className="label mb-1.5 flex items-center gap-2"><span className={cx('h-1.5 w-1.5 rotate-45', kind === 'learn' ? 'bg-blue' : kind === 'review' ? 'bg-primary' : 'bg-hard')} />{label}<span className="font-medium normal-case tracking-normal text-muted/80">· {formatPages(list.reduce((a, i) => a + itemPages(i), 0))}</span></p>
-                    <ul className="divide-y divide-line/70 overflow-hidden rounded-xl border border-line bg-surface">
-                      {list.map((it) => <Row key={it.id} it={it} />)}
-                    </ul>
-                  </div>
-                );
-              })}
+      {/* ---------- Carte principale ---------- */}
+      <section className="hero px-[18px] py-5" aria-label="Programme du jour">
+        <p className="text-sm text-white/75">Programme du jour</p>
+        <h2 className="mt-1 font-display text-[30px] font-semibold normal-case leading-[1.1] tracking-normal text-white">{headline}</h2>
+        <p className="mt-2 text-[15px] leading-snug text-white/75">{sub}</p>
+        {items.length > 0 && (
+          <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/20 pt-3 text-center">
+            <Figure label="à apprendre" value={pagesOf('learn')} />
+            <Figure label="à réviser" value={pagesOf('review')} sub={pagesOf('reinforce') > 0 ? `+ ${formatPages(pagesOf('reinforce'))} renfort` : undefined} />
+            <div>
+              <p className="font-display text-[22px] font-semibold leading-none tabular-nums">{done.length}<span className="text-base text-white/60"> / {items.length}</span></p>
+              <p className="mt-1.5 text-xs text-white/70">terminé</p>
             </div>
-            <button onClick={go} className="btn-primary mt-5 w-full">
-              {finished ? <Check size={18} /> : <Play size={18} />}
-              {finished ? 'Séance terminée — voir le bilan' : started ? 'Reprendre la séance' : 'Commencer la séance'}
-            </button>
-            <p className="mt-2 text-center text-xs text-muted">{finished ? 'Qu’Allah accepte votre effort.' : 'Vous voyez tout le programme, puis vous évaluez à la fin.'}</p>
-          </>
+          </div>
+        )}
+        {items.length === 0 ? (
+          <Link to={hasAny ? '/profil/wird' : '/wird/sourates'} className="btn mt-4 w-full bg-white text-primary">{hasAny ? 'Régler mes objectifs' : 'Choisir mes sourates'}</Link>
+        ) : (
+          <button onClick={go} className="btn mt-4 w-full bg-white text-primary">
+            {finished ? <Check size={18} /> : <Play size={18} />}
+            {finished ? 'Voir le bilan' : started ? 'Reprendre la séance' : 'Commencer la séance'}
+          </button>
         )}
       </section>
 
-      <Rule className="my-8" />
+      {/* ---------- Programme ---------- */}
+      {items.length > 0 && (
+        <section aria-labelledby="prog">
+          <h2 id="prog" className="label mb-2.5 mt-[30px] flex items-baseline justify-between">
+            <span>Aujourd’hui</span>
+            <span className="text-xs font-medium normal-case tracking-normal">{open.length ? `${open.length} à faire` : 'Tout est fait'}</span>
+          </h2>
+          <div className="space-y-3">
+            {GROUPS.map(({ kind, label }) => {
+              const list = items.filter((i) => i.kind === kind);
+              if (!list.length) return null;
+              return (
+                <div key={kind}>
+                  <p className="mb-1.5 flex items-center gap-2 text-sm font-semibold"><span className={cx('h-2 w-2 rounded-full', kind === 'learn' ? 'bg-blue' : kind === 'review' ? 'bg-primary' : 'bg-hard')} />{label}<span className="font-normal text-muted">· {formatPages(list.reduce((a, i) => a + itemPages(i), 0))}</span></p>
+                  <ul className="card divide-y divide-line overflow-hidden">
+                    {list.map((it) => <Row key={it.id} it={it} />)}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ---------- Progression ---------- */}
       <section aria-labelledby="prog2">
-        <div className="flex items-end justify-between">
-          <h2 id="prog2" className="font-display text-[22px] font-semibold">Où j’en suis</h2>
-          <Link to="/wird/sourates" className="flex items-center gap-1 text-xs font-semibold text-primary">Les 114 sourates <ArrowRight size={13} /></Link>
-        </div>
+        <h2 id="prog2" className="label mb-2.5 mt-[30px] flex items-baseline justify-between">
+          <span>Ma progression</span>
+          <Link to="/wird/sourates" className="flex items-center gap-1 text-xs font-semibold normal-case tracking-normal text-primary">Les 114 sourates <ArrowRight size={13} /></Link>
+        </h2>
         {hasAny ? (
-          <>
-            <div className="mt-4 flex items-end gap-5">
+          <div className="card p-4">
+            <div className="flex items-end gap-4">
               <div>
-                <p className="font-display text-[44px] font-semibold leading-none tabular-nums">{o.ratio === 0 ? 0 : o.ratio < 0.01 ? '<1' : Math.round(o.ratio * 100)}<span className="text-2xl text-muted">%</span></p>
-                <p className="mt-1 text-xs text-muted">du Coran</p>
+                <p className="font-display text-[40px] font-semibold leading-none tabular-nums">{o.ratio === 0 ? 0 : o.ratio < 0.01 ? '<1' : Math.round(o.ratio * 100)}<span className="text-2xl text-muted">%</span></p>
+                <p className="mt-1 text-sm text-muted">du Coran</p>
               </div>
-              <div className="flex-1 pb-1.5">
-                <ProgressBar value={pagesMem / TOTAL_PAGES} tone="gold" />
+              <div className="flex-1 pb-1">
+                <ProgressBar value={pagesMem / TOTAL_PAGES} />
                 <p className="mt-1.5 text-xs text-muted">≈ {formatPages(pagesMem)} sur {TOTAL_PAGES}</p>
               </div>
             </div>
-            <dl className="mt-4 grid grid-cols-3 divide-x divide-line/70 border-y border-line/70 py-3 text-center">
+            <dl className="mt-4 grid grid-cols-3 gap-2.5">
               <Mini n={o.surahsComplete} l="sourates apprises" />
-              <Mini n={o.surahsWorked - o.surahsComplete} l="en cours" />
+              <Mini n={Math.max(0, o.surahsWorked - o.surahsComplete)} l="en cours" />
               <Mini n={o.hizbCovered} l="hizb couverts" />
             </dl>
-            <Link to="/wird/sourates" aria-label="Voir les 114 sourates" className="mt-4 flex h-9 items-stretch gap-px overflow-hidden rounded-md">
+            <Link to="/wird/sourates" aria-label="Voir les 114 sourates" className="mt-4 flex h-8 items-stretch gap-[2px] overflow-hidden rounded-md">
               {stats.map((st) => <span key={st.surah} className={cx('flex-1', CELL_BG[cellState(st)])} title={`${st.surah}. ${surahMeta(st.surah).tr}`} />)}
             </Link>
             <Legend />
-          </>
+          </div>
         ) : (
-          <p className="mt-2 text-sm text-muted">Votre progression apparaîtra dès que vous aurez ajouté des sourates.</p>
+          <p className="card p-4 text-sm text-muted">Votre progression apparaîtra dès que vous aurez ajouté des sourates.</p>
         )}
       </section>
 
-      <Rule className="my-8" />
       <Regularity today={today} />
     </Screen>
   );
@@ -148,28 +152,28 @@ function Figure({ label, value, sub }: { label: string; value: number; sub?: str
   const f = formatPages(value);
   const [n, ...rest] = f.split(' ');
   return (
-    <div className="px-2">
-      <p className="font-display text-[26px] font-semibold leading-none tabular-nums">{value > 0 && value < 0.05 ? '<0,1' : n}<span className="ml-1 text-sm font-medium text-ivory/60">{value > 0 && value < 0.05 ? 'page' : rest.join(' ')}</span></p>
-      <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-ivory/60">{label}</p>
-      {sub && <p className="mt-0.5 text-[10px] text-ivory/50">{sub}</p>}
+    <div>
+      <p className="font-display text-[22px] font-semibold leading-none tabular-nums">{value > 0 && value < 0.05 ? '<0,1' : n}<span className="ml-1 text-xs font-medium text-white/65">{value > 0 && value < 0.05 ? 'page' : rest.join(' ')}</span></p>
+      <p className="mt-1.5 text-xs text-white/70">{label}</p>
+      {sub && <p className="text-[10px] text-white/55">{sub}</p>}
     </div>
   );
 }
 
 function Mini({ n, l }: { n: number; l: string }) {
   return (
-    <div>
-      <dd className="font-display text-2xl font-semibold tabular-nums">{n}</dd>
-      <dt className="text-[11px] text-muted">{l}</dt>
+    <div className="rounded-[14px] bg-surface2 px-2 py-2.5 text-center">
+      <dd className="font-display text-[22px] font-semibold leading-tight">{n}</dd>
+      <dt className="text-xs text-muted">{l}</dt>
     </div>
   );
 }
 
 export function Legend() {
   return (
-    <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
+    <ul className="mt-3 flex flex-wrap gap-x-2.5 gap-y-1 text-xs text-muted">
       {[['learned', 'Apprise'], ['learning', 'En cours'], ['reinforce', 'À renforcer'], ['none', 'Non commencée']].map(([k, l]) => (
-        <li key={k} className="flex items-center gap-1.5"><i className={cx('h-2.5 w-2.5 rounded-sm', CELL_BG[k as keyof typeof CELL_BG])} />{l}</li>
+        <li key={k} className="flex items-center gap-1.5"><i className={cx('h-[11px] w-[11px] rounded-[3px]', CELL_BG[k as keyof typeof CELL_BG])} />{l}</li>
       ))}
     </ul>
   );
@@ -211,29 +215,31 @@ function Regularity({ today }: { today: string }) {
     : 'Bon retour. Reprenez là où vous en étiez : rien à rattraper.';
   return (
     <section aria-labelledby="reg">
-      <h2 id="reg" className="font-display text-[22px] font-semibold">Régularité</h2>
-      <svg viewBox={`0 0 ${W} 34`} className="mt-3 w-full" role="img" aria-label={`${active30} jours actifs sur les 30 derniers jours`}>
-        <line x1={step / 2} x2={W - step / 2} y1="17" y2="17" stroke="rgb(var(--line))" strokeWidth="1" />
-        {beads.map((d, i) => {
-          const cx0 = step * i + step / 2;
-          const on = d.pages > 0;
-          const r = on ? 3.2 + Math.min(1, d.pages / 3) * 3.6 : 2;
-          const isToday = i === beads.length - 1;
-          return (
-            <g key={d.date}>
-              {isToday && <circle cx={cx0} cy="17" r={r + 3} fill="none" stroke="rgb(var(--gold))" strokeWidth="1" />}
-              <circle cx={cx0} cy="17" r={r} fill={on ? 'rgb(var(--primary))' : 'rgb(var(--bg))'} stroke={on ? 'none' : 'rgb(var(--line))'} strokeWidth="1.2" />
-            </g>
-          );
-        })}
-      </svg>
-      <div className="mt-1 flex justify-between text-[10px] text-muted"><span>il y a 30 jours</span><span>aujourd’hui</span></div>
-      <dl className="mt-4 grid grid-cols-3 divide-x divide-line/70 border-y border-line/70 py-3 text-center">
-        <Mini n={streak} l={streak > 1 ? 'jours de suite' : 'jour de suite'} />
-        <Mini n={active30} l="jours actifs / 30" />
-        <div><dd className="font-display text-2xl font-semibold tabular-nums">{new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Math.round(pages7 * 2) / 2)}</dd><dt className="text-[11px] text-muted">pages cette semaine</dt></div>
-      </dl>
-      <p className="mt-3 text-sm leading-relaxed text-muted">{message}</p>
+      <h2 id="reg" className="label mb-2.5 mt-[30px]">Régularité</h2>
+      <div className="card p-4">
+        <svg viewBox={`0 0 ${W} 34`} className="w-full" role="img" aria-label={`${active30} jours actifs sur les 30 derniers jours`}>
+          <line x1={step / 2} x2={W - step / 2} y1="17" y2="17" stroke="rgb(var(--line))" strokeWidth="1" />
+          {beads.map((d, i) => {
+            const cx0 = step * i + step / 2;
+            const on = d.pages > 0;
+            const r = on ? 3.2 + Math.min(1, d.pages / 3) * 3.6 : 2;
+            const isToday = i === beads.length - 1;
+            return (
+              <g key={d.date}>
+                {isToday && <circle cx={cx0} cy="17" r={r + 3} fill="none" stroke="rgb(var(--gold))" strokeWidth="1.2" />}
+                <circle cx={cx0} cy="17" r={r} fill={on ? 'rgb(var(--primary))' : 'rgb(var(--surface))'} stroke={on ? 'none' : 'rgb(var(--line))'} strokeWidth="1.2" />
+              </g>
+            );
+          })}
+        </svg>
+        <div className="mt-1 flex justify-between text-[10px] text-muted"><span>il y a 30 jours</span><span>aujourd’hui</span></div>
+        <dl className="mt-3 grid grid-cols-3 gap-2.5">
+          <Mini n={streak} l={streak > 1 ? 'jours de suite' : 'jour de suite'} />
+          <Mini n={active30} l="jours actifs / 30" />
+          <Mini n={Math.round(pages7 * 10) / 10} l="pages cette semaine" />
+        </dl>
+        <p className="mt-3 text-sm leading-relaxed text-muted">{message}</p>
+      </div>
     </section>
   );
 }

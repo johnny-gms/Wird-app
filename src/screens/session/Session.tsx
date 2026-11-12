@@ -1,7 +1,7 @@
 import { ArrowLeft, Check, ChevronDown, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GradeChip, KindBadge, Rule, SurahNumber, cx, toast, GRADE_STYLE } from '@/components/ui';
+import { GradeChip, KindBadge, SurahNumber, cx, toast, GRADE_STYLE } from '@/components/ui';
 import { GRADE_HINT, GRADE_LABEL, GRADE_ORDER } from '@/engine/config';
 import { formatPages } from '@/engine/pages';
 import { itemPages } from '@/engine/plan';
@@ -77,25 +77,22 @@ export default function Session() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
-      <header className="pt-safe bg-deep text-ivory">
-        <div className="mx-auto w-full max-w-2xl px-5 pb-1 pt-3">
-          <div className="flex items-center justify-between">
-            {session.step === 'program' ? (
-              <button onClick={leave} aria-label="Interrompre" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><X size={20} /></button>
-            ) : (
-              <button onClick={backToProgram} className="-ml-2 flex h-10 items-center gap-1.5 rounded-full px-2 text-sm font-semibold hover:bg-white/10"><ArrowLeft size={18} /> Retour au programme</button>
-            )}
-            <span className="text-xs font-semibold text-ivory/60">{session.step === 'program' ? 'Étape 1 / 2' : 'Étape 2 / 2'}</span>
-          </div>
-          <h1 className="mt-2 font-display text-[28px] font-semibold leading-tight">{session.step === 'program' ? 'Séance du jour' : 'Bilan de la séance'}</h1>
-          <p className="mt-1 text-[13px] text-ivory/70">
-            {session.step === 'program' ? `${total} élément${total > 1 ? 's' : ''} · ${formatPages(pages)}` : `Comment s’est passé chaque élément ? ${decided} / ${total}`}
-          </p>
-          <Rule className="mb-3 mt-4" />
+      <header className="pt-safe mx-auto w-full max-w-[520px] px-4 pt-3">
+        <div className="flex items-center justify-between">
+          {session.step === 'program' ? (
+            <button onClick={leave} className="-ml-1 flex min-h-[40px] items-center gap-1 pr-3 font-semibold text-primary"><X size={18} /> Interrompre</button>
+          ) : (
+            <button onClick={backToProgram} className="-ml-1 flex min-h-[40px] items-center gap-1 pr-3 font-semibold text-primary"><ArrowLeft size={18} /> Retour au programme</button>
+          )}
+          <span className="text-xs font-semibold text-muted">{session.step === 'program' ? 'Étape 1 / 2' : 'Étape 2 / 2'}</span>
         </div>
+        <h1 className="mb-1 mt-2 font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">{session.step === 'program' ? 'Séance du jour' : 'Bilan de la séance'}</h1>
+        <p className="text-sm text-muted">
+          {session.step === 'program' ? `${total} élément${total > 1 ? 's' : ''} · ${formatPages(pages)}` : `Comment s’est passé chaque élément ? ${decided} / ${total}`}
+        </p>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-5 pb-40 pt-5">
+      <main className="mx-auto w-full max-w-[520px] flex-1 px-4 pb-40 pt-4">
         {session.step === 'program' ? (
           <Program items={items} />
         ) : (
@@ -103,8 +100,8 @@ export default function Session() {
         )}
       </main>
 
-      <footer className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur-xl">
-        <div className="mx-auto max-w-2xl px-5 pb-4 pt-3">
+      <footer className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface">
+        <div className="mx-auto max-w-[520px] px-4 pb-4 pt-3">
           {session.step === 'program' ? (
             <>
               <button className="btn-primary w-full" onClick={openEvaluation} disabled={total === 0}>Terminer la séance</button>
@@ -143,9 +140,9 @@ function Program({ items }: { items: PlanItem[] }) {
           const verses = isOpen && data ? data.s[it.surah - 1].slice(it.from - 1, it.to) : null;
           const bas = isOpen && data && it.from === 1 ? basmalaFor(data, it.surah) : null;
           return (
-            <li key={it.id} className="overflow-hidden rounded-xl border border-line bg-surface">
+            <li key={it.id} className="card overflow-hidden">
               <button className="flex w-full items-center gap-3 px-3.5 py-3.5 text-left" onClick={() => setOpen(isOpen ? null : it.id)} aria-expanded={isOpen}>
-                <span className="w-5 text-center font-display text-lg font-semibold tabular-nums text-gold">{idx + 1}</span>
+                <span className="w-5 text-center font-display text-lg font-semibold tabular-nums text-muted">{idx + 1}</span>
                 <SurahNumber n={it.surah} size={40} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2"><span className="truncate text-[15px] font-semibold">{meta.tr}</span></span>
@@ -159,11 +156,11 @@ function Program({ items }: { items: PlanItem[] }) {
                 <div className="animate-fade border-t border-line px-4 py-4" aria-label="Texte de référence">
                   {failed && <p className="text-sm text-muted">Le texte de référence n’a pas pu être chargé. Utilisez votre Mushaf.</p>}
                   {!failed && !verses && <p className="text-sm text-muted">Chargement…</p>}
-                  {bas && <p className="ar mb-2 text-center text-[24px] leading-[2] text-gold" lang="ar">{bas}</p>}
+                  {bas && <p className="ar mb-2 text-center text-[24px] leading-[2] text-primary" lang="ar">{bas}</p>}
                   {verses && (
                     <p className="ar text-[28px] leading-[2.3]" lang="ar">
                       {verses.map((v, i) => (
-                        <span key={i}>{v} <span className="text-gold">﴿{nf.format(it.from + i)}﴾</span>{' '}</span>
+                        <span key={i}>{v} <span className="text-primary">﴿{nf.format(it.from + i)}﴾</span>{' '}</span>
                       ))}
                     </p>
                   )}
@@ -186,9 +183,9 @@ function Evaluate({ items, draft, onSet }: { items: PlanItem[]; draft: Record<st
         const meta = surahMeta(it.surah);
         const d = draft[it.id];
         return (
-          <li key={it.id} className={cx('rounded-xl border bg-surface p-3.5 transition', d ? 'border-line' : 'border-gold/50')}>
+          <li key={it.id} className={cx('card p-3.5 transition', d ? '' : 'border-primary/40')}>
             <div className="flex items-center gap-3">
-              <span className="w-5 text-center font-display text-lg font-semibold tabular-nums text-gold">{idx + 1}</span>
+              <span className="w-5 text-center font-display text-lg font-semibold tabular-nums text-muted">{idx + 1}</span>
               <SurahNumber n={it.surah} size={36} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-semibold">{meta.tr}</p>

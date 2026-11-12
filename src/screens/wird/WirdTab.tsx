@@ -73,7 +73,7 @@ function Today() {
         <button onClick={begin} className="btn-primary w-full"><Play size={18} /> {session || c.done > 0 ? 'Reprendre la séance' : 'Commencer la séance'}</button>
       )}
       {yesterday && yesterday.notDone + yesterday.skipped > 0 && (
-        <p className="rounded-lg border border-line bg-surface px-4 py-3 text-sm leading-relaxed text-muted">Hier, une partie du programme n’a pas été traitée. Rien n’est reporté : vous repartez d’une page propre.</p>
+        <p className="card px-4 py-3 text-sm leading-relaxed text-muted">Hier, une partie du programme n’a pas été traitée. Rien n’est reporté : vous repartez d’une page propre.</p>
       )}
       {KINDS.map(({ kind, title, hint }) => {
         const items = plan!.items.filter((i) => i.kind === kind);
@@ -85,7 +85,7 @@ function Today() {
               <span className="text-xs text-muted">{formatPages(items.reduce((a, i) => a + itemPages(i), 0))} · {items.filter((i) => i.status === 'done').length}/{items.length}</span>
             </h2>
             <p className="mb-2 text-xs text-muted">{hint}</p>
-            <ul className="divide-y divide-line/70 overflow-hidden rounded-xl border border-line bg-surface">
+            <ul className="card divide-y divide-line overflow-hidden">
               {items.map((it) => <ItemRow key={it.id} it={it} onOpen={begin} onSkip={() => { skipItem(it.id); toast('Élément ignoré pour aujourd’hui'); }} onReopen={() => reopenItem(it.id)} />)}
             </ul>
           </section>
@@ -182,19 +182,19 @@ function SurahList() {
         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
         <input className="input pl-10" placeholder="Rechercher (nom, numéro, arabe)" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une sourate" />
       </div>
-      <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
-        <button onClick={() => setHizbOpen(true)} className={cx('flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold', hizb ? 'border-gold bg-gold/15 text-ink' : 'border-line bg-surface text-primary')}>
+      <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">
+        <button onClick={() => setHizbOpen(true)} className="chip" aria-pressed={!!hizb}>
           {hizb ? `Hizb ${hizb}` : 'Par hizb'}
           {hizb && <X size={14} onClick={(e) => { e.stopPropagation(); setHizb(null); }} aria-label="Retirer le filtre hizb" />}
         </button>
         {FILTERS.map((x) => (
-          <button key={x.v} onClick={() => setF(x.v)} aria-pressed={f === x.v} className={cx('min-h-[36px] shrink-0 rounded-full border px-3.5 text-sm font-semibold transition', f === x.v ? 'border-deep bg-deep text-ivory' : 'border-line bg-surface text-muted')}>
+          <button key={x.v} onClick={() => setF(x.v)} aria-pressed={f === x.v} className="chip">
             {x.l}
           </button>
         ))}
       </div>
       <p className="mt-3 text-xs text-muted">{list.length} sourate{list.length > 1 ? 's' : ''}{hizb ? ` dans le hizb ${hizb}` : ''}</p>
-      <ul ref={listRef} className="mt-2 divide-y divide-line/70 overflow-hidden rounded-xl border border-line bg-surface">
+      <ul ref={listRef} className="mt-2 card divide-y divide-line overflow-hidden">
         {list.map((s) => <SurahRow key={s.id} st={stats[s.id - 1]} />)}
         {!list.length && <li className="p-8 text-center text-sm text-muted">Aucune sourate ne correspond.</li>}
       </ul>
@@ -203,7 +203,7 @@ function SurahList() {
         <p className="mb-3 text-sm text-muted">Affiche les sourates dont au moins un verset appartient au hizb choisi (Mushaf de Médine).</p>
         <div className="grid grid-cols-6 gap-2">
           {HIZB_STARTS.map((_, i) => (
-            <button key={i} onClick={() => { setHizb(i + 1); setHizbOpen(false); }} className={cx('flex h-11 items-center justify-center rounded-lg border text-sm font-bold tabular-nums', hizb === i + 1 ? 'border-deep bg-deep text-ivory' : 'border-line bg-surface')}>{i + 1}</button>
+            <button key={i} onClick={() => { setHizb(i + 1); setHizbOpen(false); }} className={cx('flex h-11 items-center justify-center rounded-xl text-sm font-bold tabular-nums', hizb === i + 1 ? 'bg-primary text-primary-ink' : 'bg-surface2')}>{i + 1}</button>
           ))}
         </div>
         {hizb && <button className="btn-ghost mt-3 w-full" onClick={() => { setHizb(null); setHizbOpen(false); }}>Toutes les sourates</button>}
@@ -255,7 +255,7 @@ function Learning() {
 
   return (
     <div className="space-y-4">
-      <p className="rounded-lg border border-line bg-surface px-4 py-3 text-sm leading-relaxed text-muted">
+      <p className="card px-4 py-3 text-sm leading-relaxed text-muted">
         {settings.learnPagesPerDay > 0 ? (<>Objectif : <b className="text-ink">{formatPages(settings.learnPagesPerDay)} par jour</b>, nouvelles sourates {settings.learnDirection === 'forward' ? 'de Al-Fatiha vers An-Nas' : 'de An-Nas vers Al-Fatiha'}. </>) : 'Aucun objectif d’apprentissage (0 page par jour). '}
         <Link to="/profil/wird" className="font-semibold text-primary">Modifier</Link>
       </p>
@@ -266,7 +266,7 @@ function Learning() {
         const seg = learningSegment(ctx, g);
         const complete = p.done >= p.total || !seg;
         return (
-          <article key={g.id} className="rounded-xl border border-line bg-surface p-4">
+          <article key={g.id} className="card p-4">
             <div className="flex items-center gap-3">
               <SurahNumber n={g.surah} />
               <div className="min-w-0 flex-1">

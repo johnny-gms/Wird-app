@@ -30,11 +30,13 @@ export default {
         'hard-soft': v('hard-soft'),
         alert: v('alert'),
         'alert-soft': v('alert-soft'),
+        neutral: v('neutral'),
+        'neutral-ink': v('neutral-ink'),
       },
       fontFamily: {
-        sans: ['"Manrope Variable"', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
-        display: ['"Playfair Display Variable"', 'Georgia', 'serif'],
-        arabic: ['"Scheherazade New"', '"Geeza Pro"', '"Traditional Arabic"', 'serif'],
+        sans: ['-apple-system', '"Segoe UI"', 'Helvetica', 'Arial', 'sans-serif'],
+        display: ['"Iowan Old Style"', '"Palatino Linotype"', 'Palatino', '"Book Antiqua"', 'Georgia', 'serif'],
+        arabic: ['"Amiri Quran"', '"Geeza Pro"', 'serif'],
       },
       borderRadius: { xl2: '1.25rem' },
       boxShadow: {

@@ -25,8 +25,8 @@ export default function Bilan() {
   const donePages = (plan?.items ?? []).filter((i) => i.status === 'done').reduce((a, i) => a + itemPages(i), 0);
   return (
     <Screen title={complete ? 'Séance accomplie' : 'Bien joué pour aujourd’hui'} sub={complete ? 'Qu’Allah accepte votre effort. À demain, in châ’ Allah.' : 'Ce qui reste peut attendre : rien n’est reporté ni dû.'}>
-      <div className="flex items-center gap-4 rounded-xl border border-gold/40 bg-surface p-4">
-        <span className="flex h-12 w-12 shrink-0 animate-pop items-center justify-center rounded-full bg-deep text-gold"><Check size={24} strokeWidth={2.4} /></span>
+      <div className="card flex items-center gap-4 p-4">
+        <span className="flex h-12 w-12 shrink-0 animate-pop items-center justify-center rounded-full bg-primary text-primary-ink"><Check size={24} strokeWidth={2.4} /></span>
         <p className="text-sm leading-relaxed text-muted">Votre bilan est enregistré : les règles de progression et de renforcement ont été appliquées. <b className="text-ink">{formatPages(donePages)}</b> travaillées aujourd’hui.</p>
       </div>
 

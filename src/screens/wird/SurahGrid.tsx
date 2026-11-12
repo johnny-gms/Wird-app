@@ -11,7 +11,7 @@ export const CELL_BG: Record<CellState, string> = {
   learned: 'bg-good',
   learning: 'bg-blue',
   reinforce: 'bg-hard',
-  none: 'bg-line/70',
+  none: 'bg-neutral',
 };
 const LABEL: Record<CellState, string> = { learned: 'Apprise', learning: 'En cours d’apprentissage', reinforce: 'À renforcer', none: 'Non commencée' };
 
@@ -31,7 +31,7 @@ export function SurahGrid() {
 
   return (
     <div>
-      <section className="rounded-xl border border-line bg-surface p-4" aria-label="Progression globale">
+      <section className="card p-4" aria-label="Progression globale">
         <div className="flex items-end justify-between">
           <div>
             <p className="label">Progression globale</p>
@@ -45,14 +45,14 @@ export function SurahGrid() {
       <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]" aria-label="Légende">
         {(['learned', 'learning', 'reinforce', 'none'] as CellState[]).map((k) => (
           <li key={k} className="flex items-center gap-2">
-            <i className={cx('h-3.5 w-3.5 rounded', CELL_BG[k])} />
+            <i className={cx('h-[11px] w-[11px] rounded-[3px]', CELL_BG[k])} />
             <span className="text-muted">{LABEL[k]}</span>
             <b className="ml-auto tabular-nums">{counts[k]}</b>
           </li>
         ))}
       </ul>
 
-      <ol className="mt-5 grid grid-cols-6 gap-1.5 sm:grid-cols-8 lg:grid-cols-10">
+      <ol className="mt-4 grid grid-cols-5 gap-2.5 sm:grid-cols-7">
         {stats.map((st) => {
           const state = cellState(st);
           const meta = surahMeta(st.surah);
@@ -62,10 +62,10 @@ export function SurahGrid() {
               <Link
                 to={`/wird/sourates/${st.surah}`}
                 aria-label={`Sourate ${st.surah}, ${meta.tr} : ${LABEL[state].toLowerCase()}`}
-                className={cx('relative flex aspect-[1/1.1] flex-col items-center justify-center overflow-hidden rounded-lg transition active:scale-95', CELL_BG[state], state === 'none' ? 'text-ink' : 'text-white')}
+                className={cx('relative flex aspect-square min-h-[44px] flex-col items-center justify-center overflow-hidden rounded-xl transition active:scale-95', CELL_BG[state], state === 'none' ? 'text-neutral-ink' : 'text-white')}
               >
-                <span className="font-display text-[17px] font-semibold leading-none tabular-nums">{st.surah}</span>
-                <span className="ar mt-1 max-w-full truncate px-0.5 text-[13px] leading-none opacity-90" lang="ar">{meta.ar}</span>
+                <span className="font-display text-[15px] font-semibold leading-none tabular-nums">{st.surah}</span>
+                <span className="ar mt-1 max-w-full whitespace-nowrap px-0.5 text-[11px] leading-[1.7] opacity-90" lang="ar">{meta.ar}</span>
                 {state === 'learning' && <span className="absolute inset-x-0 bottom-0 h-[3px] bg-white/30"><span className="block h-full bg-white" style={{ width: `${ratio * 100}%` }} /></span>}
               </Link>
             </li>

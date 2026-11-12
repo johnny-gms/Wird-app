@@ -252,7 +252,7 @@ export function ProfileAbout() {
         <li><b className="text-ink">Texte coranique</b> : <i>Tanzil Quran Text (Uthmani, version 1.0.2)</i>, © 2008-2010 <a className="font-semibold text-primary underline" href="http://tanzil.net" target="_blank" rel="noreferrer">Tanzil.net</a>, licence Creative Commons Attribution 3.0. Texte reproduit sans modification ; seule la Basmala, écrite en tête du verset 1 dans le fichier source, est séparée pour conserver la numérotation exacte des versets. Mises à jour : tanzil.net/updates.</li>
         <li><b className="text-ink">Noms des sourates</b> (translittération, titres français) : paquet <i>quran-json</i> (CC BY 4.0).</li>
         <li><b className="text-ink">Hizb et pages du Mushaf de Médine</b> : paquet <i>quran-meta</i> (MIT).</li>
-        <li><b className="text-ink">Polices</b> : Manrope, Playfair Display, Scheherazade New (SIL OFL).</li>
+        <li><b className="text-ink">Police du texte coranique</b> : Amiri Quran (SIL OFL). Interface : polices système.</li>
       </ul>
       <p className="mt-4 text-xs leading-relaxed text-muted">Le texte affiché sert d’aide à la mémorisation. Pour une récitation exacte, référez-vous toujours à un Mushaf imprimé et à un enseignant qualifié.</p>
     </SubPage>

@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowRight, Check, Minus, Plus } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { FastScroll } from '@/components/FastScroll';
-import { SurahNumber, Rule, cx } from '@/components/ui';
+import { SurahNumber, cx } from '@/components/ui';
 import { matchSurah } from '@/components/SurahPickerList';
 import { nextLearnTarget } from '@/engine/plan';
 import { formatPages, rangePages } from '@/engine/pages';
@@ -34,17 +34,15 @@ export default function Onboarding() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
-      <header className="pt-safe sticky top-0 z-20 bg-deep text-ivory">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-5 py-3">
-          <button onClick={back} aria-label="Retour" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10">
-            <ArrowLeft size={20} />
+      <header className="pt-safe sticky top-0 z-20 bg-bg/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[520px] items-center gap-3 px-4 py-3">
+          <button onClick={back} className="-ml-1 flex min-h-[40px] items-center gap-0.5 pr-2 font-semibold text-primary">
+            <ArrowLeft size={18} /> Retour
           </button>
-          <div className="flex flex-1 gap-1.5" aria-label={`Étape ${step} sur ${STEPS - 1}`}>
-            {Array.from({ length: STEPS - 1 }, (_, i) => (
-              <span key={i} className={cx('h-[3px] flex-1 rounded-full', i < step ? 'bg-gold' : 'bg-ivory/20')} />
-            ))}
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2" aria-label={`Étape ${step} sur ${STEPS - 1}`}>
+            <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${(step / (STEPS - 1)) * 100}%` }} />
           </div>
-          <span className="text-xs font-semibold tabular-nums text-ivory/70">{step}/{STEPS - 1}</span>
+          <span className="text-xs font-semibold tabular-nums text-muted">{step}/{STEPS - 1}</span>
         </div>
       </header>
 
@@ -60,32 +58,25 @@ export default function Onboarding() {
 // ------------------------------------------------------------------ 1 · Bienvenue
 function Welcome({ name, setName, onStart, onDemo }: { name: string; setName: (s: string) => void; onStart: () => void; onDemo: () => void }) {
   return (
-    <div className="pt-safe pb-safe relative flex min-h-dvh flex-col overflow-hidden bg-deep text-ivory">
-      {/* motif : grand rub‘ al-hizb en filigrane */}
-      <svg viewBox="0 0 200 200" className="pointer-events-none absolute -right-24 -top-16 h-[420px] w-[420px] text-gold opacity-[0.13]" aria-hidden>
-        <rect x="45" y="45" width="110" height="110" fill="none" stroke="currentColor" strokeWidth="1.2" />
-        <rect x="45" y="45" width="110" height="110" fill="none" stroke="currentColor" strokeWidth="1.2" transform="rotate(45 100 100)" />
-        <circle cx="100" cy="100" r="62" fill="none" stroke="currentColor" strokeWidth="0.8" />
-      </svg>
-      <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-7 py-12">
-        <p className="ar text-5xl text-gold" lang="ar">وِرْد</p>
-        <h1 className="mt-3 font-display text-[56px] font-semibold leading-none tracking-tight">WIRD</h1>
-        <Rule className="my-6 max-w-[180px]" />
-        <p className="font-display text-[22px] leading-snug text-ivory/95">Entretenir ce que vous avez mémorisé, et apprendre avec régularité.</p>
-        <p className="mt-4 text-[15px] leading-relaxed text-ivory/70">WIRD vous accompagne chaque jour dans l’apprentissage et la révision du Coran : une rotation continue, un renforcement doux de ce qui est fragile, et jamais de culpabilité.</p>
-        <label className="mt-8 block">
-          <span className="text-[11px] font-bold uppercase tracking-[.14em] text-ivory/60">Votre prénom (facultatif)</span>
-          <input className="mt-2 min-h-[48px] w-full rounded-[10px] border border-ivory/25 bg-white/5 px-4 text-ivory placeholder:text-ivory/40 focus:border-gold focus:outline-none" value={name} onChange={(e) => setName(e.target.value)} placeholder="Pour une salutation personnalisée" autoComplete="given-name" maxLength={40} />
+    <div className="pt-safe pb-safe flex min-h-dvh flex-col bg-bg">
+      <div className="mx-auto flex w-full max-w-[520px] flex-1 flex-col items-center justify-center px-6 py-10 text-center">
+        <img src="/icons/icon-192.png" alt="" className="h-[116px] w-[116px] rounded-[27px] shadow-[0_10px_30px_rgba(31,77,58,.22)]" />
+        <h1 className="mt-7 font-display text-[30px] font-semibold leading-tight tracking-[-0.2px]">Bienvenue dans WIRD</h1>
+        <p className="mt-2 font-display text-[19px] text-primary">Mémorisez. Révisez. Progressez.</p>
+        <p className="mt-3 max-w-[330px] text-[15px] leading-relaxed text-muted">WIRD vous accompagne chaque jour dans l’apprentissage et la révision du Coran, à votre rythme et sans pression : une rotation continue, un renforcement doux de ce qui est fragile, jamais de culpabilité.</p>
+        <label className="mt-7 block w-full text-left">
+          <span className="label">Votre prénom (facultatif)</span>
+          <input className="input mt-2" value={name} onChange={(e) => setName(e.target.value)} placeholder="Pour une salutation personnalisée" autoComplete="given-name" maxLength={40} />
         </label>
       </div>
-      <div className="relative mx-auto w-full max-w-md px-7 pb-8">
-        <button onClick={onStart} className="btn min-h-[52px] w-full bg-ivory text-deep hover:opacity-95">
+      <div className="mx-auto w-full max-w-[520px] px-4 pb-6">
+        <button onClick={onStart} className="btn-primary w-full">
           Commencer <ArrowRight size={18} />
         </button>
-        <button onClick={onDemo} className="mt-2 w-full py-3 text-sm font-medium text-ivory/60 underline-offset-4 hover:text-ivory hover:underline">
+        <button onClick={onDemo} className="mt-1 w-full py-3 text-sm font-medium text-muted underline-offset-4 hover:text-ink hover:underline">
           Découvrir avec des données de démonstration
         </button>
-        <p className="mt-1 text-center text-xs text-ivory/45">Sans compte · vos données restent sur cet appareil</p>
+        <p className="text-center text-xs text-muted">Sans compte · vos données restent sur cet appareil</p>
       </div>
     </div>
   );
@@ -115,26 +106,26 @@ function KnownStep({ known, setKnown, knownPages, onNext }: { known: Set<number>
 
   return (
     <>
-      <div className="mx-auto w-full max-w-2xl flex-1 px-5 pb-32 pt-6">
-        <h1 className="font-display text-[26px] font-semibold leading-tight">Quelles sourates connaissez-vous déjà ?</h1>
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-4 pb-32 pt-3">
+        <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">Quelles sourates connaissez-vous déjà ?</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">Cochez celles que vous avez apprises. Elles entreront dans votre révision : « connue » ne veut pas dire « plus besoin de réviser ». Vous pourrez préciser verset par verset plus tard.</p>
         <input className="input mt-4" placeholder="Rechercher (nom, numéro, arabe)" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une sourate" />
-        <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
+        <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">
           <Chip onClick={() => setMany(range(1, 114), true)}>Tout cocher</Chip>
           <Chip onClick={() => setKnown(new Set())}>Tout décocher</Chip>
           <Chip onClick={() => setMany(range(78, 114), true)}>Juz ʿAmma (78–114)</Chip>
           <Chip onClick={() => setMany(list.map((s) => s.id), true)}>Cocher la recherche</Chip>
         </div>
-        <div className="mt-3 flex items-center gap-2 rounded-[10px] border border-line bg-surface px-3 py-2 text-sm">
+        <div className="card mt-3 flex items-center gap-2 px-3 py-2 text-sm">
           <span className="text-muted">Cocher de la sourate</span>
           <input inputMode="numeric" className="h-9 w-14 rounded-md border border-line bg-bg text-center" value={from} onChange={(e) => setFrom(e.target.value.replace(/\D/g, ''))} aria-label="De la sourate" />
           <span className="text-muted">à</span>
           <input inputMode="numeric" className="h-9 w-14 rounded-md border border-line bg-bg text-center" value={to} onChange={(e) => setTo(e.target.value.replace(/\D/g, ''))} aria-label="À la sourate" />
-          <button className="ml-auto rounded-md bg-deep px-3 py-2 text-xs font-semibold text-ivory disabled:opacity-40" disabled={!from || !to} onClick={() => setMany(range(Math.min(f, t), Math.max(f, t)), true)}>
+          <button className="ml-auto rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-ink disabled:opacity-40" disabled={!from || !to} onClick={() => setMany(range(Math.min(f, t), Math.max(f, t)), true)}>
             Cocher
           </button>
         </div>
-        <ul ref={listRef} className="mt-4 divide-y divide-line/70 overflow-hidden rounded-xl border border-line bg-surface">
+        <ul ref={listRef} className="card mt-4 divide-y divide-line overflow-hidden">
           {list.map((s) => {
             const on = known.has(s.id);
             return (
@@ -160,7 +151,7 @@ function KnownStep({ known, setKnown, knownPages, onNext }: { known: Set<number>
           <span><b className="tabular-nums">{known.size}</b> <span className="text-muted">/ 114 sourates</span></span>
           <span className="text-muted">≈ {formatPages(knownPages)}</span>
         </div>
-        <div className="mb-3 h-1 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-gold transition-[width]" style={{ width: `${(known.size / 114) * 100}%` }} /></div>
+        <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-surface2"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${(known.size / 114) * 100}%` }} /></div>
         <button className="btn-primary w-full" onClick={onNext}>{known.size ? 'Continuer' : 'Je n’en connais pas encore'}</button>
       </Footer>
     </>
@@ -168,13 +159,13 @@ function KnownStep({ known, setKnown, knownPages, onNext }: { known: Set<number>
 }
 
 const Chip = ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => (
-  <button onClick={onClick} className="shrink-0 rounded-full border border-line bg-surface px-3.5 py-2 text-[13px] font-semibold text-primary active:bg-surface2">{children}</button>
+  <button onClick={onClick} className="chip">{children}</button>
 );
 
 function Footer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur-xl">
-      <div className="mx-auto max-w-2xl px-5 pb-4 pt-3">{children}</div>
+    <div className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface">
+      <div className="mx-auto max-w-[520px] px-4 pb-4 pt-3">{children}</div>
     </div>
   );
 }
@@ -193,23 +184,23 @@ function DirectionStep({ title, hint, value, onChange, known, showNext, onNext }
   }, [known, value, showNext]);
   return (
     <>
-      <div className="mx-auto w-full max-w-2xl flex-1 px-5 pb-32 pt-6">
-        <h1 className="font-display text-[26px] font-semibold leading-tight">{title}</h1>
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-4 pb-32 pt-3">
+        <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">{title}</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">{hint}</p>
         <div className="mt-6 space-y-3" role="radiogroup">
           {opts.map((o) => (
-            <button key={o.v} role="radio" aria-checked={value === o.v} onClick={() => onChange(o.v)} className={cx('flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition', value === o.v ? 'border-deep bg-surface' : 'border-line bg-surface/60')}>
-              <span className={cx('flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2', value === o.v ? 'border-deep bg-deep text-ivory' : 'border-line')}>{value === o.v && <Check size={14} strokeWidth={3} />}</span>
+            <button key={o.v} role="radio" aria-checked={value === o.v} onClick={() => onChange(o.v)} className={cx('flex w-full items-center gap-4 rounded-[14px] border-2 bg-surface p-4 text-left transition', value === o.v ? 'border-primary' : 'border-line')}>
+              <span className={cx('flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2', value === o.v ? 'border-primary bg-primary text-primary-ink' : 'border-line')}>{value === o.v && <Check size={14} strokeWidth={3} />}</span>
               <span className="flex-1">
                 <span className="block font-display text-[18px] font-semibold">{o.label}</span>
                 <span className="block text-sm text-muted">{o.sub}</span>
               </span>
-              <span className="font-display text-2xl text-gold" aria-hidden>{o.v === 'forward' ? '→' : '←'}</span>
+              <span className="font-display text-2xl text-primary" aria-hidden>{o.v === 'forward' ? '→' : '←'}</span>
             </button>
           ))}
         </div>
         {showNext && (
-          <p className="mt-5 rounded-xl border border-line bg-surface px-4 py-3 text-sm leading-relaxed">
+          <p className="card mt-5 px-4 py-3 text-sm leading-relaxed">
             {target ? (<>Prochaine sourate proposée : <b>{target.surah}. {surahMeta(target.surah).tr}</b>{target.from > 1 ? ` (à partir du verset ${target.from})` : ''}.</>) : 'Vous avez coché tout le Coran : il n’y a plus de nouvelle sourate à apprendre.'}
           </p>
         )}
@@ -224,12 +215,12 @@ export function PagesStepper({ value, onChange, min, max, label }: { value: numb
   const set = (n: number) => onChange(Math.max(min, Math.min(max, Math.round(n * 2) / 2)));
   return (
     <div className="flex items-center gap-2">
-      <button aria-label={`Moins de pages ${label}`} className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface disabled:opacity-35" disabled={value <= min} onClick={() => set(value - 0.5)}><Minus size={18} /></button>
+      <button aria-label={`Moins de pages ${label}`} className="flex h-11 w-11 items-center justify-center rounded-full bg-surface2 disabled:opacity-35" disabled={value <= min} onClick={() => set(value - 0.5)}><Minus size={18} /></button>
       <div className="w-[88px] text-center">
         <p className="font-display text-[30px] font-semibold leading-none tabular-nums">{new Intl.NumberFormat('fr-FR').format(value)}</p>
         <p className="mt-1 text-[11px] font-bold uppercase tracking-[.12em] text-muted">{value > 1 ? 'pages' : 'page'}</p>
       </div>
-      <button aria-label={`Plus de pages ${label}`} className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface disabled:opacity-35" disabled={value >= max} onClick={() => set(value + 0.5)}><Plus size={18} /></button>
+      <button aria-label={`Plus de pages ${label}`} className="flex h-11 w-11 items-center justify-center rounded-full bg-surface2 disabled:opacity-35" disabled={value >= max} onClick={() => set(value + 0.5)}><Plus size={18} /></button>
     </div>
   );
 }
@@ -239,17 +230,17 @@ function ProgramStep({ learnPages, reviewPages, setLearn, setReview, known, know
   const allKnown = known.size === 114;
   return (
     <>
-      <div className="mx-auto w-full max-w-2xl flex-1 px-5 pb-32 pt-6">
-        <h1 className="font-display text-[26px] font-semibold leading-tight">Votre programme quotidien</h1>
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-4 pb-32 pt-3">
+        <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">Votre programme quotidien</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">Combien de pages du Mushaf souhaitez-vous apprendre et réviser chaque jour ? C’est un objectif, jamais une dette. Vous pourrez le modifier à tout moment dans Profil.</p>
-        <section className="mt-6 rounded-xl border border-line bg-surface p-5">
+        <section className="mt-6 card p-5">
           <div className="flex items-center justify-between gap-3">
             <div><p className="font-display text-lg font-semibold">À apprendre</p><p className="text-xs text-muted">0 pour ne pas apprendre de nouveau</p></div>
             <PagesStepper value={learnPages} onChange={setLearn} min={0} max={5} label="à apprendre" />
           </div>
           <p className="mt-3 text-xs leading-relaxed text-muted">{allKnown ? 'Vous avez coché tout le Coran : rien de nouveau à apprendre.' : learnPages === 0 ? 'Aucun nouvel apprentissage ne sera proposé.' : 'Les nouvelles sourates sont proposées dans le sens choisi, par plages de versets.'}</p>
         </section>
-        <section className="mt-3 rounded-xl border border-line bg-surface p-5">
+        <section className="mt-3 card p-5">
           <div className="flex items-center justify-between gap-3">
             <div><p className="font-display text-lg font-semibold">À réviser</p><p className="text-xs text-muted">Rotation de vos sourates apprises</p></div>
             <PagesStepper value={reviewPages} onChange={setReview} min={0} max={20} label="à réviser" />
@@ -276,10 +267,10 @@ function Recap({ known, knownPages, learnDir, reviewDir, learnPages, reviewPages
   ];
   return (
     <>
-      <div className="mx-auto w-full max-w-2xl flex-1 px-5 pb-32 pt-6">
-        <h1 className="font-display text-[26px] font-semibold leading-tight">Tout est prêt</h1>
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-4 pb-32 pt-3">
+        <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">Tout est prêt</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">Voici votre configuration. Elle est enregistrée sur cet appareil et modifiable à tout moment depuis Profil › Paramètres du Wird.</p>
-        <ul className="mt-6 divide-y divide-line/70 overflow-hidden rounded-xl border border-line bg-surface">
+        <ul className="card mt-6 divide-y divide-line overflow-hidden">
           {rows.map((r) => (
             <li key={r.label} className="flex items-center gap-3 px-4 py-3.5">
               <div className="min-w-0 flex-1"><p className="label">{r.label}</p><p className="mt-1 text-[15px] font-semibold">{r.value}</p></div>

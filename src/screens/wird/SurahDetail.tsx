@@ -68,7 +68,7 @@ function Detail({ surah }: { surah: number }) {
       sub={
         <span className="flex items-baseline justify-between gap-3">
           <span>Sourate {meta.id} · {meta.fr} · {meta.n} versets · {meta.t === 'M' ? 'mecquoise' : 'médinoise'}</span>
-          <span className="ar text-3xl leading-none text-gold" lang="ar">{meta.ar}</span>
+          <span className="ar text-3xl leading-none text-ink" lang="ar">{meta.ar}</span>
         </span>
       }
     >

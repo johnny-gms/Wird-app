@@ -1,0 +1,4 @@
+
+## V1.2 — alignement visuel sur la référence (johnny-gms.github.io/Wird)
+- **Appliqué** : palette exacte (crème `#f9f5ec`, cartes `#fffdf8`, vert `#1f4d3a`, états vert/bleu/ambre/neutre), carte « héros » en dégradé vert avec bouton blanc, titres serif (Iowan Old Style/Palatino), libellés de section en capitales grises, pastilles crème (onglets, filtres), cartes à fine bordure et ombre douce, navigation à icônes fines, écran de démarrage et icônes de la référence (livre ouvert + arche), thème sombre de la référence, police du Coran Amiri Quran. Polices système pour l'interface (plus de polices web : plus léger).
+- **Non repris (conflit avec la spécification)** : la référence a 5 onglets (Mémorisation, Révisions séparés) ; WIRD garde **4 onglets** (Accueil, Mon Wird, Progression, Profil), décision initiale. Le tutoiement de la référence n'est pas repris (WIRD vouvoie).

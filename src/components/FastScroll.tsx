@@ -86,10 +86,10 @@ export function FastScroll({ targetRef, count, label, top = 150, bottom = 96 }: 
         if (e.key === 'ArrowUp') window.scrollBy({ top: -200 });
       }}
     >
-      <div className="absolute inset-y-0 right-3 w-px bg-line" />
+      
       <div className={cx('absolute right-1.5 flex items-center transition-transform', drag && 'scale-110')} style={{ top: `calc(${p} * (100% - ${THUMB}px))`, height: THUMB }}>
-        {drag && <span className="absolute right-9 whitespace-nowrap rounded-lg bg-deep px-3 py-1.5 text-sm font-semibold text-ivory shadow-lg">{label(idx)}</span>}
-        <span className={cx('block h-full w-[14px] rounded-full border border-gold/60 bg-surface shadow-md', drag && 'bg-gold')} />
+        {drag && <span className="absolute right-9 whitespace-nowrap rounded-xl bg-primary px-3 py-1.5 text-sm font-semibold text-primary-ink shadow-lg">{label(idx)}</span>}
+        <span className={cx('block h-full rounded-full bg-primary transition-all', drag ? 'w-[12px] opacity-100' : 'w-[7px] opacity-70')} />
       </div>
     </div>
   );

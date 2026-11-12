@@ -77,7 +77,7 @@ await page.goto(BASE + '/');
 await page.getByText('Programme du jour').first().waitFor();
 const home = await page.locator('main, body').first().innerText();
 ok(/À apprendre/i.test(home) && /À réviser/i.test(home) && /Commencer la séance/.test(home), 'accueil : programme du jour (apprendre / réviser) + accès à la séance');
-ok(/Régularité/.test(home) && /Où j’en suis/.test(home), 'accueil : progression + régularité');
+ok(/régularité/i.test(home) && /ma progression/i.test(home), 'accueil : progression + régularité');
 await page.screenshot({ path: `${OUT}/04-home.png`, fullPage: true });
 const tabs = await page.locator('nav[aria-label="Navigation principale"] a').allInnerTexts();
 ok(tabs.map((t) => t.trim()).join('|') === 'Accueil|Mon Wird|Progression|Profil', 'navigation : 4 onglets');
