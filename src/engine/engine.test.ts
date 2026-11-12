@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, ENGINE } from './config';
-import { buildPlan, completeGoal, evaluateItem, goalProgress, memorizedIds, nextLearnTarget, skipItem, itemPages, type Core } from './plan';
+import { buildPlan, completeGoal, evaluateItem, goalProgress, memorizedIds, nextLearnTarget, skipItem, itemPages, upcomingRotation, type Core } from './plan';
 import { TOTAL_PAGES, idsPages, rangePages } from './pages';
 import { allHizbStats, currentStreak, overall, surahStats } from './progress';
-import { ayahId, fromAyahId, hizbRange, SURAHS, TOTAL_VERSES } from './quran';
+import { ayahId, fromAyahId, hizbOf, hizbRange, SURAHS, TOTAL_VERSES } from './quran';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { periodReport } from './reports';
 import { nextChunk } from './rotation';
+import { purgeTrash, trashDaysLeft, trashVerses } from './trash';
 import { applyGrade, newLearningVerse, newMemorizedVerse } from './scheduling';
 import type { LearningGoal, VerseState } from './types';
 
@@ -122,27 +123,75 @@ describe('rotation générale', () => {
   const verses = { ...mem(1, 1, 7), ...mem(2, 1, 25) };
   const ids = memorizedIds(verses);
   it('avance du début vers la fin, par versets contigus d’une même sourate', () => {
-    const c1 = nextChunk(ids, null, 'forward')!;
+    const c1 = nextChunk(ids, null)!;
     expect([c1.surah, c1.from, c1.to]).toEqual([1, 1, 7]);
-    const c2 = nextChunk(ids, c1.endCursor, 'forward')!;
+    const c2 = nextChunk(ids, c1.endCursor)!;
     expect([c2.surah, c2.from, c2.to]).toEqual([2, 1, 9]); // 25 versets contigus → parts égales de 9
   });
   it('revient au début après un tour complet', () => {
     const last = ids[ids.length - 1];
-    const c = nextChunk(ids, last, 'forward')!;
+    const c = nextChunk(ids, last)!;
     expect([c.surah, c.from]).toEqual([1, 1]);
     expect(c.wraps).toBe(true);
   });
-  it('sens inverse : de la fin vers le début', () => {
-    const c1 = nextChunk(ids, null, 'backward')!;
-    expect([c1.surah, c1.from, c1.to]).toEqual([2, 17, 25]);
-    const c2 = nextChunk(ids, c1.endCursor, 'backward')!;
-    expect([c2.surah, c2.from, c2.to]).toEqual([2, 9, 16]);
-  });
   it('gère les trous (versets non mémorisés)', () => {
     const v = { ...mem(2, 1, 3), ...mem(2, 10, 12) };
-    const c = nextChunk(memorizedIds(v), ayahId(2, 3), 'forward')!;
+    const c = nextChunk(memorizedIds(v), ayahId(2, 3))!;
     expect([c.from, c.to]).toEqual([10, 12]);
+  });
+});
+
+describe('rotation par Hizb', () => {
+  it('ne chevauche jamais deux Hizb et suit l’ordre 1 → 60, du début vers la fin de chaque Hizb', () => {
+    // 2:60 → 2:90 traverse la limite des Hizb 1 et 2 (le Hizb 2 commence en 2:75)
+    const v = mem(2, 60, 90);
+    const ids = memorizedIds(v);
+    let cursor: number | null = null;
+    const chunks: { hizb: number; from: number; to: number }[] = [];
+    for (let i = 0; i < 8; i++) {
+      const c: ReturnType<typeof nextChunk> = nextChunk(ids, cursor);
+      if (!c || (chunks.length && c.wraps)) break;
+      const hz = new Set(c.ids.map(hizbOf));
+      expect(hz.size).toBe(1);
+      chunks.push({ hizb: [...hz][0], from: c.from, to: c.to });
+      cursor = c.endCursor;
+    }
+    expect(chunks[0].from).toBe(60);
+    for (let i = 1; i < chunks.length; i++) expect(chunks[i].hizb).toBeGreaterThanOrEqual(chunks[i - 1].hizb);
+    expect(chunks.some((c) => c.hizb === 1) && chunks.some((c) => c.hizb === 2)).toBe(true);
+    expect(chunks.find((c) => c.hizb === 2)!.from).toBe(75);
+    expect(chunks.find((c) => c.hizb === 1)!.to).toBe(74);
+  });
+  it('un verset difficile reste dans la rotation et revient aussi en renforcement', () => {
+    let c = mkCore(mem(2, 1, 10));
+    c = { ...c, plan: buildPlan(c, D, null) };
+    c = evaluateItem(c, c.plan!.items[0].id, 'failed', new Date(), D);
+    const next = buildPlan(c, '2026-03-11', c.plan);
+    expect(next.items.some((i) => i.kind === 'reinforce')).toBe(true);
+    expect(memorizedIds(c.verses)).toHaveLength(10);
+  });
+  it('estimation « à venir » : indicative, croissante, jamais une dette', () => {
+    const c = mkCore(mem(2, 1, 150), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 1, learnPagesPerDay: 0 } });
+    const plan = buildPlan(c, D, null);
+    const up = upcomingRotation(c, plan, 5);
+    expect(up.length).toBeGreaterThan(0);
+    expect(up[0].inDays).toBeGreaterThanOrEqual(1);
+    for (let i = 1; i < up.length; i++) expect(up[i].inDays).toBeGreaterThanOrEqual(up[i - 1].inDays);
+    const todayIds = new Set(plan.items.flatMap((i) => Array.from({ length: i.to - i.from + 1 }, (_, k) => ayahId(i.surah, i.from + k))));
+    expect(up.every((u) => !todayIds.has(ayahId(u.surah, u.from)))).toBe(true);
+    expect(upcomingRotation({ ...c, settings: { ...c.settings, reviewPagesPerDay: 0 } }, plan)).toEqual([]);
+  });
+});
+
+describe('corbeille 30 jours', () => {
+  it('le retrait du suivi est restaurable ; purge après 30 jours', () => {
+    const v = mem(1, 1, 7);
+    const t = trashVerses(v, 1, 2, 4, new Date('2026-03-10T10:00:00Z'));
+    expect(Object.keys(t.verses)).toHaveLength(4);
+    expect(t.item!.kind === 'verses' && t.item!.verses).toHaveLength(3);
+    expect(purgeTrash([t.item!], '2026-04-08')).toHaveLength(1); // J+29
+    expect(purgeTrash([t.item!], '2026-04-09')).toHaveLength(0); // J+30
+    expect(trashDaysLeft(t.item!, '2026-03-20')).toBe(20);
   });
 });
 
@@ -154,7 +203,7 @@ describe('découpage', () => {
       let cursor: number | null = null;
       let seen = 0;
       while (seen < len) {
-        const c: ReturnType<typeof nextChunk> = nextChunk(ids, cursor, 'forward');
+        const c: ReturnType<typeof nextChunk> = nextChunk(ids, cursor);
         expect(c!.ids.length).toBeLessThanOrEqual(ENGINE.chunkSize);
         if (len > 1) expect(c!.ids.length).toBeGreaterThan(1);
         seen += c!.ids.length;

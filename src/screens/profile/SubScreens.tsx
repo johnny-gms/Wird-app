@@ -61,8 +61,7 @@ export function ProfileWird() {
 
       <h2 className="label mb-2 mt-6">Sens de révision</h2>
       <section className="card p-4">
-        <Segmented<Direction> value={settings.direction} onChange={(direction) => updateSettings({ direction })} options={DIR_OPTS} />
-        <p className="mt-3 text-xs leading-relaxed text-muted">Indépendant du sens d’apprentissage. Votre position dans la rotation est conservée : en changeant de sens, vous repartez de là où vous en êtes. Un verset mal récité ne quitte jamais la rotation.</p>
+        <p className="text-sm leading-relaxed text-muted">La révision suit toujours les Hizb dans l’ordre, du 1<sup>er</sup> au 60<sup>e</sup>, et chaque Hizb du début vers la fin. Un verset difficile reste dans la rotation et peut revenir plus tôt en renforcement.</p>
       </section>
       <p className="mt-4 text-xs leading-relaxed text-muted">Les intervalles de renforcement (lendemain, 2 jours, 4 jours, puis 7 et 21 jours) sont centralisés dans <code>src/engine/config.ts</code>.</p>
     </SubPage>

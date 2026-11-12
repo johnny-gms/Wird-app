@@ -12,7 +12,7 @@ import type { Direction, VerseState } from '@/engine/types';
 import { DEFAULT_SETTINGS } from '@/engine/config';
 import { useWird } from '@/store/useWird';
 
-const STEPS = 6; // 0 bienvenue · 1 sourates · 2 apprentissage · 3 révision · 4 programme · 5 récapitulatif
+const STEPS = 5; // 0 bienvenue · 1 sourates · 2 apprentissage · 3 programme · 4 récapitulatif
 const surahPages = (id: number) => rangePages(id, 1, surahMeta(id).n);
 
 export default function Onboarding() {
@@ -21,16 +21,15 @@ export default function Onboarding() {
   const [name, setName] = useState('');
   const [known, setKnown] = useState<Set<number>>(new Set());
   const [learnDir, setLearnDir] = useState<Direction>('forward');
-  const [reviewDir, setReviewDir] = useState<Direction>('forward');
   const [learnPages, setLearnPages] = useState(DEFAULT_SETTINGS.learnPagesPerDay);
   const [reviewPages, setReviewPages] = useState(DEFAULT_SETTINGS.reviewPagesPerDay);
 
   const knownPages = useMemo(() => [...known].reduce((a, id) => a + surahPages(id), 0), [known]);
   const next = () => setStep((s) => Math.min(STEPS - 1, s + 1));
   const back = () => setStep((s) => Math.max(0, s - 1));
-  const finish = (demo = false) => complete({ name, knownSurahs: [...known], learnDirection: learnDir, reviewDirection: reviewDir, learnPagesPerDay: learnPages, reviewPagesPerDay: reviewPages, demo });
+  const finish = (demo = false) => complete({ name, knownSurahs: [...known], learnDirection: learnDir, learnPagesPerDay: learnPages, reviewPagesPerDay: reviewPages, demo });
 
-  if (step === 0) return <Welcome name={name} setName={setName} onStart={next} onDemo={() => complete({ name, knownSurahs: [], learnDirection: 'forward', reviewDirection: 'forward', learnPagesPerDay: 0.5, reviewPagesPerDay: 2, demo: true })} />;
+  if (step === 0) return <Welcome name={name} setName={setName} onStart={next} onDemo={() => complete({ name, knownSurahs: [], learnDirection: 'forward', learnPagesPerDay: 0.5, reviewPagesPerDay: 2, demo: true })} />;
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
@@ -48,9 +47,8 @@ export default function Onboarding() {
 
       {step === 1 && <KnownStep known={known} setKnown={setKnown} knownPages={knownPages} onNext={next} />}
       {step === 2 && <DirectionStep key="learn" title="Dans quel sens apprendre de nouvelles sourates ?" hint="WIRD vous proposera la prochaine sourate à apprendre dans cet ordre, parmi celles que vous ne connaissez pas encore." value={learnDir} onChange={setLearnDir} known={known} showNext onNext={next} />}
-      {step === 3 && <DirectionStep key="review" title="Dans quel sens réviser vos sourates apprises ?" hint="Votre révision parcourt en continu ce que vous connaissez. Ce sens est indépendant de celui de l’apprentissage." value={reviewDir} onChange={setReviewDir} known={known} onNext={next} />}
-      {step === 4 && <ProgramStep learnPages={learnPages} reviewPages={reviewPages} setLearn={setLearnPages} setReview={setReviewPages} known={known} knownPages={knownPages} learnDir={learnDir} onNext={next} />}
-      {step === 5 && <Recap known={known} knownPages={knownPages} learnDir={learnDir} reviewDir={reviewDir} learnPages={learnPages} reviewPages={reviewPages} goTo={setStep} onFinish={() => finish()} />}
+      {step === 3 && <ProgramStep learnPages={learnPages} reviewPages={reviewPages} setLearn={setLearnPages} setReview={setReviewPages} known={known} knownPages={knownPages} learnDir={learnDir} onNext={next} />}
+      {step === 4 && <Recap known={known} knownPages={knownPages} learnDir={learnDir} learnPages={learnPages} reviewPages={reviewPages} goTo={setStep} onFinish={() => finish()} />}
     </div>
   );
 }
@@ -257,13 +255,13 @@ function ProgramStep({ learnPages, reviewPages, setLearn, setReview, known, know
 }
 
 // ------------------------------------------------------------------ 6 · Récapitulatif
-function Recap({ known, knownPages, learnDir, reviewDir, learnPages, reviewPages, goTo, onFinish }: { known: Set<number>; knownPages: number; learnDir: Direction; reviewDir: Direction; learnPages: number; reviewPages: number; goTo: (s: number) => void; onFinish: () => void }) {
+function Recap({ known, knownPages, learnDir, learnPages, reviewPages, goTo, onFinish }: { known: Set<number>; knownPages: number; learnDir: Direction; learnPages: number; reviewPages: number; goTo: (s: number) => void; onFinish: () => void }) {
   const dir = (d: Direction) => (d === 'forward' ? 'Al-Fatiha → An-Nas' : 'An-Nas → Al-Fatiha');
   const rows: { label: string; value: string; step: number }[] = [
     { label: 'Sourates déjà apprises', value: known.size ? `${known.size} sourate${known.size > 1 ? 's' : ''} · ≈ ${formatPages(knownPages)}` : 'Aucune pour l’instant', step: 1 },
     { label: 'Sens d’apprentissage', value: dir(learnDir), step: 2 },
-    { label: 'Sens de révision', value: dir(reviewDir), step: 3 },
-    { label: 'Programme quotidien', value: `${learnPages ? formatPages(learnPages) : 'Pas d’apprentissage'} à apprendre · ${reviewPages ? formatPages(reviewPages) : 'pas de révision'} à réviser`, step: 4 },
+    { label: 'Révision', value: 'Hizb par Hizb, du 1er au 60e', step: 3 },
+    { label: 'Programme quotidien', value: `${learnPages ? formatPages(learnPages) : 'Pas d’apprentissage'} à apprendre · ${reviewPages ? formatPages(reviewPages) : 'pas de révision'} à réviser`, step: 3 },
   ];
   return (
     <>

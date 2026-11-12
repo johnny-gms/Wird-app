@@ -90,7 +90,7 @@ export function buildPlan(ctx: PlanContext, date: string, prev: DailyPlan | null
   const rotExclude = new Set<number>([...coveredReinforce, ...picked, ...seen]);
   let guard = memorized.length + 2;
   while (quota > 0.05 && guard-- > 0) {
-    const c = nextChunk(memorized, cursor, ctx.settings.direction, rotExclude, ENGINE.chunkSize);
+    const c = nextChunk(memorized, cursor, rotExclude, ENGINE.chunkSize);
     if (!c) break;
     // un tour complet de la rotation a été proposé : on ne répète pas les mêmes versets le même jour
     if (c.ids.some((id) => seen.has(id))) break;
@@ -250,4 +250,38 @@ export function completeGoal(core: Core, goalId: string, today: string): Core {
   // Retire les éléments d'apprentissage non traités de cet objectif.
   const plan = core.plan ? { ...core.plan, items: core.plan.items.filter((i) => !(i.goalId === goalId && i.status === 'pending')) } : null;
   return { ...core, verses, goals, plan };
+}
+
+export interface UpcomingChunk {
+  surah: number;
+  from: number;
+  to: number;
+  /** Nombre de jours estimés avant le passage (1 = demain). Estimation : dépend de ton rythme et de ce que tu ajoutes. */
+  inDays: number;
+}
+
+/**
+ * Estimation des prochains passages de la rotation générale (au-delà du programme du jour), d'après l'objectif de
+ * révision en pages. Ce n'est PAS un calendrier : rien n'est dû ; c'est une projection indicative.
+ */
+export function upcomingRotation(ctx: PlanContext, today: DailyPlan | null, maxItems = 6): UpcomingChunk[] {
+  const pagesPerDay = ctx.settings.reviewPagesPerDay;
+  if (pagesPerDay <= 0) return [];
+  const memorized = memorizedIds(ctx.verses);
+  if (!memorized.length) return [];
+  const rot = (today?.items ?? []).filter((i) => i.kind === 'review' && !i.adhoc && i.endCursor !== undefined);
+  let cursor = rot.length ? rot[rot.length - 1].endCursor! : ctx.rotation.cursor;
+  const seen = new Set<number>(rot.flatMap(itemIds));
+  const out: UpcomingChunk[] = [];
+  let acc = 0;
+  let guard = memorized.length + 2;
+  while (out.length < maxItems && guard-- > 0) {
+    const c = nextChunk(memorized, cursor, new Set());
+    if (!c || c.ids.some((id) => seen.has(id))) break;
+    out.push({ surah: c.surah, from: c.from, to: c.to, inDays: Math.max(1, Math.floor(acc / pagesPerDay) + 1) });
+    acc += idsPages(c.ids);
+    c.ids.forEach((id) => seen.add(id));
+    cursor = c.endCursor;
+  }
+  return out;
 }

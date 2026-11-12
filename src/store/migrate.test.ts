@@ -5,7 +5,7 @@ import type { PersistedState } from '@/engine/types';
 describe('migration des données V1', () => {
   it('objectifs en versets → pages, sens d’apprentissage ajouté, notifications conservées', () => {
     const s = migrateSettings({ direction: 'backward', reviewVersesPerDay: 45, learningEnabled: false, learningChunk: 5, reinforceVersesPerDay: 20, theme: 'dark', notifications: { daily: { enabled: false, time: '06:00' } } });
-    expect(s.direction).toBe('backward');
+    expect('direction' in s).toBe(false); // le sens de révision n'existe plus
     expect(s.learnDirection).toBe('backward');
     expect(s.reviewPagesPerDay).toBe(3);
     expect(s.learnPagesPerDay).toBe(0);
@@ -27,5 +27,7 @@ describe('migration des données V1', () => {
     expect(out.session).toBeNull();
     expect(out.plan!.items.map((i) => i.status)).toEqual(['pending', 'done']);
     expect(out.profile.onboarded).toBe(true);
+    expect(out.trash).toEqual([]);
+    expect(out.lastValidation).toBeNull();
   });
 });

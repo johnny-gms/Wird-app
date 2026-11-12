@@ -30,6 +30,9 @@ export const ENGINE = {
 
   /** Une sourate est « à entretenir » si ses versets mémorisés n'ont pas été révisés depuis ce nombre de jours. */
   maintainAfterDays: 30,
+
+  /** Durée de conservation de la corbeille (jours). */
+  trashDays: 30,
 } as const;
 
 export const GRADE_ORDER: Grade[] = ['mastered', 'hesitant', 'difficult', 'failed'];
@@ -58,11 +61,11 @@ export const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  direction: 'forward',
   learnDirection: 'forward',
   learnPagesPerDay: 0.5,
   reviewPagesPerDay: 2,
   reinforceVersesPerDay: 15,
   theme: 'system',
+  haptics: true,
   notifications: DEFAULT_NOTIFICATIONS,
 };

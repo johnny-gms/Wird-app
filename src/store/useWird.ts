@@ -25,11 +25,13 @@ import type {
   Settings,
   SessionState,
   SessionSummary,
+  UndoSnapshot,
   VerseState,
 } from '@/engine/types';
 import { kvClear, kvGetAll, kvSetMany, requestPersistentStorage } from '@/storage/db';
 import { enqueue } from '@/sync/outbox';
 import { normalizeState } from './migrate';
+import { purgeTrash, trashGoal, trashPersonalGoal, trashVerses } from '@/engine/trash';
 
 export const SCHEMA_VERSION = 1;
 
@@ -46,6 +48,8 @@ const emptyState = (): PersistedState => ({
   summaries: [],
   personalGoals: [],
   dayLog: [],
+  trash: [],
+  lastValidation: null,
 });
 
 const PERSISTED_KEYS = Object.keys(emptyState()) as (keyof PersistedState)[];
@@ -81,6 +85,10 @@ interface Actions {
   toggleGoalAchieved(id: string): void;
   deletePersonalGoal(id: string): void;
 
+  restoreTrash(id: string): void;
+  deleteTrashItem(id: string): void;
+  undoValidation(): boolean;
+
   exportData(): string;
   importData(json: string): { ok: true } | { ok: false; error: string };
   resetAll(): Promise<void>;
@@ -91,7 +99,6 @@ export interface OnboardingConfig {
   /** Sourates déjà apprises (entrent dans la rotation de révision). */
   knownSurahs: number[];
   learnDirection: Direction;
-  reviewDirection: Direction;
   learnPagesPerDay: number;
   reviewPagesPerDay: number;
   demo?: boolean;
@@ -142,7 +149,8 @@ export const useWird = create<WirdStore>((set, get) => {
         session = scope.length ? { ...session, scope } : null;
       } else if (open.size === 0) session = null;
     }
-    set({ ...patch, plan: nextPlan, session });
+    // toute modification structurelle (ajout, retrait, réglage, nouveau jour) clôt la possibilité d'annuler la dernière validation
+    set({ lastValidation: null, ...patch, plan: nextPlan, session });
   };
 
   const finishSummary = () => {
@@ -201,6 +209,10 @@ export const useWird = create<WirdStore>((set, get) => {
       const s = get();
       if (!s.profile.onboarded) return;
       const today = dateKey();
+      // corbeille : purge à 30 jours ; annulation de validation : disponible 24 h
+      const purged = purgeTrash(s.trash, today);
+      if (purged.length !== s.trash.length) set({ trash: purged });
+      if (s.lastValidation && Date.now() - new Date(s.lastValidation.at).getTime() > 86_400_000) set({ lastValidation: null });
       if (s.plan?.date === today) return;
       let dayLog = s.dayLog;
       if (s.plan && s.plan.items.length) {
@@ -231,7 +243,6 @@ export const useWird = create<WirdStore>((set, get) => {
       }
       const settings: Settings = {
         ...get().settings,
-        direction: cfg.reviewDirection,
         learnDirection: cfg.learnDirection,
         learnPagesPerDay: cfg.learnPagesPerDay,
         reviewPagesPerDay: cfg.reviewPagesPerDay,
@@ -248,7 +259,7 @@ export const useWird = create<WirdStore>((set, get) => {
     updateSettings(patch) {
       const settings = { ...get().settings, ...patch };
       set({ settings });
-      if (patch.direction || patch.learnDirection || patch.learnPagesPerDay !== undefined || patch.reviewPagesPerDay !== undefined || patch.reinforceVersesPerDay) {
+      if (patch.learnDirection || patch.learnPagesPerDay !== undefined || patch.reviewPagesPerDay !== undefined || patch.reinforceVersesPerDay) {
         // Le sens change le point de reprise : on repart du curseur existant dans le nouveau sens.
         rebuild({ settings });
       }
@@ -265,13 +276,15 @@ export const useWird = create<WirdStore>((set, get) => {
       rebuild({ verses, progressLog: logProgress({ verses, progressLog: get().progressLog }, today) });
     },
 
+    /** Retire des versets du suivi : ils vont à la corbeille (restaurables 30 jours). */
     removeVerses(surah, from, to) {
       const today = dateKey();
-      const verses = { ...get().verses };
-      for (let a = from; a <= to; a++) delete verses[ayahId(surah, a)];
-      // un objectif d'apprentissage dont tous les versets ont disparu est supprimé
-      const goals = get().goals.filter((g) => !(g.surah === surah && g.from >= from && g.to <= to && !g.completedAt));
-      rebuild({ verses, goals, progressLog: logProgress({ verses, progressLog: get().progressLog }, today) });
+      const t = trashVerses(get().verses, surah, from, to, new Date());
+      // un objectif d'apprentissage dont tous les versets ont disparu est supprimé (et mis à la corbeille)
+      const removedGoals = get().goals.filter((g) => g.surah === surah && g.from >= from && g.to <= to && !g.completedAt);
+      const goals = get().goals.filter((g) => !removedGoals.includes(g));
+      const trash = [...get().trash, ...(t.item ? [t.item] : []), ...removedGoals.map((g) => trashGoal(g, [], new Date()))];
+      rebuild({ verses: t.verses, goals, trash, progressLog: logProgress({ verses: t.verses, progressLog: get().progressLog }, today) });
     },
 
     addGoal(surah, from, to) {
@@ -300,10 +313,22 @@ export const useWird = create<WirdStore>((set, get) => {
       const g = get().goals.find((x) => x.id === id);
       if (!g) return;
       const verses = { ...get().verses };
-      // les versets encore « en apprentissage » de cet objectif ne sont plus suivis ; les mémorisés restent
-      for (let a = g.from; a <= g.to; a++) if (verses[ayahId(g.surah, a)]?.status === 'learning') delete verses[ayahId(g.surah, a)];
+      // les versets encore « en apprentissage » de cet objectif ne sont plus suivis (corbeille) ; les mémorisés restent
+      const removed: VerseState[] = [];
+      for (let a = g.from; a <= g.to; a++) {
+        const vid = ayahId(g.surah, a);
+        if (verses[vid]?.status === 'learning') {
+          removed.push(verses[vid]);
+          delete verses[vid];
+        }
+      }
       const plan = get().plan;
-      rebuild({ verses, goals: get().goals.filter((x) => x.id !== id), plan: plan ? { ...plan, items: plan.items.filter((i) => i.goalId !== id || i.status === 'done') } : plan });
+      rebuild({
+        verses,
+        goals: get().goals.filter((x) => x.id !== id),
+        trash: [...get().trash, trashGoal(g, removed, new Date())],
+        plan: plan ? { ...plan, items: plan.items.filter((i) => i.goalId !== id || i.status === 'done') } : plan,
+      });
     },
 
     addAdhoc(surah, from, to) {
@@ -369,12 +394,44 @@ export const useWird = create<WirdStore>((set, get) => {
           evaluated++;
         }
       }
-      set({ verses: c.verses, goals: c.goals, rotation: c.rotation, history: c.history, plan: c.plan, progressLog: logProgress({ verses: c.verses, progressLog: s.progressLog }, today) });
+      // instantané « avant » (uniquement les versets modifiés) pour pouvoir annuler une validation accidentelle
+      const before: Record<number, VerseState | null> = {};
+      for (const k in c.verses) if (c.verses[k] !== s.verses[k]) before[Number(k)] = s.verses[k] ?? null;
+      const lastValidation: UndoSnapshot | null =
+        evaluated > 0
+          ? { at: now.toISOString(), date: today, verses: before, goals: s.goals, rotation: s.rotation, plan: s.plan, session: sess, progressLog: s.progressLog, summaries: s.summaries, historyIds: c.history.slice(s.history.length).map((h) => h.id) }
+          : s.lastValidation;
+      set({ verses: c.verses, goals: c.goals, rotation: c.rotation, history: c.history, plan: c.plan, lastValidation, progressLog: logProgress({ verses: c.verses, progressLog: s.progressLog }, today) });
       const stillOpen = (c.plan?.items ?? []).some((i) => i.status === 'pending');
       if (evaluated > 0) void enqueue('activity', { date: today, at: now.toISOString(), unfinished: stillOpen, tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
       finishSummary();
       set({ session: null });
       return evaluated > 0 ? 'bilan' : 'none';
+    },
+
+    /** Annule la dernière validation : tout revient comme avant, et la séance se rouvre à l'évaluation (brouillon conservé). */
+    undoValidation() {
+      const snap = get().lastValidation;
+      if (!snap) return false;
+      const verses = { ...get().verses };
+      for (const k in snap.verses) {
+        const v = snap.verses[k];
+        if (v === null) delete verses[Number(k)];
+        else verses[Number(k)] = v;
+      }
+      const ids = new Set(snap.historyIds);
+      set({
+        verses,
+        goals: snap.goals,
+        rotation: snap.rotation,
+        plan: snap.plan,
+        session: snap.session ? { ...snap.session, step: 'evaluate' } : null,
+        history: get().history.filter((h) => !ids.has(h.id)),
+        progressLog: snap.progressLog,
+        summaries: snap.summaries,
+        lastValidation: null,
+      });
+      return true;
     },
 
     skipItem(id) {
@@ -402,7 +459,27 @@ export const useWird = create<WirdStore>((set, get) => {
       set({ personalGoals: get().personalGoals.map((g) => (g.id === id ? { ...g, achievedAt: g.achievedAt ? null : dateKey() } : g)) });
     },
     deletePersonalGoal(id) {
-      set({ personalGoals: get().personalGoals.filter((g) => g.id !== id) });
+      const g = get().personalGoals.find((x) => x.id === id);
+      if (!g) return;
+      set({ personalGoals: get().personalGoals.filter((x) => x.id !== id), trash: [...get().trash, trashPersonalGoal(g, new Date())] });
+    },
+
+    /** Restaure un élément de la corbeille (versets, objectif d'apprentissage ou objectif personnel). */
+    restoreTrash(id) {
+      const item = get().trash.find((t) => t.id === id);
+      if (!item) return;
+      const trash = get().trash.filter((t) => t.id !== id);
+      if (item.kind === 'personalGoal') {
+        set({ trash, personalGoals: [...get().personalGoals, item.goal] });
+        return;
+      }
+      const verses = { ...get().verses };
+      for (const v of item.verses) if (!verses[v.id]) verses[v.id] = v; // ne jamais écraser un verset ressuivi depuis
+      const goals = item.kind === 'goal' && !get().goals.some((g) => g.id === item.goal.id) ? [...get().goals, item.goal] : get().goals;
+      rebuild({ verses, goals, trash, progressLog: logProgress({ verses, progressLog: get().progressLog }, dateKey()) });
+    },
+    deleteTrashItem(id) {
+      set({ trash: get().trash.filter((t) => t.id !== id) });
     },
 
     exportData() {

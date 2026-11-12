@@ -1,6 +1,5 @@
 import { ENGINE } from './config';
-import { fromAyahId } from './quran';
-import type { Direction } from './types';
+import { fromAyahId, hizbOf } from './quran';
 
 export interface Chunk {
   surah: number;
@@ -14,62 +13,37 @@ export interface Chunk {
 }
 
 /**
- * Prochain morceau de la rotation générale : versets mémorisés contigus d'une même sourate.
+ * Prochain morceau de la rotation générale : versets mémorisés contigus d'une même sourate ET d'un même Hizb.
+ * La rotation avance toujours du début vers la fin : Hizb 1, puis 2, … puis 60, puis recommence.
  * - `memorized` : ids triés croissants.
  * - `cursor`    : dernier verset révisé (null = début).
  * - `exclude`   : versets déjà couverts aujourd'hui (ex. renforcement).
  */
-export function nextChunk(
-  memorized: number[],
-  cursor: number | null,
-  direction: Direction,
-  exclude: ReadonlySet<number> = new Set(),
-  size: number = ENGINE.chunkSize,
-): Chunk | null {
+export function nextChunk(memorized: number[], cursor: number | null, exclude: ReadonlySet<number> = new Set(), size: number = ENGINE.chunkSize): Chunk | null {
   const n = memorized.length;
   if (n === 0) return null;
 
   let wraps = false;
-  let idx: number;
-  if (direction === 'forward') {
-    idx = cursor === null ? 0 : firstGreater(memorized, cursor);
-    // saute les versets exclus
-    while (idx < n && exclude.has(memorized[idx])) idx++;
-    if (idx >= n) {
-      idx = 0;
-      wraps = cursor !== null;
-      while (idx < n && exclude.has(memorized[idx])) idx++;
-      if (idx >= n) return null;
-    }
-    const run = [memorized[idx]];
-    for (let j = idx + 1; j < n; j++) {
-      const id = memorized[j];
-      if (id !== run[run.length - 1] + 1 || exclude.has(id)) break;
-      if (fromAyahId(id).surah !== fromAyahId(run[0]).surah) break;
-      run.push(id);
-    }
-    const ids = run.slice(0, partSize(run.length, size));
-    return toChunk(ids, ids[ids.length - 1], wraps);
-  }
-
-  // backward : on parcourt la liste de la fin vers le début
-  idx = cursor === null ? n - 1 : lastLess(memorized, cursor);
-  while (idx >= 0 && exclude.has(memorized[idx])) idx--;
-  if (idx < 0) {
-    idx = n - 1;
+  let idx = cursor === null ? 0 : firstGreater(memorized, cursor);
+  while (idx < n && exclude.has(memorized[idx])) idx++;
+  if (idx >= n) {
+    idx = 0;
     wraps = cursor !== null;
-    while (idx >= 0 && exclude.has(memorized[idx])) idx--;
-    if (idx < 0) return null;
+    while (idx < n && exclude.has(memorized[idx])) idx++;
+    if (idx >= n) return null;
   }
-  const run = [memorized[idx]];
-  for (let j = idx - 1; j >= 0; j--) {
+  const first = memorized[idx];
+  const surah = fromAyahId(first).surah;
+  const hizb = hizbOf(first);
+  const run = [first];
+  for (let j = idx + 1; j < n; j++) {
     const id = memorized[j];
-    if (id !== run[0] - 1 || exclude.has(id)) break;
-    if (fromAyahId(id).surah !== fromAyahId(run[0]).surah) break;
-    run.unshift(id);
+    if (id !== run[run.length - 1] + 1 || exclude.has(id)) break;
+    if (fromAyahId(id).surah !== surah || hizbOf(id) !== hizb) break;
+    run.push(id);
   }
-  const ids = run.slice(run.length - partSize(run.length, size));
-  return toChunk(ids, ids[0], wraps);
+  const ids = run.slice(0, partSize(run.length, size));
+  return toChunk(ids, ids[ids.length - 1], wraps);
 }
 
 /** Taille d'une part : on découpe une série contiguë en parts presque égales (pas de reste d'un seul verset). */
@@ -93,10 +67,6 @@ function firstGreater(arr: number[], x: number): number {
     else lo = mid + 1;
   }
   return lo;
-}
-
-function lastLess(arr: number[], x: number): number {
-  return firstGreater(arr, x - 1) - 1;
 }
 
 /** Regroupe des ids en morceaux contigus (même sourate), de tailles presque égales et ≤ size. */

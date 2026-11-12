@@ -131,8 +131,6 @@ export interface NotificationPrefs {
 }
 
 export interface Settings {
-  /** Sens de la rotation de RÉVISION des sourates déjà apprises. */
-  direction: Direction;
   /** Sens dans lequel on apprend de NOUVELLES sourates (indépendant du sens de révision). */
   learnDirection: Direction;
   /** Objectif quotidien d'apprentissage, en pages du Mushaf (0 = pas d'apprentissage). */
@@ -142,6 +140,8 @@ export interface Settings {
   /** Plafond de versets de renforcement proposés par jour. */
   reinforceVersesPerDay: number;
   theme: ThemeMode;
+  /** Retours haptiques (vibrations) lorsque l'appareil les permet. */
+  haptics: boolean;
   notifications: NotificationPrefs;
 }
 
@@ -167,6 +167,28 @@ export interface DayRecord {
   notDone: number;
 }
 
+/** Élément de la corbeille (conservé 30 jours, restaurable). */
+export type TrashItem =
+  | { id: string; kind: 'verses'; deletedAt: string; label: string; verses: VerseState[] }
+  | { id: string; kind: 'goal'; deletedAt: string; label: string; goal: LearningGoal; verses: VerseState[] }
+  | { id: string; kind: 'personalGoal'; deletedAt: string; label: string; goal: PersonalGoal };
+
+/** Instantané avant une validation de séance : permet « Annuler la validation ». */
+export interface UndoSnapshot {
+  at: string; // ISO
+  date: string;
+  /** États des versets AVANT la validation (absent = verset non suivi). */
+  verses: Record<number, VerseState | null>;
+  goals: LearningGoal[];
+  rotation: RotationState;
+  plan: DailyPlan | null;
+  session: SessionState | null;
+  progressLog: ProgressPoint[];
+  summaries: SessionSummary[];
+  /** Entrées d'historique ajoutées par la validation. */
+  historyIds: string[];
+}
+
 /** Instantané complet persisté (hors table des versets, stockée à part). */
 export interface PersistedState {
   profile: Profile;
@@ -181,4 +203,6 @@ export interface PersistedState {
   summaries: SessionSummary[];
   personalGoals: PersonalGoal[];
   dayLog: DayRecord[];
+  trash: TrashItem[];
+  lastValidation: UndoSnapshot | null;
 }
