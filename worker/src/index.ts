@@ -1,11 +1,12 @@
 /**
  * Worker de rappels WIRD (Cloudflare Workers + D1 + Cron Trigger). Contrat d'API : docs/NOTIFICATIONS.md.
- * Données stockées : abonnement Push, préférences, fuseau, date de dernière activité. Jamais de versets ni d'évaluations.
+ * Données Push : abonnement, préférences, fuseau, dernière activité. Synchronisation (/api/sync/*) : uniquement avec un compte.
  */
 import { decideReminders, type SubscriberState } from '../../src/notifications/rules';
 import type { NotificationPrefs } from '../../src/engine/types';
 import { D1Store, type D1Like, type Store, type Subscriber } from './store';
 import { b64uEncode, importVapidKey, sendWebPush } from './webpush';
+import { D1SyncStore, handleSync, noAuth, type Authenticator, type SyncStore } from './sync';
 
 export interface Env {
   DB: D1Like;
@@ -65,7 +66,7 @@ async function vapid(env: Env) {
   return { subject: env.VAPID_SUBJECT, publicKey: env.VAPID_PUBLIC_KEY, privateKey: await importVapidKey(env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY) };
 }
 
-export async function handleRequest(req: Request, env: Env, store: Store = new D1Store(env.DB), now: Date = new Date(), fetchImpl?: typeof fetch): Promise<Response> {
+export async function handleRequest(req: Request, env: Env, store: Store = new D1Store(env.DB), now: Date = new Date(), fetchImpl?: typeof fetch, auth: Authenticator = noAuth, syncStore: SyncStore = new D1SyncStore(env.DB)): Promise<Response> {
   const url = new URL(req.url);
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(env) });
   if (req.method === 'GET' && url.pathname === '/api/health') return json(env, { ok: true, publicKey: env.VAPID_PUBLIC_KEY, lastCron: await store.getMeta('lastCron'), time: now.toISOString() });
@@ -74,6 +75,14 @@ export async function handleRequest(req: Request, env: Env, store: Store = new D
 
   const body = (await req.json().catch(() => null)) as Record<string, any> | null;
   if (!body || typeof body !== 'object') return json(env, { error: 'json' }, 400);
+
+  // ---- synchronisation : réservée aux comptes (authentification Google / Apple à brancher)
+  if (url.pathname.startsWith('/api/sync/')) {
+    const user = await auth(req);
+    if (!user) return json(env, { error: 'auth_not_configured', message: "La synchronisation nécessite un compte (connexion Google / Apple, pas encore activée)." }, 501);
+    const r = await handleSync(url.pathname, user, body, syncStore);
+    return json(env, r.data, r.status);
+  }
 
   // ---- abonnement : crée l'appareil et remet un jeton secret (jamais stocké en clair)
   if (url.pathname === '/api/subscribe') {

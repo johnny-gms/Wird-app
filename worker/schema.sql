@@ -16,3 +16,13 @@ CREATE TABLE IF NOT EXISTS subscribers (
 );
 CREATE INDEX IF NOT EXISTS idx_subscribers_activity ON subscribers (last_activity_date);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+-- Synchronisation multi-appareils (activée une fois l'authentification en place)
+CREATE TABLE IF NOT EXISTS sync_records (
+  user_id TEXT NOT NULL,
+  key     TEXT NOT NULL,                 -- ex. verse:2005, goal:ab12, settings:theme
+  hlc     TEXT NOT NULL,                 -- horloge hybride : la version la plus récente gagne
+  del     INTEGER NOT NULL DEFAULT 0,    -- 1 = suppression (tombstone)
+  value   TEXT NOT NULL DEFAULT 'null',
+  PRIMARY KEY (user_id, key)
+);
+CREATE INDEX IF NOT EXISTS idx_sync_hlc ON sync_records (user_id, hlc);

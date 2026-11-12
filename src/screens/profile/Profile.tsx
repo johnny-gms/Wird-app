@@ -90,6 +90,7 @@ export default function Profile() {
         </div>
       )}
 
+      <div className="card mt-3 p-4"><b className="block">Synchronisation</b><span className="text-sm text-muted">Pas encore active : elle nécessitera un compte (connexion Google ou Apple, prévue plus tard). D’ici là, tes données restent uniquement sur cet appareil, et tu peux les exporter depuis les réglages.</span></div>
       <Link to="/profil/apropos" className="card mt-3 flex items-center gap-3 p-4"><span className="flex-1"><b className="block">À propos</b><span className="text-sm text-muted">Sources du texte, licences, version {APP_VERSION}</span></span><ChevronRight size={18} className="text-muted" /></Link>
 
       <div className="mt-4 grid gap-2.5">
