@@ -71,8 +71,10 @@ ok((await page.locator('a[href^="/wird/"]').count()) === 37, 'filtre « Apprises
 await page.getByRole('button', { name: 'Toutes' }).click();
 const slider = page.getByRole('slider', { name: 'Défilement rapide' });
 await slider.waitFor();
+await page.mouse.wheel(0, 200); await page.waitForTimeout(300);
 const box = await slider.boundingBox();
 const y0 = await page.evaluate(() => scrollY);
+await page.mouse.wheel(0, 300); await page.waitForTimeout(350);
 await page.mouse.move(box.x + box.width - 14, box.y + 30);
 await page.mouse.down();
 await page.mouse.move(box.x + box.width - 14, box.y + box.height - 20, { steps: 8 });
@@ -183,6 +185,16 @@ await page.locator('nav a', { hasText: 'Profil' }).click();
 await page.getByText('Apprentissage et révision').waitFor();
 ok(!(await page.getByText('Sens de révision').count()) || /Hizb par Hizb/.test(await page.locator('body').innerText()), 'Profil : plus de réglage du sens de révision');
 await page.screenshot({ path: `${OUT}/10-profile.png`, fullPage: true });
+
+// ---------- Rappels : états honnêtes + tableau de bord Cloudflare ----------
+await page.goto(BASE + '/profil/notifications');
+await page.getByRole('heading', { name: 'Rappels', exact: true }).waitFor();
+await page.getByText('Tableau de bord de configuration').waitFor();
+const notif = await page.locator('body').innerText();
+ok(/quatre rappels indépendants/i.test(notif) && /rappel quotidien/i.test(notif) && /deuxième rappel/i.test(notif) && /travail inachevé/i.test(notif) && /message de retour/i.test(notif), 'quatre catégories indépendantes');
+ok(/À faire/.test(notif) && /VITE_PUSH_API_URL/.test(notif) && /wrangler deploy/.test(notif), 'tableau de bord : actions Cloudflare listées précisément');
+ok(!/Rappels activés/.test(notif), 'jamais « Rappels activés » sans abonnement réel');
+await page.screenshot({ path: `${OUT}/11-notifs.png`, fullPage: true });
 
 // ---------- Hors ligne ----------
 await page.goto(BASE + '/');

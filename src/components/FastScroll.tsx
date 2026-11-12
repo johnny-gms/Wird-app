@@ -10,6 +10,8 @@ export function FastScroll({ targetRef, count, label, top = 150, bottom = 96 }: 
   const [p, setP] = useState(0);
   const [visible, setVisible] = useState(false);
   const [drag, setDrag] = useState(false);
+  const [awake, setAwake] = useState(false);
+  const hide = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const track = useRef<HTMLDivElement>(null);
   const raf = useRef(0);
 
@@ -32,6 +34,9 @@ export function FastScroll({ targetRef, count, label, top = 150, bottom = 96 }: 
 
   useEffect(() => {
     const onScroll = () => {
+      setAwake(true);
+      clearTimeout(hide.current);
+      hide.current = setTimeout(() => setAwake(false), 1500);
       cancelAnimationFrame(raf.current);
       raf.current = requestAnimationFrame(sync);
     };
@@ -63,7 +68,7 @@ export function FastScroll({ targetRef, count, label, top = 150, bottom = 96 }: 
   return (
     <div
       ref={track}
-      className="fixed right-0 z-30 w-9 touch-none select-none"
+      className={cx('fixed right-0 z-30 w-9 touch-none select-none transition-opacity duration-300', awake || drag ? 'opacity-100' : 'pointer-events-none opacity-0')}
       style={{ top, bottom }}
       onPointerDown={(e) => {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);

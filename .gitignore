@@ -6,3 +6,4 @@ dev-dev-dist
 .dev.vars
 test-results
 .scratch
+worker/wrangler.toml

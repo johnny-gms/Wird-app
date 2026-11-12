@@ -28,7 +28,15 @@ const ENDPOINT: Record<OutboxEvent['type'], string> = {
   activity: '/api/activity',
 };
 
-/** Identifiant du destinataire côté serveur : l'URL d'abonnement Push de cet appareil. */
+/** Identité de cet appareil côté serveur de rappels : URL d'abonnement Push + jeton secret remis à l'abonnement. */
+export interface PushIdentity {
+  endpoint: string;
+  token: string;
+}
+const ID_KEY = 'pushIdentity';
+export const getPushIdentity = () => kvGet<PushIdentity>(ID_KEY);
+export const setPushIdentity = (v: PushIdentity | null) => kvSet(ID_KEY, v);
+
 async function currentEndpoint(): Promise<string | null> {
   try {
     const reg = await navigator.serviceWorker?.getRegistration();
@@ -61,21 +69,26 @@ export async function flush(): Promise<void> {
     while (q.length) {
       const ev = q[0];
       let payload = ev.payload as Record<string, unknown>;
-      if (ev.type === 'prefs' || ev.type === 'activity') {
-        const endpoint = await currentEndpoint();
-        if (!endpoint) {
-          // Pas d'abonnement sur cet appareil : personne à qui envoyer des rappels, on abandonne l'évènement.
+      const headers: Record<string, string> = { 'content-type': 'application/json' };
+      if (ev.type !== 'subscribe') {
+        const id = await getPushIdentity();
+        const stale = ev.type !== 'unsubscribe' && id?.endpoint !== (await currentEndpoint());
+        if (!id || stale) {
+          // Pas d'abonnement (ou identité obsolète) sur cet appareil : personne à qui envoyer des rappels, on abandonne l'évènement.
           q = q.slice(1);
           await kvSet(KEY, q);
           continue;
         }
-        payload = { ...payload, endpoint };
+        payload = { ...payload, endpoint: id.endpoint };
+        headers['x-wird-token'] = id.token;
+        if (ev.type === 'unsubscribe') await setPushIdentity(null);
       }
-      const res = await fetch(API_URL + ENDPOINT[ev.type], {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(API_URL + ENDPOINT[ev.type], { method: 'POST', headers, body: JSON.stringify(payload) });
+      if (ev.type === 'subscribe' && res.ok) {
+        const j = (await res.json().catch(() => null)) as { token?: string } | null;
+        const sub = (payload as { subscription?: { endpoint?: string } }).subscription;
+        if (j?.token && sub?.endpoint) await setPushIdentity({ endpoint: sub.endpoint, token: j.token });
+      }
       if (!res.ok && res.status >= 500) break; // on réessaiera plus tard
       q = q.slice(1); // 2xx accepté, 4xx = évènement invalide : on l'abandonne
       await kvSet(KEY, q);

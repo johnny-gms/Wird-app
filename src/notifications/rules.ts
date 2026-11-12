@@ -5,8 +5,8 @@
  * Principes : relances arrêtées dès la reprise d'activité, un seul message de reprise par absence,
  * jamais de ton culpabilisant, chaque catégorie désactivable et programmable.
  */
-import { diffDays } from '@/engine/dates';
-import type { NotificationPrefs } from '@/engine/types';
+import { diffDays } from '../engine/dates';
+import type { NotificationPrefs } from '../engine/types';
 
 export type ReminderKind = 'daily' | 'second' | 'unfinished' | 'comeback';
 

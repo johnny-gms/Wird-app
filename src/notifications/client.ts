@@ -2,7 +2,7 @@
  * Client Web Push. Rien n'est « activé » sans permission du navigateur ET abonnement réel.
  * Côté serveur (Cloudflare Workers + D1 + Cron) : voir docs/NOTIFICATIONS.md et worker/.
  */
-import { API_URL, VAPID_PUBLIC_KEY, enqueue, serverConfigured } from '@/sync/outbox';
+import { API_URL, VAPID_PUBLIC_KEY, enqueue, getPushIdentity, serverConfigured } from '@/sync/outbox';
 import { useWird } from '@/store/useWird';
 import { isIOS, isStandalone } from '@/lib/pwa';
 
@@ -55,6 +55,8 @@ export async function enableNotifications(): Promise<PushStatus> {
   if (perm !== 'granted') return getPushStatus();
   if (serverConfigured && pushSupported()) {
     const reg = await navigator.serviceWorker.ready;
+    // le Service Worker garde la configuration pour se réabonner seul si le navigateur renouvelle l'abonnement
+    reg.active?.postMessage({ type: 'PUSH_CONFIG', api: API_URL, key: VAPID_PUBLIC_KEY });
     const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) }));
     const { settings } = useWird.getState();
     await enqueue('subscribe', { subscription: sub.toJSON(), prefs: settings.notifications, tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
@@ -88,3 +90,36 @@ export async function sendLocalTest(): Promise<boolean> {
 }
 
 export { API_URL, serverConfigured };
+
+// ---------- Contrôles pour le tableau de bord de configuration ----------
+export interface ServerHealth {
+  reachable: boolean;
+  /** La clé publique VAPID du serveur est celle de l'application. */
+  keyMatches: boolean | null;
+  lastCron: string | null;
+}
+
+/** Vérifie le serveur de rappels (GET /api/health). Ne dit « ok » que si le serveur répond réellement. */
+export async function checkServer(): Promise<ServerHealth> {
+  if (!serverConfigured) return { reachable: false, keyMatches: null, lastCron: null };
+  try {
+    const r = await fetch(`${API_URL}/api/health`, { cache: 'no-store' });
+    if (!r.ok) return { reachable: false, keyMatches: null, lastCron: null };
+    const j = (await r.json()) as { publicKey?: string; lastCron?: string | null };
+    return { reachable: true, keyMatches: j.publicKey === VAPID_PUBLIC_KEY, lastCron: j.lastCron ?? null };
+  } catch {
+    return { reachable: false, keyMatches: null, lastCron: null };
+  }
+}
+
+/** Demande au serveur d'envoyer une vraie notification de test à cet appareil (chemin complet : serveur → service Push → appareil). */
+export async function sendServerTest(): Promise<'sent' | 'no-identity' | 'failed'> {
+  const id = await getPushIdentity();
+  if (!id) return 'no-identity';
+  try {
+    const r = await fetch(`${API_URL}/api/test`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-wird-token': id.token }, body: JSON.stringify({ endpoint: id.endpoint }) });
+    return r.ok ? 'sent' : 'failed';
+  } catch {
+    return 'failed';
+  }
+}

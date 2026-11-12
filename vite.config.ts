@@ -40,5 +40,5 @@ export default defineConfig({
       devOptions: { enabled: false },
     }),
   ],
-  test: { environment: 'node', include: ['src/**/*.test.ts'] },
+  test: { environment: 'node', include: ['src/**/*.test.ts', 'worker/**/*.test.ts'] },
 });

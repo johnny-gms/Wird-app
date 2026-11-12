@@ -131,7 +131,7 @@ export default function Home() {
               return (
                 <div key={it.id} className="flex items-center justify-between gap-2 border-t border-line py-2.5">
                   <Link to={`/wird/${it.surah}`} className="min-w-0 flex-1">
-                    <b className="block truncate">{surahMeta(it.surah).tr} · {rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')}</b>
+                    <b className="block">{surahMeta(it.surah).tr} · {rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')}</b>
                     <span className="text-sm text-muted">{LABEL[it.kind]} · ≈ {formatPages(itemPages(it))}{it.status === 'skipped' ? ' · ignoré' : ''}</span>
                   </Link>
                   {isDone ? <span className="whitespace-nowrap rounded-full bg-good px-2.5 py-0.5 text-xs text-white">Fait ✓</span> : it.status === 'pending' ? (
