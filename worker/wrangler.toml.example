@@ -1,0 +1,21 @@
+# Copier vers worker/wrangler.toml puis adapter. NON DÉPLOYÉ dans cette version (voir docs/NOTIFICATIONS.md).
+name = "wird-push"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wird-push"
+database_id = "<ID retourné par `wrangler d1 create wird-push`>"
+
+[triggers]
+# Toutes les 15 minutes : le Worker évalue, pour chaque abonné, quels rappels sont dus dans son fuseau horaire.
+crons = ["*/15 * * * *"]
+
+[vars]
+ALLOWED_ORIGIN = "https://<votre-domaine-pages>"   # origine de l'app (CORS)
+VAPID_SUBJECT = "mailto:contact@example.org"        # contact exigé par les services Push
+
+# Secrets (jamais dans ce fichier) :
+#   wrangler secret put VAPID_PRIVATE_KEY
+#   wrangler secret put VAPID_PUBLIC_KEY

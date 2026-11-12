@@ -1,0 +1,4 @@
+# Cloudflare Pages (application statique). Déploiement : `npm run build && npx wrangler pages deploy dist --project-name wird`
+name = "wird"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-01-01"
