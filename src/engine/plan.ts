@@ -1,5 +1,5 @@
 import { ENGINE } from './config';
-import { idsPages, rangePages } from './pages';
+import { pageOf, rangePages } from './pages';
 import { applyGrade, newLearningVerse, promoteLearned } from './scheduling';
 import { SURAHS, ayahId, surahMeta } from './quran';
 import { groupRuns, nextChunk } from './rotation';
@@ -84,28 +84,33 @@ export function buildPlan(ctx: PlanContext, date: string, prev: DailyPlan | null
   // 2. Rotation générale (hors versets déjà couverts par le renforcement du jour)
   const memorized = memorizedIds(ctx.verses);
   const keptRot = kept.filter((i) => i.kind === 'review' && !i.adhoc);
-  let quota = ctx.settings.reviewPagesPerDay - keptRot.reduce((a, i) => a + itemPages(i), 0);
+  // La révision se compte en pages du Mushaf : « 2 pages par jour » = les versets appris de 2 pages.
+  const pagesUsed = new Set<number>(keptRot.flatMap((i) => itemIds(i).map(pageOf)));
   let cursor = keptRot.length ? (keptRot[keptRot.length - 1].endCursor ?? ctx.rotation.cursor) : ctx.rotation.cursor;
   const seen = new Set<number>(keptRot.flatMap(itemIds));
   const rotExclude = new Set<number>([...coveredReinforce, ...picked, ...seen]);
   let guard = memorized.length + 2;
-  while (quota > 0.05 && guard-- > 0) {
-    const c = nextChunk(memorized, cursor, rotExclude, ENGINE.chunkSize);
+  while (pagesUsed.size < ctx.settings.reviewPagesPerDay && guard-- > 0) {
+    const c = nextChunk(memorized, cursor, rotExclude, ENGINE.chunkSize, true);
     if (!c) break;
     // un tour complet de la rotation a été proposé : on ne répète pas les mêmes versets le même jour
     if (c.ids.some((id) => seen.has(id))) break;
     c.ids.forEach((id) => seen.add(id));
+    pagesUsed.add(pageOf(c.ids[0]));
     items.push({ id: mkId(date, 'review', c.surah, c.from, c.to), kind: 'review', surah: c.surah, from: c.from, to: c.to, status: 'pending', endCursor: c.endCursor, wraps: c.wraps });
-    quota -= idsPages(c.ids);
     cursor = c.endCursor;
     if (c.wraps && seen.size >= memorized.length) break;
   }
 
   // 3. Nouvel apprentissage : objectifs en cours, jusqu'à l'objectif en pages
-  let learnBudget = ctx.settings.learnPagesPerDay - kept.filter((i) => i.kind === 'learn').reduce((a, i) => a + itemPages(i), 0);
+  const keptLearn = kept.filter((i) => i.kind === 'learn').reduce((a, i) => a + itemPages(i), 0);
+  let learnBudget = 0;
+  let budgeted = false;
   for (const g of ctx.goals) {
-    if (learnBudget <= 0.05) break;
     if (g.paused || g.completedAt) continue;
+    // un seul objectif à la fois reçoit le budget du jour
+    if (!budgeted) { learnBudget = dailyLearnPages(ctx.settings, g) - keptLearn; budgeted = true; }
+    if (learnBudget <= 0.05) break;
     const keptG = kept.filter((i) => i.kind === 'learn' && i.goalId === g.id);
     let at = Math.max(g.cursor, ...keptG.map((i) => i.to + 1));
     while (learnBudget > 0.05) {
@@ -120,6 +125,19 @@ export function buildPlan(ctx: PlanContext, date: string, prev: DailyPlan | null
   items.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
   return { date, items };
 }
+
+/**
+ * Pages à apprendre aujourd'hui, réparties sur la semaine :
+ *  - « une sourate par semaine » : la sourate de l'objectif en cours est étalée sur 7 jours ;
+ *  - « N pages par semaine » : N / 7 par jour (0 = pas d'apprentissage).
+ */
+export function dailyLearnPages(settings: Pick<Settings, 'learnMode' | 'learnPagesPerWeek'>, g: Pick<LearningGoal, 'surah' | 'from' | 'to'>): number {
+  if (settings.learnMode === 'surah') return rangePages(g.surah, g.from, g.to) / 7;
+  return settings.learnPagesPerWeek / 7;
+}
+
+/** L'apprentissage est-il activé ? */
+export const learningEnabled = (s: Pick<Settings, 'learnMode' | 'learnPagesPerWeek'>): boolean => s.learnMode === 'surah' || s.learnPagesPerWeek > 0;
 
 /** Segment d'apprentissage suivant : versets non encore mémorisés contigus, à partir de `start` (par défaut le curseur). */
 export function learningSegment(ctx: Pick<PlanContext, 'verses'>, g: LearningGoal, start: number = g.cursor): { from: number; to: number } | null {
@@ -273,13 +291,16 @@ export function upcomingRotation(ctx: PlanContext, today: DailyPlan | null, maxI
   let cursor = rot.length ? rot[rot.length - 1].endCursor! : ctx.rotation.cursor;
   const seen = new Set<number>(rot.flatMap(itemIds));
   const out: UpcomingChunk[] = [];
-  let acc = 0;
+  const todayPages = new Set<number>((today?.items ?? []).filter((i) => i.kind === 'review' && !i.adhoc).flatMap((i) => itemIds(i).map(pageOf)));
+  const upcoming = new Set<number>();
   let guard = memorized.length + 2;
   while (out.length < maxItems && guard-- > 0) {
-    const c = nextChunk(memorized, cursor, new Set());
+    const c = nextChunk(memorized, cursor, new Set(), ENGINE.chunkSize, true);
     if (!c || c.ids.some((id) => seen.has(id))) break;
-    out.push({ surah: c.surah, from: c.from, to: c.to, inDays: Math.max(1, Math.floor(acc / pagesPerDay) + 1) });
-    acc += idsPages(c.ids);
+    const pg = pageOf(c.ids[0]);
+    if (!todayPages.has(pg)) upcoming.add(pg);
+    // jour estimé : pages à venir ÷ rythme quotidien (demain = 1)
+    out.push({ surah: c.surah, from: c.from, to: c.to, inDays: Math.floor(Math.max(0, upcoming.size - 1) / pagesPerDay) + 1 });
     c.ids.forEach((id) => seen.add(id));
     cursor = c.endCursor;
   }

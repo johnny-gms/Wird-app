@@ -23,7 +23,7 @@ const revisions = async () => {
 };
 
 // ---------- J0 ----------
-await onboard(page, { name: 'Amina', juz: true });
+await onboard(page, { name: 'Amina', juz: true, reviewPlus: 2 });
 await setDays(0);
 const day0 = await runSession(page, (i, r) => (i === r.findIndex((x) => /Révision/.test(x)) ? 'Non maîtrisé' : 'Maîtrisé'));
 ok(day0.n >= 3, `J0 : séance de ${day0.n} éléments évalués`);
@@ -56,7 +56,8 @@ await page.goto(BASE + '/revisions');
 await page.getByText('Auto', { exact: true }).first().waitFor();
 ok(true, 'apprentissage automatique : une sourate est proposée dans le sens choisi');
 await page.goto(BASE + '/profil');
-for (let i = 0; i < 5; i++) await page.getByRole('button', { name: /Plus de pages à apprendre/ }).click();
+await page.getByRole('radio', { name: /Pages par semaine/ }).click();
+for (let i = 0; i < 16; i++) await page.getByRole('button', { name: /Plus de pages.*par semaine/ }).click();
 await settle(page);
 const j11b = await runSession(page, () => 'Maîtrisé');
 ok(j11b.n >= 3, 'séance avec objectif d’apprentissage relevé');
@@ -88,7 +89,7 @@ ok(/Appris|À renforcer/.test(v112), `corbeille : restauration (${v112})`);
 const ctx2 = await browser.newContext({ ...devices['iPhone 14'], reducedMotion: 'reduce', locale: 'fr-FR' });
 const p2 = await ctx2.newPage();
 await p2.goto(BASE);
-await p2.getByRole('button', { name: /^Commencer/ }).waitFor();
+await p2.getByText('garde-le.').waitFor();
 await p2.evaluate(async () => {
   const db = await new Promise((res, rej) => { const r = indexedDB.open('wird', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = rej; });
   const verses = {};
@@ -114,7 +115,7 @@ ok(true, 'migration : historique conservé');
 await p2.goto(BASE + '/profil');
 await p2.getByText('Apprentissage et révision').waitFor();
 const prof = await p2.locator('body').innerText();
-ok(/Hizb par Hizb/.test(prof) && (await p2.getByRole('radio', { name: 'An-Nas → Al-Fatiha' }).getAttribute('aria-checked')) === 'true', 'migration : sens d’apprentissage conservé, sens de révision supprimé');
+ok(!/Hizb par Hizb/.test(prof) && (await p2.getByRole('radio', { name: 'An-Nas → Al-Fatiha' }).getAttribute('aria-checked')) === 'true', 'migration : sens d’apprentissage conservé, sens de révision supprimé');
 await p2.goto(BASE + '/wird/105');
 const m105 = await p2.getByRole('button', { name: /^Verset 1 :/ }).getAttribute('aria-label');
 ok(/Appris/.test(m105), `migration : versets conservés (${m105})`);
@@ -130,7 +131,7 @@ const exported = JSON.parse((await import('node:fs')).readFileSync(await dl.path
 ok(exported.app === 'wird' && Object.keys(exported.data.verses).length > 100 && exported.data.history.length >= 3 && 'trash' in exported.data && !('direction' in exported.data.settings), 'export JSON complet (corbeille incluse)');
 await page.getByRole('button', { name: /Tout réinitialiser/ }).click();
 await page.getByRole('button', { name: /Effacer définitivement/ }).click();
-await page.getByRole('heading', { name: 'Bienvenue dans WIRD' }).waitFor();
+await page.getByText('garde-le.').waitFor();
 ok(true, 'remise à zéro → écran de bienvenue');
 ok(errors.length === 0, `aucune erreur JS (${errors.slice(0, 2).join(' | ')})`);
 await browser.close();

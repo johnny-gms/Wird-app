@@ -1,4 +1,5 @@
 import { ENGINE } from './config';
+import { pageOf } from './pages';
 import { fromAyahId, hizbOf } from './quran';
 
 export interface Chunk {
@@ -19,7 +20,7 @@ export interface Chunk {
  * - `cursor`    : dernier verset révisé (null = début).
  * - `exclude`   : versets déjà couverts aujourd'hui (ex. renforcement).
  */
-export function nextChunk(memorized: number[], cursor: number | null, exclude: ReadonlySet<number> = new Set(), size: number = ENGINE.chunkSize): Chunk | null {
+export function nextChunk(memorized: number[], cursor: number | null, exclude: ReadonlySet<number> = new Set(), size: number = ENGINE.chunkSize, byPage = false): Chunk | null {
   const n = memorized.length;
   if (n === 0) return null;
 
@@ -40,9 +41,10 @@ export function nextChunk(memorized: number[], cursor: number | null, exclude: R
     const id = memorized[j];
     if (id !== run[run.length - 1] + 1 || exclude.has(id)) break;
     if (fromAyahId(id).surah !== surah || hizbOf(id) !== hizb) break;
+    if (byPage && pageOf(id) !== pageOf(first)) break; // la révision se fait page du Mushaf par page
     run.push(id);
   }
-  const ids = run.slice(0, partSize(run.length, size));
+  const ids = byPage ? run : run.slice(0, partSize(run.length, size));
   return toChunk(ids, ids[ids.length - 1], wraps);
 }
 

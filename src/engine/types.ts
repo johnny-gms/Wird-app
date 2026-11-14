@@ -130,12 +130,18 @@ export interface NotificationPrefs {
   comeback: { enabled: boolean; afterDays: number; time: string };
 }
 
+export type LearnMode = 'surah' | 'pages';
+
+export type Gender = 'male' | 'female';
+
 export interface Settings {
   /** Sens dans lequel on apprend de NOUVELLES sourates (indépendant du sens de révision). */
   learnDirection: Direction;
-  /** Objectif quotidien d'apprentissage, en pages du Mushaf (0 = pas d'apprentissage). */
-  learnPagesPerDay: number;
-  /** Objectif quotidien de révision, en pages du Mushaf. */
+  /** Rythme d'apprentissage : « une sourate par semaine » (débutants) ou un nombre de pages par semaine. */
+  learnMode: LearnMode;
+  /** Pages du Mushaf à apprendre par semaine (mode « pages » ; 0 = pas d'apprentissage). */
+  learnPagesPerWeek: number;
+  /** Objectif quotidien de révision, en pages entières du Mushaf. */
   reviewPagesPerDay: number;
   /** Plafond de versets de renforcement proposés par jour. */
   reinforceVersesPerDay: number;
@@ -147,6 +153,8 @@ export interface Settings {
 
 export interface Profile {
   name: string;
+  age?: number | null;
+  gender?: Gender | null;
   createdAt: string;
   onboarded: boolean;
   demo: boolean;

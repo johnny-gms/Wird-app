@@ -212,3 +212,37 @@ html[data-theme='dark'] #spl {
     transform: none;
   }
 }
+
+/* Onboarding : cartes flottantes */
+@keyframes obFloat { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
+.ob-float { animation: obFloat 6s ease-in-out infinite; }
+.ob-float-2 { animation: obFloat 5s ease-in-out -2s infinite; }
+.ob-float-3 { animation: obFloat 5s ease-in-out -4s infinite; }
+@media (prefers-reduced-motion: reduce) { .ob-float, .ob-float-2, .ob-float-3 { animation: none; } }
+
+/* Défilement rapide : une seule barre (la barre native est masquée) */
+html.fs-active { scrollbar-width: none; }
+html.fs-active::-webkit-scrollbar { display: none; }
+
+/* Page du Coran numérique, façon Mushaf : cadre ornemental, verset numéroté dans un médaillon */
+.mushaf {
+  position: relative;
+  padding: 14px 12px 10px;
+  background: rgb(var(--surface));
+  border: 5px solid #3aa89a;
+  border-image: repeating-linear-gradient(135deg, #3aa89a 0 6px, #d9b866 6px 9px, #3aa89a 9px 15px) 5;
+  box-shadow: inset 0 0 0 2px rgb(var(--surface)), inset 0 0 0 3px #3aa89a55;
+}
+.mushaf .vm {
+  min-width: 1.55em;
+  height: 1.55em;
+  line-height: 1.5em;
+  margin: 0 0.15em;
+  border: 1.5px solid #3aa89a;
+  border-radius: 9999px;
+  font-size: 0.55em;
+  color: inherit;
+  background: transparent;
+}
+.mushaf-title { margin: 4px 0 10px; padding: 4px 0; text-align: center; font-size: 22px; border: 1.5px solid #3aa89a; border-radius: 8px; background: #3aa89a1a; }
+.mushaf-tab { padding: 2px 14px; font-size: 14px; border: 1.5px solid #3aa89a; border-radius: 6px; background: rgb(var(--surface)); }

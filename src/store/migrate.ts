@@ -19,13 +19,22 @@ export function migrateSettings(old: Record<string, unknown> | undefined | null)
     theme: o.theme ?? DEFAULT_SETTINGS.theme,
     notifications: { ...DEFAULT_SETTINGS.notifications, ...(o.notifications ?? {}) },
     reviewPagesPerDay: o.reviewPagesPerDay ?? DEFAULT_SETTINGS.reviewPagesPerDay,
-    learnPagesPerDay: o.learnPagesPerDay ?? DEFAULT_SETTINGS.learnPagesPerDay,
+    learnMode: o.learnMode ?? DEFAULT_SETTINGS.learnMode,
+    learnPagesPerWeek: o.learnPagesPerWeek ?? DEFAULT_SETTINGS.learnPagesPerWeek,
   };
+  const oldLearn = (o as { learnPagesPerDay?: number }).learnPagesPerDay;
+  if (o.learnMode === undefined && typeof oldLearn === 'number') {
+    // ancien objectif quotidien → pages par semaine
+    settings.learnMode = 'pages';
+    settings.learnPagesPerWeek = Math.max(0, Math.min(35, Math.round(oldLearn * 7)));
+  }
   if (o.reviewPagesPerDay === undefined && typeof o.reviewVersesPerDay === 'number') {
     // ≈ 15 versets par page ; arrondi à la demi-page
-    settings.reviewPagesPerDay = Math.max(0.5, Math.min(20, Math.round((o.reviewVersesPerDay / 15) * 2) / 2));
+    settings.reviewPagesPerDay = Math.max(1, Math.min(20, Math.round(o.reviewVersesPerDay / 15)));
   }
-  if (o.learnPagesPerDay === undefined && o.learningEnabled === false) settings.learnPagesPerDay = 0;
+  // la révision se compte désormais en pages entières
+  settings.reviewPagesPerDay = Math.max(0, Math.min(20, Math.ceil(settings.reviewPagesPerDay)));
+  if (o.learnMode === undefined && o.learningEnabled === false) { settings.learnMode = 'pages'; settings.learnPagesPerWeek = 0; }
   return settings;
 }
 

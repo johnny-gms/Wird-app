@@ -4,9 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AddLearningSheet } from '@/components/AddLearningSheet';
 import { ConfirmSheet, GradeChip, ProgressBar, Screen, cx, toast } from '@/components/ui';
 import { addDays } from '@/engine/dates';
-import { formatPages } from '@/engine/pages';
-import { goalProgress, itemPages, learningSegment, upcomingRotation } from '@/engine/plan';
-import { rangeLabel, surahMeta } from '@/engine/quran';
+import { formatPages, pageOf } from '@/engine/pages';
+import { goalProgress, itemPages, learningEnabled, learningSegment, upcomingRotation } from '@/engine/plan';
+import { ayahId, rangeLabel, surahMeta } from '@/engine/quran';
 import { groupRuns } from '@/engine/rotation';
 import type { PlanItem } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
@@ -81,7 +81,7 @@ export default function Revisions() {
 
       <Section title="Aujourd’hui" items={pending.filter((i) => i.kind === 'review')} empty="Rien ici 🌿" onGo={begin} onSkip={(id) => { store.skipItem(id); toast('Ignoré pour aujourd’hui'); }} />
       <Section title="Renforcement" hint="Versets fragiles : ils restent dans la rotation et reviennent plus tôt, jusqu’à se stabiliser." items={pending.filter((i) => i.kind === 'reinforce')} empty="Rien ici 🌿" onGo={begin} onSkip={(id) => store.skipItem(id)} />
-      <Section title="Nouvel apprentissage" items={pending.filter((i) => i.kind === 'learn')} empty={settings.learnPagesPerDay > 0 ? 'Rien ici 🌿' : 'Objectif d’apprentissage à 0 : aucun nouvel apprentissage proposé.'} onGo={begin} onSkip={(id) => store.skipItem(id)} />
+      <Section title="Nouvel apprentissage" items={pending.filter((i) => i.kind === 'learn')} empty={learningEnabled(settings) ? 'Rien ici 🌿' : 'Aucun nouvel apprentissage proposé (0 page par semaine).'} onGo={begin} onSkip={(id) => store.skipItem(id)} />
 
       {done.length > 0 && (
         <>
@@ -121,11 +121,11 @@ export default function Revisions() {
       <h1 className="mt-10 font-display text-[26px] font-semibold tracking-[-0.2px]">Mon apprentissage</h1>
       <p className="text-sm text-muted">Les versets que tu <b>apprends encore</b>, pas encore solides.</p>
       <p className="card mt-3 px-4 py-3 text-sm leading-relaxed text-muted">
-        {settings.learnPagesPerDay > 0 ? <>Repère : <b className="text-ink">{formatPages(settings.learnPagesPerDay)} par jour</b>, nouvelles sourates {settings.learnDirection === 'forward' ? 'de Al-Fatiha vers An-Nas' : 'de An-Nas vers Al-Fatiha'}. </> : 'Pas d’objectif d’apprentissage (0 page par jour). '}
+        {learningEnabled(settings) ? <>Repère : <b className="text-ink">{settings.learnMode === 'surah' ? 'une sourate par semaine' : `${formatPages(settings.learnPagesPerWeek)} par semaine`}</b>, nouvelles sourates {settings.learnDirection === 'forward' ? 'de Al-Fatiha vers An-Nas' : 'de An-Nas vers Al-Fatiha'}. </> : 'Pas d’objectif d’apprentissage (0 page par semaine). '}
         <Link to="/profil" className="font-semibold text-primary">Modifier</Link>
       </p>
       <div className="mt-3 space-y-2.5">
-        {active.length === 0 && <p className="card p-5 text-center text-sm text-muted">{settings.learnPagesPerDay > 0 ? 'WIRD ouvrira automatiquement la prochaine sourate à apprendre.' : 'Aucun apprentissage en cours. Ajoutes-en un ci-dessous.'}</p>}
+        {active.length === 0 && <p className="card p-5 text-center text-sm text-muted">{learningEnabled(settings) ? 'WIRD ouvrira automatiquement la prochaine sourate à apprendre.' : 'Aucun apprentissage en cours. Ajoutes-en un ci-dessous.'}</p>}
         {active.map((g) => {
           const s = surahMeta(g.surah);
           const p = goalProgress(g);
@@ -192,7 +192,7 @@ function Section({ title, hint, items, empty, onGo, onSkip }: { title: string; h
               <div key={it.id} className={cx('card flex items-center gap-3 border-l-4 p-3.5', it.kind === 'learn' ? 'border-l-blue' : it.kind === 'reinforce' ? 'border-l-hard' : 'border-l-good')}>
                 <Link to={`/wird/${it.surah}`} className="min-w-0 flex-1">
                   <b className="block truncate">{s.id}. {s.tr}</b>
-                  <span className="text-sm text-muted">{rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')} · {formatPages(itemPages(it))}</span>
+                  <span className="text-sm text-muted">{rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')} · {it.kind === 'review' ? `page ${pageOf(ayahId(it.surah, it.from))}` : formatPages(itemPages(it))}</span>
                 </Link>
                 <button className="btn-soft !min-h-[36px] !px-3 text-sm" onClick={() => onGo(it.id)}>Commencer</button>
                 <button className="flex h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-surface2" aria-label="Passer cet élément" onClick={() => onSkip(it.id)}>⋯</button>

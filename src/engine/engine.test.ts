@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, ENGINE } from './config';
-import { buildPlan, completeGoal, evaluateItem, goalProgress, memorizedIds, nextLearnTarget, skipItem, itemPages, upcomingRotation, type Core } from './plan';
-import { TOTAL_PAGES, idsPages, rangePages } from './pages';
+import { buildPlan, dailyLearnPages, learningEnabled, itemIds, completeGoal, evaluateItem, goalProgress, memorizedIds, nextLearnTarget, skipItem, itemPages, upcomingRotation, type Core } from './plan';
+import { TOTAL_PAGES, idsPages, pageOf, rangePages } from './pages';
 import { allHizbStats, currentStreak, overall, surahStats } from './progress';
 import { ayahId, fromAyahId, hizbOf, hizbRange, SURAHS, TOTAL_VERSES } from './quran';
 import { createHash } from 'node:crypto';
@@ -21,7 +21,7 @@ const mkCore = (verses: Record<number, VerseState>, over: Partial<Core> = {}): C
   verses,
   goals: [],
   rotation: { cursor: null, cycles: 0 },
-  settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 1.5, learnPagesPerDay: 0.5 },
+  settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 2, learnMode: 'pages', learnPagesPerWeek: 4 },
   plan: null,
   history: [],
   ...over,
@@ -171,7 +171,7 @@ describe('rotation par Hizb', () => {
     expect(memorizedIds(c.verses)).toHaveLength(10);
   });
   it('estimation « à venir » : indicative, croissante, jamais une dette', () => {
-    const c = mkCore(mem(2, 1, 150), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 1, learnPagesPerDay: 0 } });
+    const c = mkCore(mem(2, 1, 150), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 1, learnMode: 'pages' as const, learnPagesPerWeek: 0 } });
     const plan = buildPlan(c, D, null);
     const up = upcomingRotation(c, plan, 5);
     expect(up.length).toBeGreaterThan(0);
@@ -286,7 +286,7 @@ describe('nouvel apprentissage', () => {
     const goal: LearningGoal = { id: 'g1', surah: 78, from: 1, to: 25, cursor: 1, paused: false, createdAt: D, completedAt: null };
     const verses: Record<number, VerseState> = {};
     for (let a = 1; a <= 25; a++) verses[ayahId(78, a)] = newLearningVerse(ayahId(78, a), D);
-    let c = mkCore(verses, { goals: [goal], settings: { ...DEFAULT_SETTINGS, learnPagesPerDay: 0.5, reviewPagesPerDay: 0 } });
+    let c = mkCore(verses, { goals: [goal], settings: { ...DEFAULT_SETTINGS, learnMode: 'pages' as const, learnPagesPerWeek: 0.5, reviewPagesPerDay: 0 } });
     c = { ...c, plan: buildPlan(c, D, null) };
     let learn = c.plan!.items.find((i) => i.kind === 'learn')!;
     expect(learn.from).toBe(1);
@@ -310,7 +310,7 @@ describe('nouvel apprentissage', () => {
     const goal: LearningGoal = { id: 'g1', surah: 2, from: 1, to: 60, cursor: 1, paused: false, createdAt: D, completedAt: null };
     const verses: Record<number, VerseState> = {};
     for (let a = 1; a <= 60; a++) verses[ayahId(2, a)] = newLearningVerse(ayahId(2, a), D);
-    let c = mkCore(verses, { goals: [goal], settings: { ...DEFAULT_SETTINGS, learnPagesPerDay: 2, reviewPagesPerDay: 0 } });
+    let c = mkCore(verses, { goals: [goal], settings: { ...DEFAULT_SETTINGS, learnMode: 'pages' as const, learnPagesPerWeek: 14, reviewPagesPerDay: 0 } });
     c = { ...c, plan: buildPlan(c, D, null) };
     const learn = c.plan!.items.filter((i) => i.kind === 'learn');
     expect(learn.length).toBeGreaterThanOrEqual(2);
@@ -332,7 +332,7 @@ describe('nouvel apprentissage', () => {
     const goal: LearningGoal = { id: 'a1', surah: 112, from: 1, to: 4, cursor: 1, paused: false, createdAt: D, completedAt: null, auto: true };
     const verses: Record<number, VerseState> = {};
     for (let a = 1; a <= 4; a++) verses[ayahId(112, a)] = newLearningVerse(ayahId(112, a), D);
-    let c = mkCore(verses, { goals: [goal], settings: { ...DEFAULT_SETTINGS, learnPagesPerDay: 1, reviewPagesPerDay: 0 } });
+    let c = mkCore(verses, { goals: [goal], settings: { ...DEFAULT_SETTINGS, learnMode: 'pages' as const, learnPagesPerWeek: 7, reviewPagesPerDay: 0 } });
     c = { ...c, plan: buildPlan(c, D, null) };
     c = evaluateItem(c, c.plan!.items[0].id, 'mastered', new Date(), D);
     expect(c.goals[0].completedAt).toBe(D);
@@ -351,13 +351,13 @@ describe('pages du Mushaf', () => {
 
 describe('adaptation du programme', () => {
   it('peu de contenu : la révision se limite à ce que l’utilisateur connaît, sans inventer', () => {
-    const c = mkCore(mem(112, 1, 4), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 10, learnPagesPerDay: 2 } });
+    const c = mkCore(mem(112, 1, 4), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 10, learnMode: 'pages' as const, learnPagesPerWeek: 14 } });
     const plan = buildPlan(c, D, null);
     expect(plan.items.filter((i) => i.kind === 'review')).toHaveLength(1);
     expect(plan.items.some((i) => i.kind === 'learn')).toBe(false); // aucun objectif d'apprentissage : rien d'inventé
   });
   it('objectifs à 0 : pas de travail de ce type', () => {
-    const c = mkCore(mem(1, 1, 7), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 0, learnPagesPerDay: 0 } });
+    const c = mkCore(mem(1, 1, 7), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 0, learnMode: 'pages' as const, learnPagesPerWeek: 0 } });
     expect(buildPlan(c, D, null).items).toHaveLength(0);
   });
 });
@@ -393,5 +393,21 @@ describe('progression', () => {
     expect(r.activeDays).toBe(3);
     expect(r.verses).toBe(15);
     expect(r.difficulties).toEqual([{ surah: 2, from: 1, to: 5, count: 2 }]);
+  });
+});
+
+describe('révision par pages et apprentissage hebdomadaire', () => {
+  it('la révision propose des morceaux bornés à une page du Mushaf, 1 page par jour', () => {
+    const c = mkCore(mem(2, 1, 286), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 1, learnMode: 'pages', learnPagesPerWeek: 0 } });
+    const plan = buildPlan(c, '2026-05-01', null);
+    const rev = plan.items.filter((i) => i.kind === 'review');
+    expect(new Set(rev.flatMap((i) => itemIds(i).map(pageOf))).size).toBe(1);
+  });
+  it('« une sourate par semaine » : budget quotidien = pages de la sourate / 7 ; mode pages : N / 7', () => {
+    const g = { surah: 78, from: 1, to: 40 };
+    expect(dailyLearnPages({ learnMode: 'surah', learnPagesPerWeek: 0 }, g)).toBeCloseTo(rangePages(78, 1, 40) / 7);
+    expect(dailyLearnPages({ learnMode: 'pages', learnPagesPerWeek: 7 }, g)).toBe(1);
+    expect(learningEnabled({ learnMode: 'pages', learnPagesPerWeek: 0 })).toBe(false);
+    expect(learningEnabled({ learnMode: 'surah', learnPagesPerWeek: 0 })).toBe(true);
   });
 });

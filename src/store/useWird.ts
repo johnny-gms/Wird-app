@@ -6,6 +6,7 @@ import {
   completeGoal as completeGoalCore,
   evaluateItem,
   hasOpenGoal,
+  learningEnabled,
   memorizedIds,
   nextLearnTarget,
   reopenItem,
@@ -18,8 +19,10 @@ import type {
   DayRecord,
   Direction,
   DraftGrade,
+  LearnMode,
   LearningGoal,
   PersistedState,
+  Profile,
   PersonalGoal,
   PlanItem,
   Settings,
@@ -60,6 +63,7 @@ interface Actions {
   ensureToday(): void;
   completeOnboarding(cfg: OnboardingConfig): void;
   setName(name: string): void;
+  updateProfile(patch: Partial<Pick<Profile, 'name' | 'age' | 'gender'>>): void;
   updateSettings(patch: Partial<Settings>): void;
 
   addMemorized(surah: number, from: number, to: number): void;
@@ -106,7 +110,8 @@ export interface OnboardingConfig {
   /** Sourates déjà apprises (entrent dans la rotation de révision). */
   knownSurahs: number[];
   learnDirection: Direction;
-  learnPagesPerDay: number;
+  learnMode: LearnMode;
+  learnPagesPerWeek: number;
   reviewPagesPerDay: number;
   demo?: boolean;
 }
@@ -133,7 +138,7 @@ export const useWird = create<WirdStore>((set, get) => {
   const rebuild = (patch: Partial<PersistedState> = {}) => {
     let s = { ...get(), ...patch };
     const today = dateKey();
-    if (s.profile.onboarded && s.settings.learnPagesPerDay > 0 && !hasOpenGoal(s)) {
+    if (s.profile.onboarded && learningEnabled(s.settings) && !hasOpenGoal(s)) {
       const t = nextLearnTarget(s.verses, s.goals, s.settings.learnDirection);
       if (t) {
         const verses = { ...s.verses };
@@ -251,12 +256,17 @@ export const useWird = create<WirdStore>((set, get) => {
       const settings: Settings = {
         ...get().settings,
         learnDirection: cfg.learnDirection,
-        learnPagesPerDay: cfg.learnPagesPerDay,
+        learnMode: cfg.learnMode,
+        learnPagesPerWeek: cfg.learnPagesPerWeek,
         reviewPagesPerDay: cfg.reviewPagesPerDay,
       };
       const profile = { name: cfg.name.trim(), createdAt: today, onboarded: true, demo: !!cfg.demo };
       const progressLog = logProgress({ verses, progressLog: [] }, today);
       rebuild({ profile, verses, goals, settings, progressLog, plan: null, rotation: { cursor: null, cycles: 0 }, session: null });
+    },
+
+    updateProfile(patch) {
+      set({ profile: { ...get().profile, ...patch, ...(patch.name !== undefined ? { name: patch.name.trim() } : {}) } });
     },
 
     setName(name) {
@@ -266,7 +276,7 @@ export const useWird = create<WirdStore>((set, get) => {
     updateSettings(patch) {
       const settings = { ...get().settings, ...patch };
       set({ settings });
-      if (patch.learnDirection || patch.learnPagesPerDay !== undefined || patch.reviewPagesPerDay !== undefined || patch.reinforceVersesPerDay) {
+      if (patch.learnDirection || patch.learnMode !== undefined || patch.learnPagesPerWeek !== undefined || patch.reviewPagesPerDay !== undefined || patch.reinforceVersesPerDay) {
         // Le sens change le point de reprise : on repart du curseur existant dans le nouveau sens.
         rebuild({ settings });
       }

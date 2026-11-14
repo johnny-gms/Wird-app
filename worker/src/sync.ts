@@ -41,7 +41,6 @@ export class D1SyncStore implements SyncStore {
 
 /** Renvoie l'identifiant du compte, ou null. Branché plus tard sur Google / Apple. */
 export type Authenticator = (req: Request) => Promise<string | null>;
-export const noAuth: Authenticator = async () => null;
 
 const KEY = /^[a-z]+(:[\w.-]+)*$/i;
 const HLC = /^[\w.:-]{1,64}$/;

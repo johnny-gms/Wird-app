@@ -62,8 +62,9 @@ export const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
 
 export const DEFAULT_SETTINGS: Settings = {
   learnDirection: 'forward',
-  learnPagesPerDay: 0.5,
-  reviewPagesPerDay: 2,
+  learnMode: 'surah',
+  learnPagesPerWeek: 2,
+  reviewPagesPerDay: 1,
   reinforceVersesPerDay: 15,
   theme: 'system',
   haptics: true,

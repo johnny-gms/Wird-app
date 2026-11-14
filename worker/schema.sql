@@ -26,3 +26,16 @@ CREATE TABLE IF NOT EXISTS sync_records (
   PRIMARY KEY (user_id, key)
 );
 CREATE INDEX IF NOT EXISTS idx_sync_hlc ON sync_records (user_id, hlc);
+-- Comptes (e-mail + mot de passe haché PBKDF2) et sessions (jeton haché)
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  salt TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

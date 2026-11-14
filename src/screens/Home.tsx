@@ -1,5 +1,5 @@
-import { BookOpen, Check } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { BookOpen, Check, ChevronRight, Leaf } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ProgressBar, Screen, cx } from '@/components/ui';
 import { addDays, diffDays, startOfWeek } from '@/engine/dates';
@@ -10,6 +10,7 @@ import { ayahId, fromAyahId, rangeLabel, surahMeta } from '@/engine/quran';
 import type { PlanItem, WorkKind } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
 import { formatDateLong, formatDateShort, greeting, useToday } from '@/lib/hooks';
+import { loadQuranText } from '@/lib/quranText';
 import { useWird } from '@/store/useWird';
 import { CELL_BG } from './wird/SurahGrid';
 
@@ -22,11 +23,20 @@ export default function Home() {
   const store = useWird();
   const { profile, plan, verses, goals, history, session, settings, rotation } = store;
   const [awayHidden, setAwayHidden] = useState(false);
+  const [motivation, setMotivation] = useState<string | null>(null);
+  useEffect(() => {
+    void loadQuranText().then((d) => d && setMotivation(d.s[72][3].split(' ').slice(-3).join(' ')));
+  }, []);
   const items = plan?.items ?? [];
   const pending = items.filter((i) => i.status === 'pending');
   const done = items.filter((i) => i.status === 'done');
   const o = useMemo(() => overall(verses, today), [verses, today]);
   const stats = useMemo(() => allSurahStats(verses, today), [verses, today]);
+  const cnt = useMemo(() => {
+    const c = { learned: 0, learning: 0, reinforce: 0, none: 0 };
+    for (const st of stats) c[cellState(st)]++;
+    return c;
+  }, [stats]);
   const days = useMemo(() => activeDaySet(history), [history]);
   const wk = startOfWeek(today);
   const weekDays = activeDaysIn(days, wk, addDays(wk, 6));
@@ -132,7 +142,7 @@ export default function Home() {
                 <div key={it.id} className="flex items-center justify-between gap-2 border-t border-line py-2.5">
                   <Link to={`/wird/${it.surah}`} className="min-w-0 flex-1">
                     <b className="block">{surahMeta(it.surah).tr} · {rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')}</b>
-                    <span className="text-sm text-muted">{LABEL[it.kind]} · ≈ {formatPages(itemPages(it))}{it.status === 'skipped' ? ' · ignoré' : ''}</span>
+                    <span className="text-sm text-muted">{LABEL[it.kind]} · {it.kind === 'review' ? `page ${pageOf(ayahId(it.surah, it.from))}` : `≈ ${formatPages(itemPages(it))}`}{it.status === 'skipped' ? ' · ignoré' : ''}</span>
                   </Link>
                   {isDone ? <span className="whitespace-nowrap rounded-full bg-good px-2.5 py-0.5 text-xs text-white">Fait ✓</span> : it.status === 'pending' ? (
                     <span className="flex items-center gap-1.5">
@@ -161,21 +171,22 @@ export default function Home() {
         </div>
       </div>
 
-      <h2 className="label mb-2.5 mt-[30px]">Ma progression</h2>
+      <div className="mb-2.5 mt-[30px] flex items-baseline justify-between">
+        <h2 className="font-display text-[22px] font-semibold tracking-[-0.2px]">Ma progression</h2>
+        <Link to="/progression" className="flex items-center text-sm text-muted">Voir le détail <ChevronRight size={16} /></Link>
+      </div>
       <div className="card p-4">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <Big n={o.surahsWorked} l="sourates commencées" />
-          <Big n={o.surahsComplete} l="apprises" />
-          <Big n={Math.max(0, o.surahsWorked - o.surahsComplete)} l="en cours" />
-          <Big n={stats.filter((s) => s.needsReinforcement).length} l="à renforcer" />
+        <div className="flex items-center gap-5">
+          <Donut learned={cnt.learned} learning={cnt.learning} reinforce={cnt.reinforce} />
+          <ul className="min-w-0 flex-1 space-y-2.5 text-[15px]">
+            {([['learned', 'Mémorisées'], ['learning', 'En cours'], ['reinforce', 'À renforcer'], ['none', 'Non commencées']] as const).map(([k, l]) => (
+              <li key={k} className="flex items-center gap-2.5"><i className={cx('h-3 w-3 shrink-0 rounded-full', CELL_BG[k])} /><span className="flex-1 truncate">{l}</span><b className="tabular-nums">{cnt[k]}</b></li>
+            ))}
+          </ul>
         </div>
-        <Link to="/progression" aria-label="Voir le tableau des 114 sourates" className="mt-4 grid grid-cols-[repeat(19,1fr)] gap-[3px]">
-          {stats.map((st) => <i key={st.surah} title={`${st.surah}. ${surahMeta(st.surah).tr}`} className={cx('block aspect-square rounded-[4px]', CELL_BG[cellState(st)])} />)}
+        <Link to="/progression" aria-label="Voir le tableau des 114 sourates" className="mt-5 grid grid-cols-[repeat(19,1fr)] gap-[5px]">
+          {stats.map((st) => <i key={st.surah} title={`${st.surah}. ${surahMeta(st.surah).tr}`} className={cx('block aspect-square rounded-[5px]', CELL_BG[cellState(st)])} />)}
         </Link>
-        <ul className="mt-3 flex flex-wrap gap-x-2.5 gap-y-1 text-xs text-muted">
-          {([['learned', 'Apprise'], ['learning', 'En cours'], ['reinforce', 'À renforcer'], ['none', 'Non commencée']] as const).map(([k, l]) => <li key={k} className="flex items-center gap-1.5"><i className={cx('h-[11px] w-[11px] rounded-[3px]', CELL_BG[k])} />{l}</li>)}
-        </ul>
-        <Link to="/progression" className="btn-soft mt-3 !min-h-[36px] !px-3 text-sm">Voir le détail</Link>
       </div>
 
       {(learnTarget > 0 || reviewTarget > 0) && (
@@ -202,7 +213,14 @@ export default function Home() {
         <div><b>Le Coran numérique</b><p className="text-sm text-muted">Lecture page par page, sans distraction.</p></div>
         <Link to={`/coran?p=${lastPage}`} className="btn-soft !min-h-[36px] !px-3 text-sm"><BookOpen size={16} /> Ouvrir</Link>
       </div>
-      <p className="mt-3 text-xs text-muted">Le programme se recalcule chaque jour. « ⋯ » passe un élément pour aujourd’hui : rien n’est reporté ni dû.</p>
+      <div className="mt-5 flex items-center gap-4 rounded-[28px] bg-primary/10 p-5">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface text-primary"><Leaf size={26} /></span>
+        <div className="min-w-0 flex-1 text-right">
+          <p className="ar text-[28px] leading-[1.7] text-primary" lang="ar" dir="rtl">{motivation ?? '\u00A0'}</p>
+          <p className="font-display text-[17px] font-semibold italic leading-snug">« Et récite le Coran lentement et clairement. »</p>
+          <p className="mt-1 text-sm text-muted">Al-Muzzammil · verset 4</p>
+        </div>
+      </div>
     </Screen>
   );
 }
@@ -212,20 +230,38 @@ function NextRein(id: number, date: string, today: string): string {
   return `${surahMeta(surah).tr} · verset ${ayah} · ${date === addDays(today, 1) ? 'demain' : formatDateShort(date)}`;
 }
 
-function Big({ n, l }: { n: number; l: string }) {
-  return (
-    <div>
-      <span className="font-display text-[30px] font-semibold leading-none">{n}</span>
-      <p className="text-sm text-muted">{l}</p>
-    </div>
-  );
-}
-
 function Goal({ label, done, total }: { label: string; done: number; total: number }) {
   return (
     <div>
       <div className="flex justify-between text-sm"><b>{label}</b><span className="text-muted tabular-nums">{formatPages(done)} / {formatPages(total)}</span></div>
       <div className="mt-1.5"><ProgressBar value={total ? Math.min(1, done / total) : 0} /></div>
+    </div>
+  );
+}
+
+/** Anneau de progression : part de sourates apprises / en cours / à renforcer sur 114. */
+function Donut({ learned, learning, reinforce }: { learned: number; learning: number; reinforce: number }) {
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  let off = 0;
+  const seg = (n: number, cls: string) => {
+    const len = (n / 114) * C;
+    const el = n > 0 ? <circle key={cls} r={R} cx="64" cy="64" fill="none" strokeWidth="14" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-off} className={cls} /> : null;
+    off += len;
+    return el;
+  };
+  return (
+    <div className="relative h-[112px] w-[112px] shrink-0">
+      <svg viewBox="0 0 128 128" className="-rotate-90" aria-hidden>
+        <circle r={R} cx="64" cy="64" fill="none" strokeWidth="14" className="stroke-neutral" />
+        {seg(learned, 'stroke-good')}
+        {seg(learning, 'stroke-blue')}
+        {seg(reinforce, 'stroke-hard')}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <b className="font-display text-[34px] font-semibold leading-none">{learned}</b>
+        <span className="mt-1 text-xs text-muted">mémorisées</span>
+      </div>
     </div>
   );
 }

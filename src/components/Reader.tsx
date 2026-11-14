@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { TOTAL_PAGES, pageRange } from '@/engine/pages';
 import { verseKind } from '@/engine/progress';
-import { ayahId, fromAyahId, surahMeta } from '@/engine/quran';
+import { ayahId, fromAyahId, hizbOf, surahMeta } from '@/engine/quran';
 import { haptic } from '@/lib/haptics';
 import { basmalaFor, loadQuranText, type QuranData } from '@/lib/quranText';
 import { useWird } from '@/store/useWird';
@@ -50,7 +50,7 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
     return out;
   }, [mode, pg]);
   const inHl = (s: number, a: number) => !!highlight && highlight.surah === s && a >= highlight.from && a <= highlight.to;
-  const style = { fontSize: `${28 * size}px` } as React.CSSProperties;
+  const style = { fontSize: `${(mode === 'page' ? 21 : 28) * size}px` } as React.CSSProperties;
 
   const verseSpan = (s: number, a: number) => (
     <span key={a}>
@@ -78,7 +78,11 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
       {data && mode === 'page' && (
         <>
           <p className="my-3 text-center text-sm text-muted">Page {pg} / {TOTAL_PAGES}</p>
-          <div className="rounded-[18px] border border-line bg-surface px-3 pb-3 pt-3.5 shadow-[0_2px_14px_rgba(31,77,58,.06)]" key={pg}>
+          <div className="mb-1 flex items-center justify-between px-1">
+            <span className="mushaf-tab ar" lang="ar">سورة {surahMeta(groups[0].surah).ar}</span>
+            <span className="mushaf-tab ar" lang="ar">الجزء {arNum(Math.ceil(hizbOf(pageRange(pg)[0]) / 2))}</span>
+          </div>
+          <div className="mushaf" key={pg}>
             {groups.map((g) => {
               const meta = surahMeta(g.surah);
               const first = g.ayahs[0] === 1;
@@ -86,21 +90,15 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
               return (
                 <div key={`${g.surah}-${g.ayahs[0]}`}>
                   {first && (
-                    <div className="card mb-2 mt-1 py-2 text-center">
-                      <p className="ar text-[22px] leading-tight" lang="ar">{meta.ar}</p>
-                      <p className="text-xs text-muted">{meta.id}. {meta.tr}</p>
-                    </div>
+                    <div className="mushaf-title ar" lang="ar">سورة {meta.ar}</div>
                   )}
-                  {bas && <p className="ar mb-3 border-b border-line pb-3 text-center font-bold leading-[2]" style={style} lang="ar">{bas}</p>}
-                  <p className="ar text-justify leading-[2.25] [text-align-last:center]" style={style} lang="ar">{g.ayahs.map((a) => verseSpan(g.surah, a))}</p>
+                  {bas && <p className="ar mb-2 text-center leading-[2]" style={style} lang="ar">{bas}</p>}
+                  <p className="ar text-justify leading-[2.1] [text-align-last:center]" style={style} lang="ar">{g.ayahs.map((a) => verseSpan(g.surah, a))}</p>
                 </div>
               );
             })}
           </div>
-          <div className="mt-2 flex items-center justify-between text-[13px] text-muted">
-            <span>Page {pg}</span>
-            <span className="ar text-[15px] leading-snug" lang="ar">الصفحة {arNum(pg)}</span>
-          </div>
+          <p className="mt-2 text-center text-[15px] text-muted">{arNum(pg)}</p>
           <div className="mt-3 flex gap-2.5">
             <button className="btn-outline flex-1" disabled={pg <= 1} onClick={() => { haptic('select'); onPage(pg - 1); }}><ChevronLeft size={18} /> Précédente</button>
             <button className="btn-outline flex-1" disabled={pg >= TOTAL_PAGES} onClick={() => { haptic('select'); onPage(pg + 1); }}>Suivante <ChevronRight size={18} /></button>

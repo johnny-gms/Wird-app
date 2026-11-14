@@ -13,7 +13,7 @@ export interface SyncRecord {
   value: unknown;
 }
 
-const SETTINGS: (keyof Settings)[] = ['learnDirection', 'learnPagesPerDay', 'reviewPagesPerDay', 'reinforceVersesPerDay', 'theme', 'haptics', 'notifications'];
+const SETTINGS: (keyof Settings)[] = ['learnDirection', 'learnMode', 'learnPagesPerWeek', 'reviewPagesPerDay', 'reinforceVersesPerDay', 'theme', 'haptics', 'notifications'];
 
 type Slice = Pick<PersistedState, 'verses' | 'goals' | 'personalGoals' | 'trash' | 'settings' | 'profile' | 'rotation' | 'history'>;
 
@@ -27,7 +27,7 @@ export function readRecord(s: Slice, key: string): unknown {
     case 't': return s.trash.find((t) => t.id === id);
     case 'h': return s.history.find((h) => h.id === id);
     case 's': return s.settings[id as keyof Settings];
-    case 'p': return s.profile.name;
+    case 'p': return (s.profile as unknown as Record<string, unknown>)[id] ?? null;
     case 'r': return s.rotation;
     default: return undefined;
   }
@@ -56,7 +56,7 @@ export function writeRecord<T extends Slice>(s: T, key: string, value: unknown, 
       return { ...s, history: del ? rest : [...rest, value as HistoryEntry].sort((a, b) => a.ts.localeCompare(b.ts)) };
     }
     case 's': return del ? s : { ...s, settings: { ...s.settings, [id]: value } };
-    case 'p': return del ? s : { ...s, profile: { ...s.profile, name: String(value) } };
+    case 'p': return del ? s : { ...s, profile: { ...s.profile, [id]: value } };
     case 'r': return del ? s : { ...s, rotation: value as Slice['rotation'] };
     default: return s;
   }
@@ -72,6 +72,8 @@ export function listKeys(s: Slice): Set<string> {
   s.history.forEach((h) => out.add('h:' + h.id));
   SETTINGS.forEach((k) => out.add('s:' + k));
   out.add('p:name');
+  out.add('p:age');
+  out.add('p:gender');
   out.add('r');
   return out;
 }

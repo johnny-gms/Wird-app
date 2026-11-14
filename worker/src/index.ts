@@ -6,7 +6,8 @@ import { decideReminders, type SubscriberState } from '../../src/notifications/r
 import type { NotificationPrefs } from '../../src/engine/types';
 import { D1Store, type D1Like, type Store, type Subscriber } from './store';
 import { b64uEncode, importVapidKey, sendWebPush } from './webpush';
-import { D1SyncStore, handleSync, noAuth, type Authenticator, type SyncStore } from './sync';
+import { D1AuthStore, authenticateBearer, handleAuth, type AuthStore } from './auth';
+import { D1SyncStore, handleSync, type Authenticator, type SyncStore } from './sync';
 
 export interface Env {
   DB: D1Like;
@@ -20,7 +21,7 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function cors(env: Env, extra: Record<string, string> = {}): Record<string, string> {
-  return { 'access-control-allow-origin': env.ALLOWED_ORIGIN, 'access-control-allow-headers': 'content-type, x-wird-token', 'access-control-allow-methods': 'GET, POST, OPTIONS', vary: 'origin', ...extra };
+  return { 'access-control-allow-origin': env.ALLOWED_ORIGIN, 'access-control-allow-headers': 'content-type, x-wird-token, authorization', 'access-control-allow-methods': 'GET, POST, OPTIONS', vary: 'origin', ...extra };
 }
 const json = (env: Env, data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors(env, { 'content-type': 'application/json' }) });
 
@@ -66,7 +67,8 @@ async function vapid(env: Env) {
   return { subject: env.VAPID_SUBJECT, publicKey: env.VAPID_PUBLIC_KEY, privateKey: await importVapidKey(env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY) };
 }
 
-export async function handleRequest(req: Request, env: Env, store: Store = new D1Store(env.DB), now: Date = new Date(), fetchImpl?: typeof fetch, auth: Authenticator = noAuth, syncStore: SyncStore = new D1SyncStore(env.DB)): Promise<Response> {
+export async function handleRequest(req: Request, env: Env, store: Store = new D1Store(env.DB), now: Date = new Date(), fetchImpl?: typeof fetch, auth?: Authenticator, syncStore: SyncStore = new D1SyncStore(env.DB), authStore: AuthStore = new D1AuthStore(env.DB)): Promise<Response> {
+  const authenticate: Authenticator = auth ?? ((r) => authenticateBearer(r, authStore));
   const url = new URL(req.url);
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(env) });
   if (req.method === 'GET' && url.pathname === '/api/health') return json(env, { ok: true, publicKey: env.VAPID_PUBLIC_KEY, lastCron: await store.getMeta('lastCron'), time: now.toISOString() });
@@ -76,10 +78,16 @@ export async function handleRequest(req: Request, env: Env, store: Store = new D
   const body = (await req.json().catch(() => null)) as Record<string, any> | null;
   if (!body || typeof body !== 'object') return json(env, { error: 'json' }, 400);
 
-  // ---- synchronisation : réservée aux comptes (authentification Google / Apple à brancher)
+  // ---- comptes (e-mail + mot de passe)
+  if (url.pathname.startsWith('/api/auth/')) {
+    const r = await handleAuth(url.pathname, body, authStore);
+    return json(env, r.data, r.status);
+  }
+
+  // ---- synchronisation : réservée aux comptes connectés
   if (url.pathname.startsWith('/api/sync/')) {
-    const user = await auth(req);
-    if (!user) return json(env, { error: 'auth_not_configured', message: "La synchronisation nécessite un compte (connexion Google / Apple, pas encore activée)." }, 501);
+    const user = await authenticate(req);
+    if (!user) return json(env, { error: 'auth' }, 401);
     const r = await handleSync(url.pathname, user, body, syncStore);
     return json(env, r.data, r.status);
   }

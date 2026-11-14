@@ -32,6 +32,12 @@ export function FastScroll({ targetRef, count, label, top = 150, bottom = 96 }: 
     setP(Math.max(0, Math.min(1, v)));
   }, [bounds]);
 
+  // une seule barre : la barre native est masquée tant que celle-ci est affichée
+  useEffect(() => {
+    document.documentElement.classList.add('fs-active');
+    return () => document.documentElement.classList.remove('fs-active');
+  }, []);
+
   useEffect(() => {
     const onScroll = () => {
       setAwake(true);

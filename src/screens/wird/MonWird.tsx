@@ -1,6 +1,6 @@
 import { BookOpen, Search } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { FastScroll } from '@/components/FastScroll';
 import { matchSurah } from '@/components/SurahPickerList';
 import { Screen, Sheet, cx } from '@/components/ui';
@@ -27,7 +27,6 @@ export const STATE_TAG: Record<CellState, { label: string; cls: string; bar: str
 
 /** Mon Wird : les 114 sourates sous forme de cartes, avec leur état (même code couleur partout). */
 export default function MonWird() {
-  const nav = useNavigate();
   const today = useToday();
   const verses = useWird((s) => s.verses);
   const [q, setQ] = useState('');
@@ -59,15 +58,12 @@ export default function MonWird() {
         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
         <input className="input pl-10" placeholder="Rechercher une sourate…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une sourate" />
       </div>
-      <div className="mt-2.5 flex gap-2">
-        <button className="btn-soft flex-1 !min-h-[40px] text-sm" onClick={() => nav('/connues')}>Indiquer les sourates que je connais déjà</button>
-        <Link to="/coran" className="btn-primary !min-h-[40px] !px-3.5 text-sm" aria-label="Ouvrir le Coran numérique"><BookOpen size={18} /> Coran</Link>
-      </div>
-      <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">
-        <button onClick={() => setHizbOpen(true)} className="chip" aria-pressed={!!hizb}>{hizb ? `Hizb ${hizb} ✕` : 'Par Hizb'}</button>
+      <Link to="/coran" className="btn-primary mt-2.5 w-full !min-h-[40px] text-sm" aria-label="Ouvrir le Coran numérique"><BookOpen size={18} /> Coran numérique</Link>
+      <div className="mt-3 flex flex-wrap gap-2">
         {FILTERS.map((x) => (
           <button key={x.v} onClick={() => setF(x.v)} aria-pressed={f === x.v} className="chip">{x.l}</button>
         ))}
+        <button onClick={() => setHizbOpen(true)} className="chip" aria-pressed={!!hizb}>{hizb ? `Hizb ${hizb} ✕` : 'Par Hizb'}</button>
       </div>
       <p className="mt-3 text-xs text-muted">{list.length} sourate{list.length > 1 ? 's' : ''}{hizb ? ` dans le Hizb ${hizb}` : ''}</p>
       <div ref={listRef} className="mt-1 space-y-2.5">

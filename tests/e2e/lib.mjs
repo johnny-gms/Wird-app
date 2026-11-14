@@ -7,19 +7,28 @@ export const ok = (c, m) => { console.log(`${c ? '✔' : '✘'} ${m}`); if (!c) 
 export const done = (extra = '') => { console.log(failures ? `\n${failures} échec(s) ${extra}` : '\nTous les contrôles passent'); process.exit(failures ? 1 : 0); };
 export const settle = (page, ms = 300) => page.waitForTimeout(ms); // laisse l'écriture IndexedDB se terminer avant un rechargement
 
-/** Parcours de premier lancement complet (5 étapes). */
-export async function onboard(page, { name = '', juz = true, learnDir = 'forward', reviewPlus = 0 } = {}) {
-  await page.goto(BASE);
-  await page.getByRole('heading', { name: 'Bienvenue dans WIRD' }).waitFor();
-  if (name) await page.getByPlaceholder(/salutation/).fill(name);
+/** Présentation (3 écrans) puis « Continuer sans compte » → écran du prénom. */
+export async function intro(page) {
+  await page.getByText('garde-le.').waitFor();
+  await page.getByRole('button', { name: /Suivant/ }).click();
+  await page.getByRole('button', { name: /Suivant/ }).click();
   await page.getByRole('button', { name: /^Commencer/ }).click();
+  await page.getByRole('button', { name: 'Continuer sans compte' }).click();
+}
+
+/** Parcours de premier lancement complet. */
+export async function onboard(page, { name = 'Test', juz = true, learnDir = 'forward', reviewPlus = 0 } = {}) {
+  await page.goto(BASE);
+  await intro(page);
+  await page.getByPlaceholder('Ton prénom').fill(name || 'Test');
+  await page.getByRole('button', { name: 'Continuer' }).click();
   if (juz) await page.getByRole('button', { name: /Juz/ }).click();
   await page.getByRole('button', { name: /Continuer|Je n’en connais/ }).click();
-  if (learnDir === 'backward') await page.getByRole('radio', { name: /De An-Nas vers Al-Fatiha/ }).click();
+  if (learnDir === 'backward') await page.getByRole('radio', { name: /An-Nas → Al-Fatiha/ }).click();
   await page.getByRole('button', { name: 'Continuer' }).click();
   for (let i = 0; i < reviewPlus; i++) await page.getByRole('button', { name: /Plus de pages à réviser/ }).click();
   await page.getByRole('button', { name: 'Continuer' }).click();
-  await page.getByRole('button', { name: /Commencer à utiliser/ }).click();
+  await page.getByRole('button', { name: /C’est parti/ }).click();
   await page.getByText('Ma progression').first().waitFor();
 }
 

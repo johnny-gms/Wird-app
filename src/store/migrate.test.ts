@@ -8,7 +8,7 @@ describe('migration des données V1', () => {
     expect('direction' in s).toBe(false); // le sens de révision n'existe plus
     expect(s.learnDirection).toBe('backward');
     expect(s.reviewPagesPerDay).toBe(3);
-    expect(s.learnPagesPerDay).toBe(0);
+    expect(s.learnPagesPerWeek).toBe(0);
     expect(s.reinforceVersesPerDay).toBe(20);
     expect(s.theme).toBe('dark');
     expect(s.notifications.daily).toEqual({ enabled: false, time: '06:00' });
