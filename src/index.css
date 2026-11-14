@@ -224,6 +224,20 @@ html[data-theme='dark'] #spl {
 html.fs-active { scrollbar-width: none; }
 html.fs-active::-webkit-scrollbar { display: none; }
 
+/* Tajwid : une famille de couleurs par règle (palette du Mushaf coloré) */
+:root { --tj-madd-6: #e0218a; --tj-madd-jaiz: #d98a1e; --tj-madd-2: #b89b2c; --tj-ghunna: #1fa05a; --tj-silent: #9a9a9a; --tj-qalqala: #1ba8c7; --tj-tafkhim: #1e6fa5; }
+:root[data-theme='dark'] { --tj-madd-6: #f05aa8; --tj-madd-jaiz: #f0a94a; --tj-madd-2: #d8bd54; --tj-ghunna: #4cc98a; --tj-silent: #8a8f8c; --tj-qalqala: #4cc8e0; --tj-tafkhim: #5aa8e0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --tj-madd-6: #f05aa8; --tj-madd-jaiz: #f0a94a; --tj-madd-2: #d8bd54; --tj-ghunna: #4cc98a; --tj-silent: #8a8f8c; --tj-qalqala: #4cc8e0; --tj-tafkhim: #5aa8e0; } }
+.tj-madd-6 { color: var(--tj-madd-6); } .tj-madd-jaiz { color: var(--tj-madd-jaiz); } .tj-madd-2 { color: var(--tj-madd-2); }
+.tj-ghunna { color: var(--tj-ghunna); } .tj-silent { color: var(--tj-silent); } .tj-qalqala { color: var(--tj-qalqala); } .tj-tafkhim { color: var(--tj-tafkhim); }
+.tj-dot { display: inline-block; width: 9px; height: 9px; border-radius: 9999px; }
+.tj-bg-madd-6 { background: var(--tj-madd-6); } .tj-bg-madd-jaiz { background: var(--tj-madd-jaiz); } .tj-bg-madd-2 { background: var(--tj-madd-2); }
+.tj-bg-ghunna { background: var(--tj-ghunna); } .tj-bg-silent { background: var(--tj-silent); } .tj-bg-qalqala { background: var(--tj-qalqala); } .tj-bg-tafkhim { background: var(--tj-tafkhim); }
+
+/* Défilement rapide : une seule barre (la barre native est masquée) */
+html.fs-active { scrollbar-width: none; }
+html.fs-active::-webkit-scrollbar { display: none; }
+
 /* Page du Coran numérique, façon Mushaf : cadre ornemental, verset numéroté dans un médaillon */
 .mushaf {
   position: relative;

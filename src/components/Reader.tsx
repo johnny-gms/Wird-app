@@ -5,6 +5,7 @@ import { verseKind } from '@/engine/progress';
 import { ayahId, fromAyahId, hizbOf, surahMeta } from '@/engine/quran';
 import { haptic } from '@/lib/haptics';
 import { basmalaFor, loadQuranText, type QuranData } from '@/lib/quranText';
+import { TAJWEED_LEGEND, loadTajweed, tajweedParts, type TajweedData } from '@/lib/tajweed';
 import { useWird } from '@/store/useWird';
 import { VerseSheet } from './VerseSheet';
 import { cx } from './ui';
@@ -22,6 +23,19 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
   const verses = useWird((s) => s.verses);
   const [data, setData] = useState<QuranData | null>(null);
   const [failed, setFailed] = useState(false);
+  const [tj, setTj] = useState<TajweedData | null>(null);
+  const [tjOn, setTjOn] = useState(() => {
+    try { return localStorage.getItem('wird-tajweed') !== '0'; } catch { return true; }
+  });
+  useEffect(() => {
+    void loadTajweed().then(setTj);
+  }, []);
+  const toggleTj = () => {
+    setTjOn(!tjOn);
+    try { localStorage.setItem('wird-tajweed', tjOn ? '0' : '1'); } catch { /* ignore */ }
+  };
+  const colored = (s: number, a: number, text: string) =>
+    tj && tjOn ? tajweedParts(text, tj.spans[`${s}:${a}`], tj.families).map(([t, f], i) => (f ? <span key={i} className={`tj-${f}`}>{t}</span> : t)) : text;
   const [sel, setSel] = useState<{ surah: number; ayah: number } | null>(null);
   const [size, setSize] = useState(() => {
     try { return Number(localStorage.getItem(SIZE_KEY)) || 1; } catch { return 1; }
@@ -54,7 +68,7 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
 
   const verseSpan = (s: number, a: number) => (
     <span key={a}>
-      <span onClick={() => { haptic('tap'); setSel({ surah: s, ayah: a }); }} className={cx('cursor-pointer rounded-md', inHl(s, a) && 'bg-primary/15')}>{data!.s[s - 1][a - 1]}</span>{' '}
+      <span onClick={() => { haptic('tap'); setSel({ surah: s, ayah: a }); }} className={cx('cursor-pointer rounded-md', inHl(s, a) && 'bg-primary/15')}>{colored(s, a, data!.s[s - 1][a - 1])}</span>{' '}
       <span className="vm">{arNum(a)}</span>{' '}
     </span>
   );
@@ -67,6 +81,7 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
           <button role="tab" aria-selected={mode === 'list'} className="chip" onClick={() => onMode('list')}>Liste</button>
         </div>
         <div className="flex gap-1.5">
+          <button className="chip" aria-pressed={tjOn} onClick={toggleTj}>Tajwid</button>
           <button className="btn-soft !min-h-[36px] !px-3 text-sm" onClick={() => zoom(-0.15)} aria-label="Réduire le texte">A−</button>
           <button className="btn-soft !min-h-[36px] !px-3 text-sm" onClick={() => zoom(0.15)} aria-label="Agrandir le texte">A+</button>
         </div>
@@ -78,11 +93,11 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
       {data && mode === 'page' && (
         <>
           <p className="my-3 text-center text-sm text-muted">Page {pg} / {TOTAL_PAGES}</p>
-          <div className="mb-1 flex items-center justify-between px-1">
-            <span className="mushaf-tab ar" lang="ar">سورة {surahMeta(groups[0].surah).ar}</span>
-            <span className="mushaf-tab ar" lang="ar">الجزء {arNum(Math.ceil(hizbOf(pageRange(pg)[0]) / 2))}</span>
+          <div className="mb-2 flex items-center justify-between px-1 text-sm text-muted">
+            <span>{surahMeta(groups[0].surah).tr}</span>
+            <span>Juz {Math.ceil(hizbOf(pageRange(pg)[0]) / 2)}</span>
           </div>
-          <div className="mushaf" key={pg}>
+          <div key={pg}>
             {groups.map((g) => {
               const meta = surahMeta(g.surah);
               const first = g.ayahs[0] === 1;
@@ -90,7 +105,10 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
               return (
                 <div key={`${g.surah}-${g.ayahs[0]}`}>
                   {first && (
-                    <div className="mushaf-title ar" lang="ar">سورة {meta.ar}</div>
+                    <div className="my-3 border-y border-line py-2 text-center">
+                      <p className="ar text-[22px] leading-tight" lang="ar">{meta.ar}</p>
+                      <p className="text-xs text-muted">{meta.id}. {meta.tr}</p>
+                    </div>
                   )}
                   {bas && <p className="ar mb-2 text-center leading-[2]" style={style} lang="ar">{bas}</p>}
                   <p className="ar text-justify leading-[2.1] [text-align-last:center]" style={style} lang="ar">{g.ayahs.map((a) => verseSpan(g.surah, a))}</p>
@@ -98,6 +116,11 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
               );
             })}
           </div>
+          {tj && tjOn && (
+            <ul className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
+              {TAJWEED_LEGEND.map((l) => <li key={l.family} className="flex items-center gap-1"><i className={`tj-dot tj-bg-${l.family}`} />{l.label}</li>)}
+            </ul>
+          )}
           <p className="mt-2 text-center text-[15px] text-muted">{arNum(pg)}</p>
           <div className="mt-3 flex gap-2.5">
             <button className="btn-outline flex-1" disabled={pg <= 1} onClick={() => { haptic('select'); onPage(pg - 1); }}><ChevronLeft size={18} /> Précédente</button>
@@ -124,7 +147,7 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
                 const k = verseKind(verses[ayahId(s, a)]);
                 return (
                   <button key={a} id={`v${a}`} onClick={() => { haptic('tap'); setSel({ surah: s, ayah: a }); }} className={cx('block w-full rounded-[10px] border border-line border-r-[5px] bg-surface px-3 py-1.5 text-right', BORDER[k], inHl(s, a) && 'ring-2 ring-primary/30')}>
-                    <span className="ar block leading-[2.3]" style={{ fontSize: `${24 * size}px` }} lang="ar">{t}</span>
+                    <span className="ar block leading-[2.3]" style={{ fontSize: `${24 * size}px` }} lang="ar">{colored(s, a, t)}</span>
                     <span className="block text-left text-xs text-muted">Verset {a}</span>
                   </button>
                 );

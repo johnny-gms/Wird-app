@@ -213,13 +213,10 @@ export default function Home() {
         <div><b>Le Coran numérique</b><p className="text-sm text-muted">Lecture page par page, sans distraction.</p></div>
         <Link to={`/coran?p=${lastPage}`} className="btn-soft !min-h-[36px] !px-3 text-sm"><BookOpen size={16} /> Ouvrir</Link>
       </div>
-      <div className="mt-5 flex items-center gap-4 rounded-[28px] bg-primary/10 p-5">
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface text-primary"><Leaf size={26} /></span>
-        <div className="min-w-0 flex-1 text-right">
-          <p className="ar text-[28px] leading-[1.7] text-primary" lang="ar" dir="rtl">{motivation ?? '\u00A0'}</p>
-          <p className="font-display text-[17px] font-semibold italic leading-snug">« Et récite le Coran lentement et clairement. »</p>
-          <p className="mt-1 text-sm text-muted">Al-Muzzammil · verset 4</p>
-        </div>
+      <div className="mt-5 rounded-[28px] bg-primary/10 px-5 py-5">
+        <p className="ar text-center text-[30px] leading-[1.7] text-primary" lang="ar" dir="rtl">{motivation ?? '\u00A0'}</p>
+        <p className="mt-1 text-center font-display text-[15.5px] font-semibold italic leading-snug">« Et récite le Coran lentement et clairement. »</p>
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-muted"><Leaf size={15} className="text-primary" /> Al-Muzzammil · verset 4</p>
       </div>
     </Screen>
   );
