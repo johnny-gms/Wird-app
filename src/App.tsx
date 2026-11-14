@@ -17,6 +17,7 @@ import SurahDetail from './screens/wird/SurahDetail';
 import ProgressTab from './screens/progress/ProgressTab';
 import Profile from './screens/profile/Profile';
 import ProfileEdit from './screens/profile/ProfileEdit';
+import Settings from './screens/profile/Settings';
 import { ProfileNotifications, ProfileAbout } from './screens/profile/SubScreens';
 import Session from './screens/session/Session';
 import Bilan from './screens/session/Bilan';
@@ -121,6 +122,7 @@ export default function App() {
           <Route path="/profil/wird" element={<Navigate to="/profil" replace />} />
           <Route path="/profil/donnees" element={<Navigate to="/profil" replace />} />
           <Route path="/profil/profil" element={<ProfileEdit />} />
+          <Route path="/profil/parametres" element={<Settings />} />
           <Route path="/profil/notifications" element={<ProfileNotifications />} />
           <Route path="/profil/corbeille" element={<Trash />} />
           <Route path="/profil/apropos" element={<ProfileAbout />} />

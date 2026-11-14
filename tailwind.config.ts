@@ -34,9 +34,10 @@ export default {
         neutral: v('neutral'),
         'neutral-ink': v('neutral-ink'),
       },
+      // Typographie centralisée : une seule famille latine (police système, comme les écrans de référence) + Amiri Quran pour l'arabe.
       fontFamily: {
-        sans: ['-apple-system', '"Segoe UI"', 'Helvetica', 'Arial', 'sans-serif'],
-        display: ['"Iowan Old Style"', '"Palatino Linotype"', 'Palatino', '"Book Antiqua"', 'Georgia', 'serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
         arabic: ['"Amiri Quran"', '"Geeza Pro"', 'serif'],
       },
       borderRadius: { xl2: '1.25rem' },

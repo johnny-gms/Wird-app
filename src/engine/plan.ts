@@ -26,6 +26,16 @@ export function memorizedIds(verses: Record<number, VerseState>): number[] {
   return out.sort((a, b) => a - b);
 }
 
+/** Versets de la rotation de révision : mémorisés, hors versets simplement déclarés (voir ENGINE.declaredInRotation). */
+export function rotationIds(verses: Record<number, VerseState>): number[] {
+  const out: number[] = [];
+  for (const k in verses) {
+    const v = verses[k];
+    if (v.status === 'memorized' && (ENGINE.declaredInRotation || !v.declared)) out.push(Number(k));
+  }
+  return out.sort((a, b) => a - b);
+}
+
 export function itemIds(item: Pick<PlanItem, 'surah' | 'from' | 'to'>): number[] {
   const out: number[] = [];
   for (let a = item.from; a <= item.to; a++) out.push(ayahId(item.surah, a));
@@ -82,7 +92,7 @@ export function buildPlan(ctx: PlanContext, date: string, prev: DailyPlan | null
   }
 
   // 2. Rotation générale (hors versets déjà couverts par le renforcement du jour)
-  const memorized = memorizedIds(ctx.verses);
+  const memorized = rotationIds(ctx.verses);
   const keptRot = kept.filter((i) => i.kind === 'review' && !i.adhoc);
   // La révision se compte en pages du Mushaf : « 2 pages par jour » = les versets appris de 2 pages.
   const pagesUsed = new Set<number>(keptRot.flatMap((i) => itemIds(i).map(pageOf)));
@@ -285,7 +295,7 @@ export interface UpcomingChunk {
 export function upcomingRotation(ctx: PlanContext, today: DailyPlan | null, maxItems = 6): UpcomingChunk[] {
   const pagesPerDay = ctx.settings.reviewPagesPerDay;
   if (pagesPerDay <= 0) return [];
-  const memorized = memorizedIds(ctx.verses);
+  const memorized = rotationIds(ctx.verses);
   if (!memorized.length) return [];
   const rot = (today?.items ?? []).filter((i) => i.kind === 'review' && !i.adhoc && i.endCursor !== undefined);
   let cursor = rot.length ? rot[rot.length - 1].endCursor! : ctx.rotation.cursor;

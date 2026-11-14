@@ -31,3 +31,12 @@ describe('migration des données V1', () => {
     expect(out.lastValidation).toBeNull();
   });
 });
+
+describe('versets déclarés', () => {
+  it('un verset mémorisé jamais travaillé est marqué « déclaré », un verset travaillé non', () => {
+    const base = { id: 1, status: 'memorized', strength: 50, fragile: false, reinforceDue: null, stage: 0, lastGrade: null, lastReviewedAt: null, reviews: 0, addedAt: '2026-01-01', source: 'user' } as const;
+    const out = normalizeState({ verses: { 1: { ...base }, 2: { ...base, id: 2, reviews: 3, lastGrade: 'mastered' } } } as never, {} as never);
+    expect(out.verses[1].declared).toBe(true);
+    expect(out.verses[2].declared).toBeUndefined();
+  });
+});

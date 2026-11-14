@@ -48,7 +48,7 @@ function useActiveTimer() {
 
 export default function Session() {
   const nav = useNavigate();
-  const { session, plan, startSession, openEvaluation, backToProgram, setDraft, validateSession } = useWird();
+  const { session, plan, startSession, openEvaluation, backToProgram, setDraft, validateSession, markViewed } = useWird();
   const flush = useActiveTimer();
   const [reader, setReader] = useState<PlanItem | null>(null);
 
@@ -117,7 +117,7 @@ export default function Session() {
           )}
           <span className="text-xs font-semibold text-muted">{session.step === 'program' ? 'Étape 1 / 2' : 'Étape 2 / 2'}</span>
         </div>
-        <h1 className="mb-1 mt-2 font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">{session.step === 'program' ? 'Séance du jour' : 'Bilan de la séance'}</h1>
+        <h1 className="title-page mb-1 mt-2">{session.step === 'program' ? 'Travail des passages' : 'Bilan de la séance'}</h1>
         <p className="text-sm text-muted">
           {session.step === 'program' ? `${total} élément${total > 1 ? 's' : ''} · ${formatPages(pages)}` : `Comment s’est passé chaque élément ? ${decided} / ${total}`}
         </p>
@@ -125,7 +125,7 @@ export default function Session() {
 
       <main className="mx-auto w-full max-w-[520px] flex-1 px-4 pb-40 pt-4">
         {session.step === 'program' ? (
-          <Program items={items} onReader={setReader} />
+          <Program items={items} viewed={session.viewed ?? []} onView={markViewed} onReader={(it) => { markViewed(it.id); setReader(it); }} />
         ) : (
           <Evaluate items={items} draft={session.draft} onSet={setDraft} />
         )}
@@ -146,8 +146,8 @@ export default function Session() {
         <div className="mx-auto max-w-[520px] px-4 pb-4 pt-3">
           {session.step === 'program' ? (
             <>
-              <button className="btn-primary w-full" onClick={openEvaluation} disabled={total === 0}>Terminer la séance</button>
-              <p className="mt-2 text-center text-xs text-muted">Travaille dans l’ordre de ton choix, puis évalue tout à l’étape suivante. Tu peux interrompre sans rien perdre.</p>
+              <button className="btn-primary w-full" onClick={openEvaluation} disabled={total === 0}>Passer à l’évaluation</button>
+              <p className="mt-2 text-center text-xs text-muted">Travaille dans l’ordre de ton choix, puis évalue à l’étape suivante. Tu peux interrompre à tout moment : ta séance est conservée.</p>
             </>
           ) : (
             <>
@@ -162,7 +162,7 @@ export default function Session() {
 }
 
 // ------------------------------------------------------------------ Étape 1 : programme
-function Program({ items, onReader }: { items: PlanItem[]; onReader: (it: PlanItem) => void }) {
+function Program({ items, viewed, onView, onReader }: { items: PlanItem[]; viewed: string[]; onView: (id: string) => void; onReader: (it: PlanItem) => void }) {
   const [open, setOpen] = useState<string | null>(null);
   const [data, setData] = useState<QuranData | null>(null);
   const [failed, setFailed] = useState(false);
@@ -183,13 +183,13 @@ function Program({ items, onReader }: { items: PlanItem[]; onReader: (it: PlanIt
           const bas = isOpen && data && it.from === 1 ? basmalaFor(data, it.surah) : null;
           return (
             <li key={it.id} className="card overflow-hidden">
-              <button className="flex w-full items-center gap-3 px-3.5 py-3.5 text-left" onClick={() => setOpen(isOpen ? null : it.id)} aria-expanded={isOpen}>
+              <button className="flex w-full items-center gap-3 px-3.5 py-3.5 text-left" onClick={() => { if (!isOpen) onView(it.id); setOpen(isOpen ? null : it.id); }} aria-expanded={isOpen}>
                 <span className="w-5 text-center font-display text-lg font-semibold tabular-nums text-muted">{idx + 1}</span>
                 <SurahNumber n={it.surah} size={40} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2"><span className="truncate text-[15px] font-semibold">{meta.tr}</span></span>
                   <span className="mt-0.5 block text-[13px] text-muted">{rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')} · {formatPages(itemPages(it))}</span>
-                  <span className="mt-1.5 block"><KindBadge kind={it.kind} /></span>
+                  <span className="mt-1.5 flex items-center gap-1.5"><KindBadge kind={it.kind} />{viewed.includes(it.id) && <span className="rounded-full border border-line px-2 py-0.5 text-[11px] font-medium text-muted">Consulté</span>}</span>
                 </span>
                 <span className="ar text-[26px] leading-none" lang="ar">{meta.ar}</span>
                 <ChevronDown size={18} className={cx('shrink-0 text-muted transition', isOpen && 'rotate-180')} />

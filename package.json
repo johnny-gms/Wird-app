@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "build:data": "node scripts/build-data.mjs",
     "build:icons": "node scripts/make-icons.mjs",
-    "test:e2e": "node tests/e2e/smoke.mjs && node tests/e2e/flows.mjs"
+    "test:e2e": "node tests/e2e/smoke.mjs && node tests/e2e/flows.mjs && node tests/e2e/ux.mjs"
   },
   "repository": {
     "type": "git",

@@ -43,6 +43,15 @@ export function normalizeState(stored: Partial<PersistedState> & Record<string, 
   merged.trash = Array.isArray(stored.trash) ? (stored.trash as PersistedState['trash']) : [];
   merged.lastValidation = (stored.lastValidation as PersistedState['lastValidation']) ?? null;
   merged.settings = migrateSettings(stored.settings as unknown as Record<string, unknown>);
+  // verset mémorisé sans aucun travail dans WIRD = simplement déclaré « déjà appris »
+  if (merged.verses) {
+    const verses = { ...merged.verses };
+    for (const k in verses) {
+      const v = verses[k];
+      if (v.declared === undefined && v.status === 'memorized' && v.source === 'user' && v.reviews === 0 && v.lastGrade === null && !v.fragile) verses[k] = { ...v, declared: true };
+    }
+    merged.verses = verses;
+  }
   const sess = stored.session as unknown as { scope?: unknown } | null | undefined;
   if (sess && !('scope' in sess)) merged.session = null;
   if (merged.plan) {

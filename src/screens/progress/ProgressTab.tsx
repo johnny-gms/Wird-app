@@ -46,7 +46,6 @@ export default function ProgressPage() {
   const days = useMemo(() => activeDaySet(history), [history]);
   const inProgress = stats.filter((s) => s.state === 'partial' || s.state === 'learning').length;
   const reinforceSurahs = stats.filter((s) => s.needsReinforcement).length;
-  const learningVerses = o.learningVerses;
 
   return (
     <Screen title="Ma progression">
@@ -59,17 +58,12 @@ export default function ProgressPage() {
       {/* ---------- Vue d'ensemble ---------- */}
       <H2>Vue d’ensemble</H2>
       <div className="card grid grid-cols-2 gap-x-4 gap-y-5 p-4">
-        <Big n={o.surahsWorked} l="sourates commencées" />
-        <Big n={o.surahsComplete} l="entièrement apprises" />
+        <Big n={o.surahsComplete} l="sourates apprises" />
         <Big n={inProgress} l="en cours" />
         <Big n={reinforceSurahs} l="à renforcer" />
+        <Big n={Math.max(0, 114 - o.surahsWorked)} l="non commencées" />
       </div>
-      <div className="mt-2.5 grid grid-cols-3 gap-2.5">
-        <Tile n={o.memorizedVerses === 0 ? '0' : `≈ ${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Math.round(pagesMem * 10) / 10)}`} l="pages mémorisées" />
-        <Tile n={String(learningVerses)} l="versets en apprentissage" />
-        <Tile n={String(o.fragileVerses)} l="versets à renforcer" />
-      </div>
-      <p className="mt-2 text-xs text-muted">{o.hizbCovered} hizb couverts sur 60 · {o.ratio === 0 ? '0' : o.ratio < 0.01 ? '<1' : Math.round(o.ratio * 100)} % du Coran</p>
+      <p className="mt-2 text-xs text-muted">{o.memorizedVerses === 0 ? '0' : `≈ ${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Math.round(pagesMem * 10) / 10)}`} pages mémorisées sur 604 · {o.hizbCovered} hizb couverts sur 60 · {o.ratio === 0 ? '0' : o.ratio < 0.01 ? '<1' : Math.round(o.ratio * 100)} % du Coran</p>
 
       {/* ---------- Évolution ---------- */}
       <H2>Évolution</H2>
@@ -80,16 +74,12 @@ export default function ProgressPage() {
       </div>
       <Evolution range={range} today={today} history={history} progressLog={progressLog} summaries={summaries} days={days} />
 
+      {/* ---------- Bilan ---------- */}
+      <Bilan today={today} history={history} progressLog={progressLog} summaries={summaries} />
+
       {/* ---------- Versets à renforcer ---------- */}
       <H2>Mes versets à renforcer</H2>
       <Reinforce verses={verses} history={history} progressLog={progressLog} today={today} />
-
-      {/* ---------- Objectif et régularité ---------- */}
-      <H2>Objectif et régularité</H2>
-      <WeekGoal today={today} days={days} summaries={summaries} />
-
-      {/* ---------- Bilan ---------- */}
-      <Bilan today={today} history={history} progressLog={progressLog} summaries={summaries} />
 
       {/* ---------- Historique ---------- */}
       <H2>Historique</H2>
@@ -98,6 +88,10 @@ export default function ProgressPage() {
       {/* ---------- Suivi des hizb ---------- */}
       <H2>Suivi des hizb</H2>
       <HizbSection />
+
+      {/* ---------- Objectif et régularité ---------- */}
+      <H2>Objectif et régularité</H2>
+      <WeekGoal today={today} days={days} summaries={summaries} />
 
       {/* ---------- Objectifs personnels ---------- */}
       <H2>Mes objectifs</H2>
@@ -111,14 +105,6 @@ function Big({ n, l }: { n: number; l: string }) {
     <div>
       <p className="font-display text-[30px] font-semibold leading-none">{n}</p>
       <p className="mt-1.5 text-[15px] leading-snug text-muted">{l}</p>
-    </div>
-  );
-}
-function Tile({ n, l }: { n: string; l: string }) {
-  return (
-    <div className="rounded-[14px] bg-surface2 px-2 py-2.5 text-center">
-      <p className="font-display text-[22px] font-semibold leading-tight">{n}</p>
-      <p className="text-xs leading-snug text-muted">{l}</p>
     </div>
   );
 }
@@ -167,7 +153,7 @@ function Evolution({ range, today, history, progressLog, summaries, days }: { ra
         <Title>Progression mémorisée</Title>
         {varies ? (
           <>
-            <p className="mt-0.5 text-sm text-muted">{rep.memorizedDelta !== null && rep.memorizedDelta !== 0 ? `${rep.memorizedDelta > 0 ? '+' : ''}${rep.memorizedDelta} versets sur la période.` : 'Évolution de ta mémorisation suivie.'}</p>
+            <p className="mt-0.5 text-sm text-muted">Évolution de ta mémorisation sur la période.</p>
             <Line points={pts.map((p) => p.memorized)} />
           </>
         ) : (
@@ -178,13 +164,13 @@ function Evolution({ range, today, history, progressLog, summaries, days }: { ra
       <div className="card p-4">
         <Title>Séances par {range === 7 ? 'jour' : 'semaine'}</Title>
         <p className="mt-0.5 text-sm text-muted">{totalSessions} jour{totalSessions > 1 ? 's' : ''} de travail sur la période</p>
-        <Bars values={sessions} left={labelL} right={labelR} unit={unit} />
+        {totalSessions > 0 ? <Bars values={sessions} left={labelL} right={labelR} unit={unit} /> : <p className="mt-1 text-xs text-muted">Pas encore de données sur cette période.</p>}
       </div>
 
       <div className="card p-4">
         <Title>Temps consacré</Title>
         <p className="mt-0.5 text-sm text-muted">{totalMs >= 60_000 ? formatDuration(totalMs) : '0 min'} sur la période (temps actif mesuré)</p>
-        <Bars values={timeMs} left={labelL} right={labelR} unit={unit} />
+        {totalMs >= 60_000 ? <Bars values={timeMs} left={labelL} right={labelR} unit={unit} /> : <p className="mt-1 text-xs text-muted">Pas encore de données sur cette période.</p>}
       </div>
 
       <div className="card p-4">
@@ -372,7 +358,7 @@ function Bilan({ today, history, progressLog, summaries }: { today: string; hist
         </div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <Big n={r.verses} l="versets travaillés" />
-          <div><p className="font-display text-[30px] font-semibold leading-none">{r.memorizedDelta === null ? '—' : `${r.memorizedDelta > 0 ? '+' : ''}${r.memorizedDelta}`}</p><p className="mt-1.5 text-[15px] leading-snug text-muted">versets ajoutés au suivi</p></div>
+          <Big n={r.surahs.length} l="sourates travaillées" />
           <Big n={r.items} l="révisions réalisées" />
           <div><p className="font-display text-[30px] font-semibold leading-none">{ms >= 60_000 ? Math.round(ms / 60000) : 0}<span className="ml-1 text-sm">min</span></p><p className="mt-1.5 text-[15px] leading-snug text-muted">temps total</p></div>
         </div>

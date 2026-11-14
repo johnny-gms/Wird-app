@@ -23,6 +23,8 @@ export interface VerseState {
   reviews: number;
   addedAt: string; // AAAA-MM-JJ
   source: 'user' | 'demo';
+  /** Verset déclaré « déjà appris » avant WIRD et jamais travaillé dans l'application : hors rotation de révision. */
+  declared?: boolean;
 }
 
 export interface LearningGoal {
@@ -67,7 +69,7 @@ export interface DailyPlan {
 export type DraftGrade = Grade | 'skip';
 
 /**
- * Séance : on consulte le programme, on travaille, puis on évalue TOUT d'un coup (« Terminer la séance »).
+ * Séance : on consulte le programme, on travaille, puis on évalue TOUT d'un coup (« Passer à l'évaluation »).
  * Les évaluations saisies restent un brouillon modifiable jusqu'à la validation du bilan.
  */
 export interface SessionState {
@@ -79,6 +81,8 @@ export interface SessionState {
   /** Temps actif cumulé (ms), mesuré uniquement quand l'application est visible. */
   activeMs: number;
   startedAt: string;
+  /** Passages ouverts pendant la séance (indicateur « Consulté » : ne valide rien). */
+  viewed?: string[];
 }
 
 export interface HistoryEntry {

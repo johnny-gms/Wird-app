@@ -236,7 +236,7 @@ export function Screen({ title, sub, right, tabs, children }: { title: ReactNode
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             {sub && <p className="text-sm text-muted">{sub}</p>}
-            <h1 className="mb-1 mt-1 font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">{title}</h1>
+            <h1 className="title-page mb-1 mt-1">{title}</h1>
           </div>
           {right}
         </div>
@@ -267,7 +267,7 @@ export function SubPage({ title, children, back = -1, sub }: { title: string; ch
         <button onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} className="-ml-1 flex min-h-[40px] items-center gap-0.5 py-1.5 pr-3 font-semibold text-primary">
           <ChevronLeft size={20} /> Retour
         </button>
-        <h1 className="mb-1 mt-2 font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">{title}</h1>
+        <h1 className="title-page mb-1 mt-2">{title}</h1>
         {sub && <div className="text-sm text-muted">{sub}</div>}
       </header>
       <div className="mt-4">{children}</div>

@@ -79,6 +79,7 @@ interface Actions {
   openEvaluation(): void;
   backToProgram(): void;
   setDraft(itemId: string, grade: DraftGrade | null): void;
+  markViewed(itemId: string): void;
   /** Valide le bilan : applique toutes les évaluations. Retourne 'bilan' si du travail a été enregistré. */
   validateSession(): 'bilan' | 'none';
   skipItem(id: string): void;
@@ -107,7 +108,7 @@ interface Actions {
 
 export interface OnboardingConfig {
   name: string;
-  /** Sourates déjà apprises (entrent dans la rotation de révision). */
+  /** Sourates déjà apprises avant WIRD (déclarées : hors rotation de révision tant qu'elles ne sont pas travaillées). */
   knownSurahs: number[];
   learnDirection: Direction;
   learnMode: LearnMode;
@@ -379,6 +380,11 @@ export const useWird = create<WirdStore>((set, get) => {
     backToProgram() {
       const s = get().session;
       if (s) set({ session: { ...s, step: 'program' } });
+    },
+    markViewed(itemId) {
+      const s = get().session;
+      if (!s || s.viewed?.includes(itemId)) return;
+      set({ session: { ...s, viewed: [...(s.viewed ?? []), itemId] } });
     },
     setDraft(itemId, grade) {
       const s = get().session;

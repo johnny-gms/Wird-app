@@ -99,26 +99,28 @@ export default function Revisions() {
 
       {/* À venir */}
       <H2 n={upcoming.reinforce.length + upcoming.rot.length}>À venir</H2>
-      {upcoming.reinforce.length + upcoming.rot.length === 0 ? <p className="text-sm text-muted">Rien de prévu pour le moment 🌿</p> : (
-        <div className="space-y-2">
-          {upcoming.reinforce.map((g) => (
-            <div key={`${g.due}-${g.surah}-${g.from}`} className="card flex items-center gap-3 p-3.5">
-              <div className="min-w-0 flex-1"><b className="block truncate">{surahMeta(g.surah).tr}</b><span className="text-sm text-muted">{rangeLabel(g.surah, g.from, g.to).replace(/^Sourate \d+ — /, '')} · renforcement</span></div>
-              <span className="whitespace-nowrap rounded-full bg-hard px-2.5 py-0.5 text-xs text-white">{g.due === addDays(today, 1) ? 'Demain' : formatDateShort(g.due)}</span>
-            </div>
-          ))}
-          {upcoming.rot.map((g) => (
-            <div key={`r-${g.surah}-${g.from}`} className="card flex items-center gap-3 p-3.5">
-              <div className="min-w-0 flex-1"><b className="block truncate">{surahMeta(g.surah).tr}</b><span className="text-sm text-muted">{rangeLabel(g.surah, g.from, g.to).replace(/^Sourate \d+ — /, '')} · rotation (estimation)</span></div>
-              <span className="whitespace-nowrap rounded-full bg-surface2 px-2.5 py-0.5 text-xs text-muted">≈ dans {g.inDays} j</span>
-            </div>
-          ))}
-          <p className="text-xs text-muted">Les dates de renforcement sont réelles. Pour la rotation, c’est une estimation selon ton objectif en pages : ce n’est pas un calendrier à respecter.</p>
-        </div>
+      {upcoming.reinforce.length + upcoming.rot.length === 0 ? <p className="rounded-xl bg-surface2/60 px-3.5 py-2.5 text-sm text-muted">Rien de prévu pour le moment 🌿</p> : (
+        <>
+          <ul className="card divide-y divide-line">
+            {upcoming.reinforce.map((g) => (
+              <li key={`${g.due}-${g.surah}-${g.from}`} className="flex items-center gap-3 px-3.5 py-2.5">
+                <div className="min-w-0 flex-1"><b className="block truncate text-[14px]">{surahMeta(g.surah).tr}</b><span className="text-xs text-muted">{rangeLabel(g.surah, g.from, g.to).replace(/^Sourate \d+ — /, '')} · renforcement</span></div>
+                <span className="whitespace-nowrap rounded-full bg-hard px-2.5 py-0.5 text-xs text-white">{g.due === addDays(today, 1) ? 'Demain' : formatDateShort(g.due)}</span>
+              </li>
+            ))}
+            {upcoming.rot.map((g) => (
+              <li key={`r-${g.surah}-${g.from}`} className="flex items-center gap-3 px-3.5 py-2.5">
+                <div className="min-w-0 flex-1"><b className="block truncate text-[14px]">{surahMeta(g.surah).tr}</b><span className="text-xs text-muted">{rangeLabel(g.surah, g.from, g.to).replace(/^Sourate \d+ — /, '')} · rotation</span></div>
+                <span className="whitespace-nowrap rounded-full bg-surface2 px-2.5 py-0.5 text-xs text-muted">≈ dans {g.inDays} j</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-xs text-muted">Ce sont des estimations, pas des échéances : rien n’est dû. Seules les dates de renforcement sont certaines.</p>
+        </>
       )}
 
       {/* Mon apprentissage */}
-      <h1 className="mt-10 font-display text-[26px] font-semibold tracking-[-0.2px]">Mon apprentissage</h1>
+      <h1 className="title-section mt-10">Mon apprentissage</h1>
       <p className="text-sm text-muted">Les versets que tu <b>apprends encore</b>, pas encore solides.</p>
       <p className="card mt-3 px-4 py-3 text-sm leading-relaxed text-muted">
         {learningEnabled(settings) ? <>Repère : <b className="text-ink">{settings.learnMode === 'surah' ? 'une sourate par semaine' : `${formatPages(settings.learnPagesPerWeek)} par semaine`}</b>, nouvelles sourates {settings.learnDirection === 'forward' ? 'de Al-Fatiha vers An-Nas' : 'de An-Nas vers Al-Fatiha'}. </> : 'Pas d’objectif d’apprentissage (0 page par semaine). '}
@@ -132,9 +134,9 @@ export default function Revisions() {
           const seg = learningSegment({ verses }, g);
           const complete = p.done >= p.total || !seg;
           return (
-            <article key={g.id} className="card border-l-4 border-l-blue p-4">
+            <article key={g.id} className="card border-l-4 border-l-blue bg-primary/[0.04] p-4 ring-1 ring-primary/15">
               <div className="flex items-center justify-between gap-2">
-                <b className="truncate">{s.id}. {s.tr} {g.auto && <span className="ml-1 rounded-full bg-blue-soft px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-blue">Auto</span>}</b>
+                <b className="title-section truncate !text-[18px]">{s.id}. {s.tr} {g.auto && <span className="ml-1 rounded-full bg-blue-soft px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-blue">Auto</span>}</b>
                 {g.paused ? <span className="rounded-full bg-surface2 px-2.5 py-0.5 text-xs text-muted">En pause</span> : <span className="rounded-full bg-blue px-2.5 py-0.5 text-xs text-white">En cours</span>}
               </div>
               <p className="text-sm text-muted">{rangeLabel(g.surah, g.from, g.to)}</p>
@@ -184,7 +186,7 @@ function Section({ title, hint, items, empty, onGo, onSkip }: { title: string; h
     <>
       <H2 n={items.length}>{title}</H2>
       {hint && <p className="-mt-1 mb-2 text-xs text-muted">{hint}</p>}
-      {items.length === 0 ? <p className="text-sm text-muted">{empty}</p> : (
+      {items.length === 0 ? <p className="rounded-xl bg-surface2/60 px-3.5 py-2.5 text-sm text-muted">{empty}</p> : (
         <div className="space-y-2">
           {items.map((it) => {
             const s = surahMeta(it.surah);

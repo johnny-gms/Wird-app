@@ -7,7 +7,7 @@ import { SURAHS, ayahId } from '@/engine/quran';
 import { haptic } from '@/lib/haptics';
 import { useWird } from '@/store/useWird';
 
-/** « Sourates déjà apprises » : coche des sourates entières ; elles entrent dans la rotation de révision. */
+/** « Sourates déjà apprises » : coche des sourates entières ; elles sont marquées apprises sans compter comme du travail dans WIRD. */
 export default function KnownScreen() {
   const nav = useNavigate();
   const { verses, applyKnownSurahs } = useWird();

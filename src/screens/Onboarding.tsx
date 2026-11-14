@@ -209,7 +209,7 @@ function KnownStep({ known, setKnown, knownPages, onNext }: { known: Set<number>
     <>
       <div className="mx-auto w-full max-w-[520px] flex-1 px-4 pb-32 pt-3">
         <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">Quelles sourates connais-tu déjà ?</h1>
-        <p className="mb-4 mt-2 text-sm leading-relaxed text-muted">Coche celles que tu as apprises. Elles entreront dans ta révision : « connue » ne veut pas dire « plus besoin de réviser ». Tu pourras préciser verset par verset plus tard.</p>
+        <p className="mb-4 mt-2 text-sm leading-relaxed text-muted">Coche celles que tu as apprises. Elles seront marquées comme apprises, sans compter comme du travail dans WIRD. Tu pourras préciser verset par verset plus tard.</p>
         <KnownPicker known={known} setKnown={setKnown} />
       </div>
       <StickyFooter>

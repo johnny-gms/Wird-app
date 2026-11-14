@@ -35,3 +35,13 @@ export function Avatar({ gender, size = 64, className }: { gender?: Gender | nul
     </svg>
   );
 }
+
+/** Avatar du profil : l'illustration correspondant au choix homme / femme, sinon l'initiale du prénom. */
+export function ProfileAvatar({ name, gender, size = 56 }: { name: string; gender?: Gender | null; size?: number }) {
+  if (gender) return <Avatar gender={gender} size={size} className="shrink-0 rounded-full" />;
+  return (
+    <span className="flex shrink-0 items-center justify-center rounded-full bg-surface2 font-display font-bold text-primary" style={{ width: size, height: size, fontSize: size * 0.42 }} aria-hidden>
+      {(name[0] ?? 'W').toUpperCase()}
+    </span>
+  );
+}

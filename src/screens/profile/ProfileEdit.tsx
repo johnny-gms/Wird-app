@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Avatar } from '@/components/Avatar';
+import { Avatar, ProfileAvatar } from '@/components/Avatar';
 import { SubPage, cx } from '@/components/ui';
 import type { Gender } from '@/engine/types';
 import { useWird } from '@/store/useWird';
@@ -12,7 +12,7 @@ export default function ProfileEdit() {
   const opt: { v: Gender; label: string }[] = [{ v: 'male', label: 'Homme' }, { v: 'female', label: 'Femme' }];
   return (
     <SubPage title="Mon profil" back="/profil">
-      <div className="flex justify-center"><Avatar gender={profile.gender} size={112} className="rounded-full" /></div>
+      <div className="flex justify-center"><ProfileAvatar name={profile.name} gender={profile.gender} size={112} /></div>
       <div className="card mt-5 space-y-4 p-4">
         <label className="block">
           <span className="text-sm text-muted">Prénom</span>

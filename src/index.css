@@ -75,6 +75,7 @@
     overscroll-behavior-y: none;
     line-height: 1.4;
   }
+  .font-display { letter-spacing: -0.015em; }
   button {
     @apply select-none;
     touch-action: manipulation;
@@ -147,6 +148,10 @@
     margin: 0 0.25em;
     background: radial-gradient(circle, transparent 62%, rgba(143, 168, 150, 0.18) 64%);
   }
+  /* Hiérarchie typographique centralisée */
+  .title-page { @apply font-display text-[28px] font-bold leading-[1.15] tracking-[-0.02em]; }
+  .title-section { @apply font-display text-[21px] font-bold leading-tight tracking-[-0.015em]; }
+  .chip-sm { @apply !min-h-[32px] !px-3 !text-[12.5px]; }
   .ar {
     font-family: 'Amiri Quran', 'Geeza Pro', 'Traditional Arabic', 'Noto Naskh Arabic', serif;
     direction: rtl;

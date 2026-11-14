@@ -18,6 +18,7 @@ export function newMemorizedVerse(id: number, today: string, source: 'user' | 'd
     reviews: 0,
     addedAt: today,
     source,
+    declared: source === 'user',
   };
 }
 
@@ -61,6 +62,7 @@ export function applyGrade(v: VerseState, grade: Grade, today: string): VerseSta
     lastGrade: grade,
     lastReviewedAt: today,
     reviews: v.reviews + 1,
+    declared: false, // dès qu'il est travaillé dans WIRD, il entre dans le suivi normal
   };
   if (v.status === 'learning') return next;
 

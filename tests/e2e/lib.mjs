@@ -17,7 +17,7 @@ export async function intro(page) {
 }
 
 /** Parcours de premier lancement complet. */
-export async function onboard(page, { name = 'Test', juz = true, learnDir = 'forward', reviewPlus = 0 } = {}) {
+export async function onboard(page, { name = 'Test', juz = true, learnDir = 'forward', reviewPlus = 0, worked = true } = {}) {
   await page.goto(BASE);
   await intro(page);
   await page.getByPlaceholder('Ton prénom').fill(name || 'Test');
@@ -30,15 +30,31 @@ export async function onboard(page, { name = 'Test', juz = true, learnDir = 'for
   await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: /C’est parti/ }).click();
   await page.getByText('Ma progression').first().waitFor();
+  if (worked) await markWorked(page);
+}
+
+/** Simule des versets déjà travaillés dans WIRD (les sourates simplement déclarées « déjà apprises » restent hors rotation). */
+export async function markWorked(page) {
+  await page.waitForTimeout(400);
+  await page.evaluate(async () => {
+    const db = await new Promise((res, rej) => { const r = indexedDB.open('wird', 1); r.onsuccess = () => res(r.result); r.onerror = rej; });
+    const verses = await new Promise((res) => { const q = db.transaction('kv').objectStore('kv').get('verses'); q.onsuccess = () => res(q.result); });
+    for (const k in verses) verses[k] = { ...verses[k], declared: false };
+    await new Promise((res) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(verses, 'verses'); t.oncomplete = res; });
+  });
+  await page.reload();
+  await page.getByText('Ma progression').first().waitFor();
+  await page.getByRole('button', { name: 'Recalculer' }).click();
+  await page.waitForTimeout(300);
 }
 
 /** Ouvre la séance, évalue chaque élément avec pick(i, textes), valide. */
 export async function runSession(page, pick) {
   await page.goto(BASE + '/');
   await page.getByRole('button', { name: /(Commencer|Reprendre) ma séance/ }).first().click();
-  await page.getByRole('heading', { name: 'Séance du jour' }).waitFor();
+  await page.getByRole('heading', { name: 'Travail des passages' }).waitFor();
   const ranges = await page.locator('main ol > li button[aria-expanded]').allInnerTexts();
-  await page.getByRole('button', { name: 'Terminer la séance' }).click();
+  await page.getByRole('button', { name: 'Passer à l’évaluation' }).click();
   const groups = page.getByRole('radiogroup');
   const n = await groups.count();
   for (let i = 0; i < n; i++) await groups.nth(i).getByRole('radio', { name: pick(i, ranges), exact: true }).click();

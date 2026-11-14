@@ -5,7 +5,7 @@ import { FastScroll } from '@/components/FastScroll';
 import { matchSurah } from '@/components/SurahPickerList';
 import { Screen, Sheet, cx } from '@/components/ui';
 import { allSurahStats, cellState, hizbSurahs, type CellState, type SurahStats } from '@/engine/progress';
-import { HIZB_STARTS, SURAHS, surahMeta } from '@/engine/quran';
+import { HIZB_STARTS, SURAHS, fromAyahId, surahMeta } from '@/engine/quran';
 import { formatDateShort, useToday } from '@/lib/hooks';
 import { useWird } from '@/store/useWird';
 
@@ -35,6 +35,12 @@ export default function MonWird() {
   const [hizbOpen, setHizbOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const stats = useMemo(() => allSurahStats(verses, today), [verses, today]);
+  // sourates dont tous les versets appris sont simplement déclarés (jamais travaillés dans WIRD)
+  const workedSurahs = useMemo(() => {
+    const worked = new Set<number>();
+    for (const k in verses) if (verses[k].status === 'memorized' && !verses[k].declared) worked.add(fromAyahId(Number(k)).surah);
+    return worked;
+  }, [verses]);
   const inHizb = useMemo(() => (hizb ? new Set(hizbSurahs(hizb)) : null), [hizb]);
   const list = useMemo(
     () =>
@@ -58,16 +64,18 @@ export default function MonWird() {
         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
         <input className="input pl-10" placeholder="Rechercher une sourate…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une sourate" />
       </div>
-      <Link to="/coran" className="btn-primary mt-2.5 w-full !min-h-[40px] text-sm" aria-label="Ouvrir le Coran numérique"><BookOpen size={18} /> Coran numérique</Link>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <Link to="/coran" className="btn-soft mt-2.5 w-full !min-h-[36px] !py-1.5 text-sm" aria-label="Ouvrir le Coran numérique"><BookOpen size={16} /> Coran numérique</Link>
+      <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Filtrer par état">
         {FILTERS.map((x) => (
-          <button key={x.v} onClick={() => setF(x.v)} aria-pressed={f === x.v} className="chip">{x.l}</button>
+          <button key={x.v} onClick={() => setF(x.v)} aria-pressed={f === x.v} className="chip chip-sm">{x.l}</button>
         ))}
-        <button onClick={() => setHizbOpen(true)} className="chip" aria-pressed={!!hizb}>{hizb ? `Hizb ${hizb} ✕` : 'Par Hizb'}</button>
       </div>
-      <p className="mt-3 text-xs text-muted">{list.length} sourate{list.length > 1 ? 's' : ''}{hizb ? ` dans le Hizb ${hizb}` : ''}</p>
+      <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted">
+        <p>{list.length} sourate{list.length > 1 ? 's' : ''}{hizb ? ` dans le Hizb ${hizb}` : ''}</p>
+        <button onClick={() => (hizb ? setHizb(null) : setHizbOpen(true))} className="font-semibold text-primary">{hizb ? `Hizb ${hizb} ✕` : 'Organiser par Hizb'}</button>
+      </div>
       <div ref={listRef} className="mt-1 space-y-2.5">
-        {list.map((s) => <SurahCard key={s.id} st={stats[s.id - 1]} />)}
+        {list.map((s) => <SurahCard key={s.id} st={stats[s.id - 1]} declared={!workedSurahs.has(s.id)} />)}
         {!list.length && <p className="card p-6 text-center text-sm text-muted">Aucune sourate ne correspond.</p>}
       </div>
       <FastScroll targetRef={listRef} count={list.length} label={(i) => (list[i] ? `${list[i].id}. ${list[i].tr}` : '')} />
@@ -84,7 +92,7 @@ export default function MonWird() {
   );
 }
 
-function SurahCard({ st }: { st: SurahStats }) {
+function SurahCard({ st, declared }: { st: SurahStats; declared: boolean }) {
   const s = surahMeta(st.surah);
   const cs = cellState(st);
   const tag = STATE_TAG[cs];
@@ -92,7 +100,7 @@ function SurahCard({ st }: { st: SurahStats }) {
     <Link to={`/wird/${s.id}`} className={cx('card block border-l-4 p-4 transition active:scale-[.99]', tag.bar)}>
       <div className="flex items-start justify-between gap-2">
         <b className="text-base">{s.id}. {s.tr} <span className="ar ml-1 text-[19px] font-normal" lang="ar">{s.ar}</span></b>
-        {tag.label ? <span className={cx('shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs', tag.cls)}>{tag.label}</span> : <span className="shrink-0 text-sm text-muted">{s.n} versets</span>}
+        {tag.label ? <span className={cx('shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs', tag.cls)}>{cs === 'learned' && declared ? 'Déjà apprise' : tag.label}</span> : <span className="shrink-0 text-sm text-muted">{s.n} versets</span>}
       </div>
       <div className="my-2.5 h-1.5 overflow-hidden rounded-full bg-surface2"><i className="block h-full rounded-full bg-primary" style={{ width: `${(st.memorized / st.total) * 100}%` }} /></div>
       <p className="text-sm text-muted">

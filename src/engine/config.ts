@@ -31,6 +31,9 @@ export const ENGINE = {
   /** Une sourate est « à entretenir » si ses versets mémorisés n'ont pas été révisés depuis ce nombre de jours. */
   maintainAfterDays: 30,
 
+  /** Les versets simplement déclarés « déjà appris » (jamais travaillés dans WIRD) entrent-ils dans la rotation de révision ? */
+  declaredInRotation: false,
+
   /** Durée de conservation de la corbeille (jours). */
   trashDays: 30,
 } as const;

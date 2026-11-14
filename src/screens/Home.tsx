@@ -1,10 +1,11 @@
 import { BookOpen, Check, ChevronRight, Leaf } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ProfileAvatar } from '@/components/Avatar';
 import { ProgressBar, Screen, cx } from '@/components/ui';
 import { addDays, diffDays, startOfWeek } from '@/engine/dates';
 import { formatPages, pageOf } from '@/engine/pages';
-import { itemPages, learningSegment, upcomingRotation } from '@/engine/plan';
+import { itemPages, upcomingRotation } from '@/engine/plan';
 import { activeDaySet, activeDaysIn, allSurahStats, cellState, overall, pagesByDay } from '@/engine/progress';
 import { ayahId, fromAyahId, rangeLabel, surahMeta } from '@/engine/quran';
 import type { PlanItem, WorkKind } from '@/engine/types';
@@ -48,7 +49,6 @@ export default function Home() {
   const reviewDone = pagesOf(done.filter((i) => i.kind !== 'learn'));
   const learnTarget = pagesOf(items.filter((i) => i.kind === 'learn'));
   const reviewTarget = pagesOf(items.filter((i) => i.kind !== 'learn'));
-  const nextLearn = pending.find((i) => i.kind === 'learn');
   const lastEntry = history[history.length - 1];
   const upcoming = useMemo(() => upcomingRotation({ verses, goals, rotation, settings }, plan, 1)[0], [verses, goals, rotation, settings, plan]);
   const reinforceNext = useMemo(() => {
@@ -67,57 +67,36 @@ export default function Home() {
   const lastPage = lastEntry ? pageOf(ayahId(lastEntry.surah, lastEntry.from)) : 1;
   const hasAny = o.memorizedVerses + o.learningVerses > 0;
 
-  // carte « Reprendre »
-  let hero: React.ReactNode;
-  if (session && pending.length) {
-    const first = pending[0];
-    hero = (
-      <>
-        <p className="text-sm text-white/75">Reprendre ta séance</p>
-        <div className="my-1.5 font-display text-[30px] font-semibold leading-[1.1]">{surahMeta(first.surah).tr}</div>
-        <p>{rangeLabel(first.surah, first.from, first.to).replace(/^Sourate \d+ — /, '')} · {pending.length} élément{pending.length > 1 ? 's' : ''} au programme</p>
-        <p className="text-sm text-white/75">Tout ce que tu as saisi est conservé.</p>
-        <button className="btn mt-3.5 w-full bg-white text-primary" onClick={() => go()}>Reprendre</button>
-      </>
-    );
-  } else if (nextLearn) {
-    const g = goals.find((x) => x.id === nextLearn.goalId);
-    const seg = g ? learningSegment({ verses }, g) : null;
-    hero = (
-      <>
-        <p className="text-sm text-white/75">Reprendre ma mémorisation</p>
-        <div className="my-1.5 font-display text-[30px] font-semibold leading-[1.1]">{surahMeta(nextLearn.surah).tr}</div>
-        <p>Versets {(seg ?? nextLearn).from}–{(seg ?? nextLearn).to} · prochains versets à apprendre</p>
-        <p className="text-sm text-white/75">{stats[nextLearn.surah - 1].memorized} / {surahMeta(nextLearn.surah).n} versets appris{lastEntry ? ` · dernier travail : ${diffDays(lastEntry.date, today) === 0 ? 'aujourd’hui' : diffDays(lastEntry.date, today) === 1 ? 'hier' : `il y a ${diffDays(lastEntry.date, today)} jours`}` : ''}</p>
-        <button className="btn mt-3.5 w-full bg-white text-primary" onClick={() => go(nextLearn.id)}>Reprendre</button>
-      </>
-    );
-  } else if (lastEntry) {
-    hero = (
-      <>
-        <p className="text-sm text-white/75">Reprendre où tu t’es arrêté</p>
-        <div className="my-1.5 font-display text-[30px] font-semibold leading-[1.1]">{surahMeta(lastEntry.surah).tr}</div>
-        <p>{rangeLabel(lastEntry.surah, lastEntry.from, lastEntry.to).replace(/^Sourate \d+ — /, '')}</p>
-        <p className="text-sm text-white/75">Dernier travail : {diffDays(lastEntry.date, today) === 0 ? 'aujourd’hui' : diffDays(lastEntry.date, today) === 1 ? 'hier' : `il y a ${diffDays(lastEntry.date, today)} jours`}</p>
-        <Link className="btn mt-3.5 w-full bg-white text-primary" to={`/coran?m=list&s=${lastEntry.surah}&h=${lastEntry.surah}:${lastEntry.from}-${lastEntry.to}`}>Ouvrir dans le Coran numérique</Link>
-      </>
-    );
-  } else {
-    hero = (
-      <>
-        <p className="text-sm text-white/75">Ta mémorisation</p>
-        <div className="my-1.5 font-display text-[30px] font-semibold leading-[1.1]">Commençons doucement</div>
-        <p className="text-white/75">Choisis la sourate que tu veux apprendre, ou indique celles que tu connais déjà.</p>
-        <Link className="btn mt-3.5 w-full bg-white text-primary" to="/wird">Choisir une sourate</Link>
-      </>
-    );
-  }
+  // Carte verte adaptative : l'action la plus pertinente selon l'état réel
+  const next = pending[0];
+  const hero = session ? (
+    <>
+      <p className="text-sm text-white/75">Séance en cours</p>
+      <div className="title-section my-1.5 !text-[26px]">Reprenons là où tu en étais</div>
+      <p className="text-white/80">{pending.length ? `${pending.length} élément${pending.length > 1 ? 's' : ''} encore au programme.` : 'Il ne reste que l’évaluation.'} Tout ce que tu as saisi est conservé.</p>
+      <button className="btn mt-3.5 w-full bg-white text-primary" onClick={() => go()}>Reprendre la séance</button>
+    </>
+  ) : next ? (
+    <>
+      <p className="text-sm text-white/75">Aujourd’hui</p>
+      <div className="title-section my-1.5 !text-[26px]">Continuons ensemble</div>
+      <p className="text-white/80">{surahMeta(next.surah).tr} · {rangeLabel(next.surah, next.from, next.to).replace(/^Sourate \d+ — /, '')}{pending.length > 1 ? ` et ${pending.length - 1} autre${pending.length > 2 ? 's' : ''}` : ''}.</p>
+      <button className="btn mt-3.5 w-full bg-white text-primary" onClick={() => go()}>Commencer les révisions</button>
+    </>
+  ) : (
+    <>
+      <p className="text-sm text-white/75">Ta mémorisation</p>
+      <div className="title-section my-1.5 !text-[26px]">Commençons doucement</div>
+      <p className="text-white/80">{done.length ? 'Le programme du jour est terminé. Tu peux choisir une sourate à explorer.' : 'Choisis la sourate que tu veux travailler.'}</p>
+      <Link className="btn mt-3.5 w-full bg-white text-primary" to="/wird">Choisir une sourate</Link>
+    </>
+  );
 
   return (
     <Screen
       title={<>{greeting()}{profile.name ? `, ${profile.name}` : ''}</>}
       sub={formatDateLong()}
-      right={<Link to="/profil" aria-label="Profil" className="mt-1 flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-surface2 font-display text-lg font-bold">{(profile.name[0] ?? 'W').toUpperCase()}</Link>}
+      right={<Link to="/profil" aria-label="Profil" className="mt-1"><ProfileAvatar name={profile.name} gender={profile.gender} size={42} /></Link>}
     >
       {profile.demo && <Link to="/profil" className="mb-3 block rounded-xl bg-warn-soft px-4 py-2.5 text-xs font-medium text-warn">Données de démonstration — tu peux les effacer depuis Profil.</Link>}
       {away && (
@@ -158,16 +137,16 @@ export default function Home() {
         ) : (
           <>
             <p><b>Rien de prévu aujourd’hui.</b></p>
-            <p className="text-sm text-muted">{hasAny ? 'Profite de ta journée, ou ajuste tes objectifs en pages.' : 'Indique les sourates que tu connais déjà pour lancer la révision.'}</p>
+            <p className="text-sm text-muted">{hasAny ? 'Profite de ta journée, ou ajuste tes objectifs en pages.' : 'Choisis une sourate à apprendre depuis Mon Wird.'}</p>
             <div className="mt-2.5 flex gap-2">
               <Link to="/wird" className="btn-soft !min-h-[36px] !px-3 text-sm">Mes sourates</Link>
               <Link to="/revisions" className="btn-soft !min-h-[36px] !px-3 text-sm">Mes révisions</Link>
             </div>
           </>
         )}
-        <div className="mt-3 flex gap-2">
-          <button className="btn-soft !min-h-[36px] !px-3 text-sm" onClick={() => { store.refreshPlan(); haptic('tap'); }}>Recalculer</button>
-          <Link to="/wird" className="btn-soft !min-h-[36px] !px-3 text-sm">Ajouter des versets</Link>
+        <div className="mt-2 flex justify-center gap-5 text-sm font-semibold text-primary">
+          <button onClick={() => { store.refreshPlan(); haptic('tap'); }}>Recalculer</button>
+          <Link to="/wird">Ajouter des versets</Link>
         </div>
       </div>
 

@@ -40,6 +40,7 @@ function Detail({ surah }: { surah: number }) {
   const meta = surahMeta(surah);
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [picking, setPicking] = useState(false);
+  const [selecting, setSelecting] = useState(false);
   const [verse, setVerse] = useState<number | null>(null);
   const st = useMemo(() => surahStats(verses, surah, today), [verses, surah, today]);
 
@@ -65,43 +66,67 @@ function Detail({ surah }: { surah: number }) {
   const close = () => {
     setPicking(false);
     setSel(new Set());
+    setSelecting(false);
   };
 
   return (
     <SubPage title={`${meta.id}. ${meta.tr}`} back={-1} sub={<span className="flex items-baseline justify-between gap-3"><span>{meta.n} versets · {Math.round((st.memorized / st.total) * 100)} % appris</span><span className="ar text-[26px] leading-none text-ink" lang="ar">{meta.ar}</span></span>}>
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-4 gap-2">
         <Tile n={st.memorized + st.learning} l="suivis" />
         <Tile n={st.memorized} l="appris" />
         <Tile n={st.learning} l="en apprentissage" />
+        <Tile n={st.fragile} l="à renforcer" />
       </div>
-      <p className="mt-2 text-sm text-muted">{st.fragile} à renforcer.</p>
       {complete && <div className="card mt-3 p-4"><b>Sourate apprise ✓</b><p className="text-sm text-muted">Tous les versets sont appris. Continue à la réviser régulièrement.</p></div>}
 
       <Link to={`/coran?m=list&s=${surah}`} className="btn-soft mt-3 w-full"><BookOpen size={18} /> Ouvrir le Coran numérique</Link>
 
       <div className="card mt-3 p-4">
-        <b>Que veux-tu faire ?</b>
-        <p className="mb-2 text-sm text-muted">Sélectionne des versets (par groupes de 5, par plage ou un par un), puis choisis : <b>déjà appris</b>, <b>à apprendre</b>, <b>réviser maintenant</b> ou <b>retirer</b>.</p>
-        <div className="grid gap-2">
+        <b>Que souhaites-tu faire ?</b>
+        <div className="mt-3 grid gap-2">
           <button className="btn-primary" onClick={() => setPicking(true)}>Sélectionner des versets</button>
-          {!activeGoal && !complete && <button className="btn-soft" onClick={() => { addGoal(surah, 1, meta.n); toast('Apprentissage ajouté'); nav('/revisions'); }}>Apprendre cette sourate en ce moment</button>}
-          {!complete ? <button className="btn-soft" onClick={() => { applyKnownSurahs([...new Set([...SURAHS.filter((x) => surahStats(verses, x.id, today).state === 'complete').map((x) => x.id), surah])]); toast('Sourate ajoutée à tes révisions'); }}>Je connais déjà cette sourate</button> : null}
+          <div className="grid grid-cols-2 gap-2">
+            {!activeGoal && !complete ? <button className="btn-soft !min-h-[40px] text-sm" onClick={() => { addGoal(surah, 1, meta.n); toast('Apprentissage ajouté'); nav('/revisions'); }}>Apprendre cette sourate</button> : <span />}
+            {!complete ? <button className="btn-soft !min-h-[40px] text-sm" onClick={() => { applyKnownSurahs([...new Set([...SURAHS.filter((x) => surahStats(verses, x.id, today).state === 'complete').map((x) => x.id), surah])]); toast('Sourate marquée comme déjà apprise'); }}>Je la connais déjà</button> : null}
+          </div>
         </div>
       </div>
 
-      <h2 className="label mb-2 mt-6">Versets</h2>
+      <div className="mb-2 mt-6 flex items-center justify-between">
+        <h2 className="label">Versets</h2>
+        <button className="chip chip-sm" aria-pressed={selecting} onClick={() => { setSelecting(!selecting); if (selecting) setSel(new Set()); haptic('select'); }}>{selecting ? 'Terminer la sélection' : 'Sélectionner'}</button>
+      </div>
       <div className="grid grid-cols-5 gap-2.5">
         {Array.from({ length: meta.n }, (_, i) => {
-          const k = verseKind(verses[ayahId(surah, i + 1)]);
+          const v = verses[ayahId(surah, i + 1)];
+          const k = verseKind(v);
+          const on = sel.has(i + 1);
           return (
-            <button key={i} onClick={() => { haptic('tap'); setVerse(i + 1); }} className={cx('flex aspect-square min-h-[44px] flex-col items-center justify-center rounded-xl text-[15px] font-semibold tabular-nums transition active:scale-95', KIND_BG[k])} aria-label={`Verset ${i + 1} : ${KIND_NAME[k]}`}>
+            <button
+              key={i}
+              onClick={() => {
+                haptic('tap');
+                if (selecting) setSel((p) => { const n = new Set(p); n.has(i + 1) ? n.delete(i + 1) : n.add(i + 1); return n; });
+                else setVerse(i + 1);
+              }}
+              className={cx('relative flex aspect-square min-h-[44px] flex-col items-center justify-center rounded-xl text-[15px] font-semibold tabular-nums transition active:scale-95', KIND_BG[k], selecting && on && 'ring-[3px] ring-ink')}
+              aria-label={`Verset ${i + 1} : ${KIND_NAME[k]}`}
+              aria-pressed={selecting ? on : undefined}
+            >
               {i + 1}
+              {k === 'r' && <i className="absolute right-1 top-1 h-2 w-2 rounded-full bg-good ring-1 ring-white" title="Déjà appris" />}
               <small className="text-[9px] font-medium opacity-90">{k === 'n' ? '—' : KIND_NAME[k].split(' ')[0].slice(0, 5)}</small>
             </button>
           );
         })}
       </div>
-      <p className="mt-2 text-xs text-muted">Gris : non suivi · bleu : en apprentissage · vert : appris · ambre : à renforcer.</p>
+      <p className="mt-2 text-xs text-muted">Gris : non suivi · bleu : en apprentissage · vert : appris · ambre (point vert) : appris, à renforcer.</p>
+      {selecting && (
+        <div className="pb-safe fixed inset-x-0 bottom-[68px] z-20 mx-auto flex max-w-[520px] items-center justify-between gap-3 rounded-t-2xl border border-line bg-surface px-4 py-3 shadow-card">
+          <span className="text-sm"><b>{sel.size}</b> verset{sel.size > 1 ? 's' : ''} sélectionné{sel.size > 1 ? 's' : ''}</span>
+          <button className="btn-primary !min-h-[40px] text-sm" disabled={!sel.size} onClick={() => setPicking(true)}>Choisir une action</button>
+        </div>
+      )}
 
       {fragileRuns.length > 0 && <Block title="Versets à renforcer" runs={fragileRuns} surah={surah} />}
       {dueRuns.length > 0 && <Block title="Versets à revoir" runs={dueRuns} surah={surah} />}
@@ -128,7 +153,7 @@ function Detail({ surah }: { surah: number }) {
         <div className="sticky bottom-0 -mx-4 mt-4 border-t border-line bg-bg px-4 pb-1 pt-3">
           <p className="mb-2 text-sm"><b>{sel.size}</b> verset{sel.size > 1 ? 's' : ''} sélectionné{sel.size > 1 ? 's' : ''}{runs.length ? ` · ${runs.map(([f, t]) => (f === t ? f : `${f}–${t}`)).join(', ')}` : ''}</p>
           <div className="grid grid-cols-2 gap-2">
-            <button className="btn-primary !min-h-[44px] text-sm" disabled={!sel.size} onClick={() => { runs.forEach(([f, t]) => addMemorized(surah, f, t)); haptic('success'); toast('Ajouté à ta rotation de révision'); close(); }}><Check size={16} /> Déjà appris</button>
+            <button className="btn-primary !min-h-[44px] text-sm" disabled={!sel.size} onClick={() => { runs.forEach(([f, t]) => addMemorized(surah, f, t)); haptic('success'); toast('Marqué comme déjà appris'); close(); }}><Check size={16} /> Déjà appris</button>
             <button className="btn-soft !min-h-[44px] text-sm" disabled={!sel.size} onClick={() => { runs.forEach(([f, t]) => addGoal(surah, f, t)); haptic('success'); toast('Apprentissage ajouté'); close(); nav('/revisions'); }}><Plus size={16} /> À apprendre</button>
             <button className="btn-soft !min-h-[44px] text-sm" disabled={!hasMemorizedSel} onClick={() => {
               const ids = runs.flatMap(([f, t]) => {
@@ -164,9 +189,9 @@ function Detail({ surah }: { surah: number }) {
 
 function Tile({ n, l }: { n: number; l: string }) {
   return (
-    <div className="rounded-[14px] bg-surface2 px-2 py-2.5 text-center">
-      <p className="font-display text-[22px] font-semibold leading-tight">{n}</p>
-      <p className="text-xs leading-snug text-muted">{l}</p>
+    <div className="rounded-[14px] bg-surface2 px-1.5 py-2.5 text-center">
+      <p className="font-display text-[21px] font-bold leading-tight">{n}</p>
+      <p className="text-[11px] leading-snug text-muted">{l}</p>
     </div>
   );
 }

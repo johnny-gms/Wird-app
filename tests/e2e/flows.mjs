@@ -55,7 +55,7 @@ ok(true, 'message de retour bienveillant (tutoiement)');
 await page.goto(BASE + '/revisions');
 await page.getByText('Auto', { exact: true }).first().waitFor();
 ok(true, 'apprentissage automatique : une sourate est proposée dans le sens choisi');
-await page.goto(BASE + '/profil');
+await page.goto(BASE + '/profil/parametres');
 await page.getByRole('radio', { name: /Pages par semaine/ }).click();
 for (let i = 0; i < 16; i++) await page.getByRole('button', { name: /Plus de pages.*par semaine/ }).click();
 await settle(page);
@@ -112,8 +112,8 @@ ok(/Ancien/.test(await p2.locator('body').innerText()) || (await p2.getByText('A
 await p2.goto(BASE + '/progression');
 await p2.getByText('Quelques hésitations').first().waitFor();
 ok(true, 'migration : historique conservé');
-await p2.goto(BASE + '/profil');
-await p2.getByText('Apprentissage et révision').waitFor();
+await p2.goto(BASE + '/profil/parametres');
+await p2.getByRole('heading', { name: 'Mémorisation et révision' }).waitFor();
 const prof = await p2.locator('body').innerText();
 ok(!/Hizb par Hizb/.test(prof) && (await p2.getByRole('radio', { name: 'An-Nas → Al-Fatiha' }).getAttribute('aria-checked')) === 'true', 'migration : sens d’apprentissage conservé, sens de révision supprimé');
 await p2.goto(BASE + '/wird/105');
@@ -125,7 +125,7 @@ ok(true, 'migration : ancienne séance remplacée sans erreur');
 await ctx2.close();
 
 // ---------- Export / import / reset ----------
-await page.goto(BASE + '/profil');
+await page.goto(BASE + '/profil/parametres');
 const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Exporter mes données/ }).click()]);
 const exported = JSON.parse((await import('node:fs')).readFileSync(await dl.path(), 'utf8'));
 ok(exported.app === 'wird' && Object.keys(exported.data.verses).length > 100 && exported.data.history.length >= 3 && 'trash' in exported.data && !('direction' in exported.data.settings), 'export JSON complet (corbeille incluse)');

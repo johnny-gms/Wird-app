@@ -14,7 +14,7 @@ import type { LearningGoal, VerseState } from './types';
 
 const D = '2026-03-10';
 const mem = (surah: number, from: number, to: number, verses: Record<number, VerseState> = {}) => {
-  for (let a = from; a <= to; a++) verses[ayahId(surah, a)] = newMemorizedVerse(ayahId(surah, a), '2026-01-01');
+  for (let a = from; a <= to; a++) verses[ayahId(surah, a)] = { ...newMemorizedVerse(ayahId(surah, a), '2026-01-01'), declared: false };
   return verses;
 };
 const mkCore = (verses: Record<number, VerseState>, over: Partial<Core> = {}): Core => ({
@@ -409,5 +409,15 @@ describe('révision par pages et apprentissage hebdomadaire', () => {
     expect(dailyLearnPages({ learnMode: 'pages', learnPagesPerWeek: 7 }, g)).toBe(1);
     expect(learningEnabled({ learnMode: 'pages', learnPagesPerWeek: 0 })).toBe(false);
     expect(learningEnabled({ learnMode: 'surah', learnPagesPerWeek: 0 })).toBe(true);
+  });
+});
+
+describe('sourates déclarées « déjà apprises »', () => {
+  it('ne sont pas proposées en révision tant qu’elles ne sont pas travaillées', () => {
+    const verses: Record<number, VerseState> = {};
+    for (let a = 1; a <= 7; a++) verses[ayahId(1, a)] = newMemorizedVerse(ayahId(1, a), '2026-01-01'); // déclarées
+    const c = mkCore(verses);
+    expect(buildPlan(c, '2026-05-01', null).items.filter((i) => i.kind === 'review')).toHaveLength(0);
+    expect(applyGrade(verses[ayahId(1, 1)], 'mastered', '2026-05-01').declared).toBe(false);
   });
 });
