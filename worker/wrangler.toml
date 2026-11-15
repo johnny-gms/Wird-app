@@ -1,4 +1,4 @@
-# Configuration du Worker (déployé par Cloudflare depuis GitHub, racine = worker/). Aucune valeur secrète ici :
+# Configuration du Worker WIRD (déployé par Cloudflare depuis GitHub, branche claude/wird-v1-pwa-app-xlgy9s, racine = worker/). Aucune valeur secrète ici :
 # l'ID D1, l'adresse de l'app et l'e-mail de contact ne sont pas des secrets. Remplace les 3 valeurs « REMPLACER_… ».
 name = "wird-push"
 main = "src/index.ts"
