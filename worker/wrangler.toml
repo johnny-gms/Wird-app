@@ -1,0 +1,22 @@
+# Configuration du Worker (déployé par Cloudflare depuis GitHub, racine = worker/). Aucune valeur secrète ici :
+# l'ID D1, l'adresse de l'app et l'e-mail de contact ne sont pas des secrets. Remplace les 3 valeurs « REMPLACER_… ».
+name = "wird-push"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wird-push"
+database_id = "REMPLACER_PAR_ID_D1"
+
+[triggers]
+# Toutes les 15 minutes : le Worker évalue, pour chaque abonné, quels rappels sont dus dans son fuseau horaire.
+crons = ["*/15 * * * *"]
+
+[vars]
+ALLOWED_ORIGIN = "REMPLACER_PAR_ADRESSE_APP"   # origine autorisée (CORS), sans / final
+VAPID_SUBJECT = "mailto:REMPLACER@exemple.org"        # exigé par les services Push (Apple, Google, Mozilla)
+
+# Secrets (jamais dans ce fichier) :
+#   npx wrangler secret put VAPID_PUBLIC_KEY
+#   npx wrangler secret put VAPID_PRIVATE_KEY
