@@ -7,7 +7,7 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "wird-push"
-database_id = "REMPLACER_PAR_ID_D1"
+database_id = "e6d279f2-4cd0-41e4-96ce-ddfc464c6149"
 
 [triggers]
 # Toutes les 15 minutes : le Worker évalue, pour chaque abonné, quels rappels sont dus dans son fuseau horaire.
