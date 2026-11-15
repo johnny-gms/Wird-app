@@ -14,8 +14,8 @@ database_id = "e6d279f2-4cd0-41e4-96ce-ddfc464c6149"
 crons = ["*/15 * * * *"]
 
 [vars]
-ALLOWED_ORIGIN = "REMPLACER_PAR_ADRESSE_APP"   # origine autorisée (CORS), sans / final
-VAPID_SUBJECT = "mailto:REMPLACER@exemple.org"        # exigé par les services Push (Apple, Google, Mozilla)
+ALLOWED_ORIGIN = "https://wird-app-u62.pages.dev"   # origine autorisée (CORS), sans / final
+VAPID_SUBJECT = "mailto:gomesj.pro@gmail.com"        # exigé par les services Push (Apple, Google, Mozilla)
 
 # Secrets (jamais dans ce fichier) :
 #   npx wrangler secret put VAPID_PUBLIC_KEY
