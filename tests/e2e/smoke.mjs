@@ -1,12 +1,6 @@
-// Test de bout en bout (Playwright) — nécessite `npm run build && npm run preview`.
+// Parcours de bout en bout (Playwright) — nécessite `npm run build && npm run preview`.
 // Usage : PW_REQUIRE=/chemin/package.json BASE_URL=http://127.0.0.1:4173 node tests/e2e/smoke.mjs
-import { createRequire } from 'node:module';
-const { chromium, devices } = createRequire(process.env.PW_REQUIRE ?? import.meta.url)('playwright');
-const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:4173';
-const OUT = process.env.SHOTS ?? '.scratch';
-
-let failures = 0;
-const ok = (cond, msg) => { console.log(`${cond ? '✔' : '✘'} ${msg}`); if (!cond) failures++; };
+import { BASE, OUT, chromium, devices, done, markWorked, ok, onboard, settle } from './lib.mjs';
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ ...devices['iPhone 14'], serviceWorkers: 'allow', locale: 'fr-FR', reducedMotion: 'reduce' });
@@ -15,105 +9,221 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 
+// ---------- Premier lancement ----------
 await page.goto(BASE);
-await page.getByRole('button', { name: /données de démonstration/i }).click();
-await page.getByText('Votre Wird du jour').first().waitFor();
-ok(true, 'onboarding → accueil (démo)');
-await page.screenshot({ path: `${OUT}/01-home.png` });
+await page.getByText('garde-le.').waitFor();
+ok(await page.getByText('Ce que tu as appris').isVisible(), 'présentation (3 écrans, tutoiement)');
+await page.screenshot({ path: `${OUT}/01-welcome.png` });
+await page.getByRole('button', { name: /Suivant/ }).click();
+ok(await page.getByRole('button', { name: 'Retour' }).isVisible(), 'bouton retour dès le 2e écran');
+await page.getByRole('button', { name: 'Retour' }).click();
+await page.getByText('garde-le.').waitFor();
+await page.getByRole('button', { name: /Suivant/ }).click();
+await page.getByRole('button', { name: /Suivant/ }).click();
+await page.getByRole('button', { name: /^Commencer/ }).click();
+await page.getByText(/Crée ton compte/).waitFor();
+ok(true, 'écran de création de compte / connexion (e-mail + mot de passe)');
+await page.getByRole('button', { name: 'Continuer sans compte' }).click();
+await page.getByPlaceholder('Ton prénom').fill('Amine');
+await page.getByRole('button', { name: 'Continuer' }).click();
+await page.getByText('Quelles sourates connais-tu déjà').waitFor();
+await page.getByRole('button', { name: /Juz/ }).click();
+ok((await page.locator('text=/^37$/').count()) > 0, 'sélection multiple : Juz ʿAmma → 37 sourates cochées');
+await page.getByRole('checkbox', { name: /Al-Fatihah/ }).click();
+await page.getByRole('checkbox', { name: /Al-Fatihah/ }).click();
+await page.screenshot({ path: `${OUT}/02-known.png` });
+await page.getByRole('button', { name: 'Continuer' }).click();
+await page.getByRole('radio', { name: /An-Nas → Al-Fatiha/ }).click();
+await page.getByText(/Prochaine sourate proposée : 77\./).waitFor();
+ok(true, 'sens d’apprentissage inversé → prochaine sourate proposée : 77');
+await page.getByRole('radio', { name: /Des pages par semaine/ }).click();
+await page.getByRole('button', { name: /Plus de pages par semaine/ }).click();
+await page.getByRole('button', { name: 'Continuer' }).click();
+await page.getByText('Combien de pages réviser par jour').waitFor();
+await page.getByRole('button', { name: /Plus de pages à réviser/ }).click();
+await page.getByRole('button', { name: 'Continuer' }).click();
+await page.getByText('Tout est prêt').waitFor();
+const recap = await page.locator('ul').first().innerText();
+ok(/37 sourates/.test(recap) && /An-Nas → Al-Fatiha/.test(recap) && /3 pages par semaine/.test(recap) && /2 pages par jour/.test(recap), 'récapitulatif fidèle');
+await page.getByRole('button', { name: /C’est parti/ }).click();
+await page.getByText('Ma progression').first().waitFor();
+ok(!/Révision · page/.test(await page.locator('body').innerText()), 'sourates déclarées « déjà apprises » : aucune révision imposée');
+await markWorked(page);
+ok(/Révision · page/.test(await page.locator('body').innerText()), 'versets travaillés dans WIRD : révision proposée par page');
+await settle(page);
 
-// Navigation : 4 onglets
+// ---------- Accueil / navigation ----------
+const head = await page.locator('h1').first().innerText();
+ok(/As-salam alaykoum/.test(head) && !/Bonjour|Bonsoir/.test(head), `salutation : « ${head} »`);
 const tabs = await page.locator('nav[aria-label="Navigation principale"] a').allInnerTexts();
-ok(tabs.map((t) => t.trim()).join('|') === 'Accueil|Mon Wird|Progression|Profil', `4 onglets: ${tabs.join(',')}`);
+ok(tabs.map((t) => t.trim()).join('|') === 'Accueil|Mon Wird|Révisions|Progression|Profil', `5 onglets : ${tabs.join(', ')}`);
+const home = await page.locator('body').innerText();
+ok(/aujourd’hui/i.test(home) && /ma progression/i.test(home) && /régularité/i.test(home) && /Coran numérique/.test(home), 'accueil : programme, progression, régularité, Coran numérique');
+await page.screenshot({ path: `${OUT}/03-home.png`, fullPage: true });
+await page.reload();
+await page.getByText('Ma progression').first().waitFor();
+ok(true, 'relancement : arrivée directe sur l’accueil');
 
-// Session complète
-await page.getByRole('button', { name: /Commencer mon Wird/ }).click();
+// ---------- Mon Wird : 114 cartes, états, filtres ----------
+await page.locator('nav a', { hasText: 'Mon Wird' }).click();
+await page.getByRole('heading', { name: 'Mes sourates' }).waitFor();
+const cards = await page.locator('a[href^="/wird/"]').count();
+ok(cards === 114, `Mon Wird : ${cards} cartes de sourates`);
+await page.screenshot({ path: `${OUT}/04-monwird.png` });
+await page.getByLabel('Rechercher une sourate').fill('ikhlas');
+ok((await page.locator('a[href^="/wird/"]').count()) === 1, 'recherche par nom');
+await page.getByLabel('Rechercher une sourate').fill('');
+await page.getByRole('button', { name: 'Organiser par Hizb' }).click();
+await page.getByRole('button', { name: '60', exact: true }).click();
+await page.getByText(/dans le Hizb 60/).waitFor();
+const n60 = (await page.locator('a[href^="/wird/"]').count());
+ok(n60 > 20 && n60 < 40, `filtre par Hizb : ${n60} sourates dans le Hizb 60`);
+await page.getByRole('button', { name: /Hizb 60/ }).click();
+await page.getByRole('button', { name: 'Apprises' }).click();
+ok((await page.locator('a[href^="/wird/"]').count()) === 37, 'filtre « Apprises » : 37 sourates');
+await page.getByRole('button', { name: 'Toutes' }).click();
+const slider = page.getByRole('slider', { name: 'Défilement rapide' });
+await slider.waitFor();
+await page.mouse.wheel(0, 200); await page.waitForTimeout(300);
+const box = await slider.boundingBox();
+const y0 = await page.evaluate(() => scrollY);
+await page.mouse.wheel(0, 300); await page.waitForTimeout(350);
+await page.mouse.move(box.x + box.width - 14, box.y + 30);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width - 14, box.y + box.height - 20, { steps: 8 });
+await page.mouse.up();
+ok((await page.evaluate(() => scrollY)) > y0 + 2000, 'curseur de défilement rapide déplaçable');
+
+// ---------- Détail d'une sourate : sélection rapide par groupes de 5 ----------
+await page.goto(BASE + '/wird/2');
+await page.getByRole('heading', { name: /2\. Al-Baqarah/ }).waitFor();
+await page.getByRole('button', { name: 'Sélectionner des versets' }).click();
+await page.getByRole('dialog').waitFor();
+await page.getByRole('button', { name: '1–5', exact: true }).click();
+await page.getByRole('button', { name: '6–10', exact: true }).click();
+ok(/10 versets sélectionnés/.test(await page.getByRole('dialog').innerText()), 'groupes de 5 : 1–5 + 6–10 = 10 versets');
+await page.getByRole('button', { name: 'Moins', exact: true }).click(); // groupes de 4
+ok(await page.getByRole('button', { name: '1–4', exact: true }).isVisible(), 'taille des groupes ajustable');
+await page.getByRole('button', { name: 'Plus', exact: true }).click();
+await page.screenshot({ path: `${OUT}/05-picker.png` });
+await page.getByRole('button', { name: /Déjà appris/ }).click();
+await page.getByText('Marqué comme déjà appris').waitFor();
+await settle(page);
+await page.getByRole('button', { name: /Verset 3 : Appris/ }).click();
+await page.getByRole('dialog').waitFor();
+ok(/Appris/.test(await page.getByRole('dialog').innerText()), 'fiche d’un verset (état)');
+await page.keyboard.press('Escape');
+
+// ---------- Coran numérique ----------
+await page.goto(BASE + '/coran?p=1');
+await page.getByText('Page 1 / 604').waitFor();
+await page.locator('.vm').first().waitFor();
+ok((await page.locator('.vm').count()) >= 7, 'Coran numérique : page 1 (Al-Fatiha, 7 versets)');
+await page.getByRole('button', { name: 'Suivante' }).click();
+await page.getByText('Page 2 / 604').waitFor();
+await page.getByRole('button', { name: 'Agrandir le texte' }).click();
+await page.locator('p.ar span.cursor-pointer').first().click();
+await page.getByRole('dialog').waitFor();
+ok(/Modifier le statut/.test(await page.getByRole('dialog').innerText()), 'toucher un verset ouvre sa fiche');
+await page.keyboard.press('Escape');
+await page.screenshot({ path: `${OUT}/06-coran.png` });
+await page.goto(BASE + '/coran?m=list&s=112');
+await page.getByText('Verset 4').waitFor();
+ok(true, 'Coran numérique : liste d’une sourate');
+
+// ---------- Révisions ----------
+await page.locator('nav a', { hasText: 'Révisions' }).click();
+await page.getByRole('heading', { name: 'Mes révisions' }).waitFor();
+const rev = await page.locator('body').innerText();
+ok(/renforcement/i.test(rev) && /nouvel apprentissage/i.test(rev) && /à venir/i.test(rev) && /mon apprentissage/i.test(rev) && !/en retard/i.test(rev), 'Révisions : aujourd’hui, renforcement, apprentissage, à venir (aucun « retard »)');
+await page.screenshot({ path: `${OUT}/07-revisions.png`, fullPage: true });
+
+// ---------- Séance : travail sans interruption, évaluation finale, annulation ----------
+await page.goto(BASE + '/');
+await page.getByRole('button', { name: 'Commencer ma séance' }).click();
 await page.waitForURL('**/session');
-await page.getByText('Récitez de mémoire').waitFor();
-ok(true, 'écran de récitation');
-await page.getByRole('button', { name: /Afficher le texte de référence/ }).click();
-await page.locator('section[aria-label="Texte de référence"] .ar').waitFor();
-ok((await page.locator('section[aria-label="Texte de référence"] .ar').innerText()).length > 20, 'texte de référence affiché');
-await page.screenshot({ path: `${OUT}/02-session-recite.png` });
-await page.getByRole('button', { name: /J’ai terminé ma récitation/ }).click();
-await page.getByText('Comment s’est passée votre récitation').waitFor();
-ok(true, 'évaluation directe après récitation');
-await page.screenshot({ path: `${OUT}/03-session-eval.png` });
-await page.getByRole('button', { name: /Retour à la récitation/ }).click();
-await page.getByText('Récitez de mémoire').waitFor();
-ok(true, 'bouton retour → récitation');
-await page.getByRole('button', { name: /J’ai terminé ma récitation/ }).click();
-
-// Interruption puis reprise
+await page.getByRole('heading', { name: 'Travail des passages' }).waitFor();
+const items = await page.locator('main ol > li').count();
+ok(items >= 3, `la séance affiche tout le programme (${items} éléments)`);
+await page.locator('main ol > li button[aria-expanded]').first().click();
+await page.getByRole('button', { name: /Ouvrir dans le Coran WIRD/ }).click();
+await page.getByRole('dialog', { name: 'Coran numérique' }).waitFor();
+await page.locator('.vm').first().waitFor();
+ok(true, 'Coran WIRD ouvert depuis la séance (sans quitter la séance)');
+await page.getByRole('button', { name: /Retour à la séance/ }).click();
 await page.getByRole('button', { name: 'Interrompre' }).click();
 await page.waitForURL(BASE + '/');
-await page.getByRole('button', { name: /Reprendre/ }).first().waitFor();
-ok(true, 'après interruption : bouton « Reprendre »');
+await page.locator('nav a', { hasText: 'Révisions' }).click();
+await page.getByText('Activités inachevées').waitFor();
+ok(true, 'séance interrompue → « Activités inachevées » dans Révisions');
 await page.getByRole('button', { name: /Reprendre/ }).first().click();
-await page.waitForURL('**/session');
-await page.getByText('Comment s’est passée votre récitation').waitFor();
-ok(true, 'reprise sur le même élément, à l’étape d’évaluation (rien perdu)');
-
-// Parcours des évaluations
-const grades = ['Maîtrisé', 'Quelques hésitations', 'Difficile', 'Non maîtrisé'];
-let n = 0;
-for (let guard = 0; guard < 30; guard++) {
-  if (page.url().includes('/bilan')) break;
-  if (await page.getByRole('button', { name: /J’ai terminé ma récitation/ }).isVisible().catch(() => false)) await page.getByRole('button', { name: /J’ai terminé ma récitation/ }).click();
-  const g = grades[n % 4];
-  await page.getByRole('button', { name: new RegExp('^\\d\\s*' + g) }).click();
-  n++;
-  await page.waitForTimeout(120);
-}
+await page.getByRole('heading', { name: 'Travail des passages' }).waitFor();
+await page.getByRole('button', { name: 'Passer à l’évaluation' }).click();
+const groups = page.getByRole('radiogroup');
+const n = await groups.count();
+ok(await page.getByRole('button', { name: 'Valider le bilan' }).isDisabled(), 'validation impossible tant que tout n’est pas évalué');
+const levels = ['Maîtrisé', 'Quelques hésitations', 'Difficile', 'Non maîtrisé'];
+for (let i = 0; i < n; i++) await groups.nth(i).getByRole('radio', { name: levels[i % 4], exact: true }).click();
+await groups.nth(0).getByRole('radio', { name: 'Non maîtrisé', exact: true }).click();
+await page.screenshot({ path: `${OUT}/08-eval.png`, fullPage: true });
+await page.getByRole('button', { name: 'Valider le bilan' }).click();
 await page.waitForURL('**/session/bilan');
-ok(n >= 2, `${n} éléments évalués → bilan`);
-await page.getByText('Votre Wird du jour est accompli').waitFor();
-ok(true, 'écran de bilan');
-await page.screenshot({ path: `${OUT}/04-bilan.png`, fullPage: true });
+await page.getByText('Séance accomplie').waitFor();
+ok(true, 'bilan de séance');
+await page.getByRole('button', { name: 'Annuler la validation' }).click();
+await page.waitForURL('**/session');
+await page.getByRole('heading', { name: 'Bilan de la séance' }).waitFor();
+ok((await page.getByRole('radiogroup').nth(0).getByRole('radio', { name: 'Non maîtrisé', exact: true }).getAttribute('aria-checked')) === 'true', 'annulation de la validation : évaluations retrouvées');
+await page.goto(BASE + '/progression');
+await page.getByText('Mes 114 sourates').waitFor();
+await page.goto(BASE + '/session');
+await page.getByRole('button', { name: 'Valider le bilan' }).click();
+await page.waitForURL('**/session/bilan');
+await settle(page);
 
-// Persistance : rechargement
-await page.goto(BASE + '/progression/historique');
-await page.getByText(/Maîtrisé|Difficile/).first().waitFor();
-ok(true, 'historique présent');
-await page.reload();
-await page.getByText(/Maîtrisé|Difficile/).first().waitFor();
-ok(true, 'historique persistant après rechargement (IndexedDB)');
-await page.screenshot({ path: `${OUT}/05-history.png` });
+// ---------- Progression ----------
+await page.getByRole('link', { name: 'Retour à l’accueil' }).click();
+await page.locator('nav a', { hasText: 'Progression' }).click();
+await page.getByText('Mes 114 sourates').waitFor();
+const cells = await page.locator('ol a[aria-label^="Sourate"]').count();
+const states = await page.locator('ol a[aria-label^="Sourate"]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label').split(' : ')[1]));
+const count = (x) => states.filter((s) => s === x).length;
+ok(cells === 114 && count('apprise') + count('à renforcer') >= 37 && count('non commencée') > 50, `114 cases numérotées (apprises ${count('apprise')}, à renforcer ${count('à renforcer')}, en cours ${count('en cours')}, non commencées ${count('non commencée')})`);
+ok((await page.locator('[role=group][aria-label="60 Hizb"] button').count()) === 60, 'Hizb : 60 cellules compactes');
+ok((await page.getByText('Mes objectifs').count()) > 0 && /Ajouter un objectif/.test(await page.locator('body').innerText()), 'objectifs : section courte');
+await page.screenshot({ path: `${OUT}/09-progress.png`, fullPage: true });
 
-// Écrans
-for (const [path, text, shot] of [
-  ['/progression/general', 'Progression générale', '06-progress'],
-  ['/progression/hizb', 'couvert', '07-hizb'],
-  ['/progression/sourates', 'En cours', '08-surahs-progress'],
-  ['/progression/bilans', 'Semaine', '09-reports'],
-  ['/progression/objectifs', 'Ajouter un objectif', '10-goals'],
-  ['/wird/aujourdhui', 'Révisions', '11-today'],
-  ['/wird/sourates', 'Toutes', '12-surahs'],
-  ['/wird/sourates/2', 'Choisir des versets', '13-surah-detail'],
-  ['/wird/apprentissage', 'Ajouter une sourate', '14-learning'],
-  ['/profil', 'Apparence', '15-profile'],
-  ['/profil/notifications', 'Nos règles', '16-notifs'],
-  ['/profil/wird', 'Rotation des révisions', '17-wird-settings'],
-  ['/profil/donnees', 'Sauvegarde', '18-data'],
-]) {
-  await page.goto(BASE + path);
-  await page.getByText(text).first().waitFor({ timeout: 5000 });
-  await page.screenshot({ path: `${OUT}/${shot}.png` });
-}
-ok(true, 'tous les écrans se chargent');
+// ---------- Profil ----------
+await page.locator('nav a', { hasText: 'Profil' }).click();
+await page.getByRole('link', { name: /Paramètres/ }).click();
+await page.getByRole('heading', { name: 'Mémorisation et révision' }).waitFor();
+for (const h of ['Apparence', 'Sourates déjà apprises', 'Rappels', 'Données et sauvegardes', 'À propos', 'Réinitialisation']) ok((await page.getByText(h, { exact: true }).count()) > 0, `Paramètres : section « ${h} »`);
+ok(!(await page.getByText('Sens de révision').count()) || /Hizb par Hizb/.test(await page.locator('body').innerText()), 'Profil : plus de réglage du sens de révision');
+await page.screenshot({ path: `${OUT}/10-profile.png`, fullPage: true });
 
-// Hors-ligne
+// ---------- Rappels : états honnêtes + tableau de bord Cloudflare ----------
+await page.goto(BASE + '/profil/notifications');
+await page.getByRole('heading', { name: 'Rappels', exact: true }).waitFor();
+await page.getByText('Tableau de bord de configuration').waitFor();
+const notif = await page.locator('body').innerText();
+ok(/quatre rappels indépendants/i.test(notif) && /rappel quotidien/i.test(notif) && /deuxième rappel/i.test(notif) && /travail inachevé/i.test(notif) && /message de retour/i.test(notif), 'quatre catégories indépendantes');
+ok(/À faire/.test(notif) && /VITE_PUSH_API_URL/.test(notif) && /wrangler deploy/.test(notif), 'tableau de bord : actions Cloudflare listées précisément');
+ok(!/Rappels activés/.test(notif), 'jamais « Rappels activés » sans abonnement réel');
+await page.screenshot({ path: `${OUT}/11-notifs.png`, fullPage: true });
+
+// ---------- Hors ligne ----------
 await page.goto(BASE + '/');
 await page.evaluate(() => navigator.serviceWorker.ready);
 await page.waitForTimeout(1500);
 await ctx.setOffline(true);
 await page.reload();
-await page.getByText('Votre Wird du jour').first().waitFor({ timeout: 8000 });
+await page.getByText('Ma progression').first().waitFor({ timeout: 8000 });
 ok(true, 'rechargement hors connexion OK (service worker)');
-const offlineHist = await page.goto(BASE + '/progression/historique').then(() => page.getByText(/Maîtrisé|Difficile/).first().isVisible());
-ok(offlineHist, 'données lisibles hors connexion');
+await page.goto(BASE + '/coran?p=3');
+await page.getByText('Page 3 / 604').waitFor();
+await page.locator('.vm').first().waitFor();
+ok(true, 'Coran numérique hors connexion');
 await ctx.setOffline(false);
-
 ok(errors.length === 0, `aucune erreur console (${errors.slice(0, 3).join(' | ')})`);
 await browser.close();
-console.log(failures ? `\n${failures} échec(s)` : '\nTous les contrôles passent');
-process.exit(failures ? 1 : 0);
+done();

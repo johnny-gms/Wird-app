@@ -33,7 +33,7 @@ export function AddLearningSheet({ open, onClose, preset }: { open: boolean; onC
           </p>
           <RangePicker n={s.n} from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} verses={verses} surah={s.id} />
           <p className="mt-4 text-sm font-semibold">{rangeLabel(s.id, from, to)}</p>
-          <p className="mt-1 text-xs text-muted">Aucune quantité quotidienne n’est imposée : vous avancez à votre rythme.</p>
+          <p className="mt-1 text-xs text-muted">Aucune quantité quotidienne n’est imposée : tu avances à ton rythme.</p>
           <button
             className="btn-primary mt-4 w-full"
             onClick={() => {

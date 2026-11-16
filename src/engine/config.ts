@@ -30,6 +30,12 @@ export const ENGINE = {
 
   /** Une sourate est « à entretenir » si ses versets mémorisés n'ont pas été révisés depuis ce nombre de jours. */
   maintainAfterDays: 30,
+
+  /** Les versets simplement déclarés « déjà appris » (jamais travaillés dans WIRD) entrent-ils dans la rotation de révision ? */
+  declaredInRotation: false,
+
+  /** Durée de conservation de la corbeille (jours). */
+  trashDays: 30,
 } as const;
 
 export const GRADE_ORDER: Grade[] = ['mastered', 'hesitant', 'difficult', 'failed'];
@@ -58,11 +64,12 @@ export const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  direction: 'forward',
-  reviewVersesPerDay: 20,
+  learnDirection: 'forward',
+  learnMode: 'surah',
+  learnPagesPerWeek: 2,
+  reviewPagesPerDay: 1,
   reinforceVersesPerDay: 15,
-  learningEnabled: true,
-  learningChunk: 5,
   theme: 'system',
+  haptics: true,
   notifications: DEFAULT_NOTIFICATIONS,
 };

@@ -45,7 +45,7 @@ export function RangePicker({ n, from, to, onChange, verses, surah }: { n: numbe
           );
         })}
       </div>
-      <p className="mt-2 text-xs text-muted">Touchez un verset pour le début, puis un second pour la fin.</p>
+      <p className="mt-2 text-xs text-muted">Touche un verset pour le début, puis un second pour la fin.</p>
     </div>
   );
 }

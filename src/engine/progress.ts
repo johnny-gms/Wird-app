@@ -1,6 +1,7 @@
 import { ENGINE } from './config';
 import { addDays, diffDays } from './dates';
-import { HIZB_STARTS, SURAHS, TOTAL_VERSES, ayahId, hizbRange, surahMeta } from './quran';
+import { rangePages, verseWeight } from './pages';
+import { HIZB_STARTS, SURAHS, TOTAL_VERSES, ayahId, fromAyahId, hizbRange, surahMeta } from './quran';
 import type { HistoryEntry, VerseState } from './types';
 
 export type SurahState = 'none' | 'learning' | 'partial' | 'complete';
@@ -17,6 +18,8 @@ export interface SurahStats {
   /** A des versets mémorisés mais en retard de révision. */
   needsMaintenance: boolean;
   needsReinforcement: boolean;
+  /** Date (AAAA-MM-JJ) de la dernière révision d'un verset de la sourate, ou ''. */
+  last: string;
 }
 
 export function surahStats(verses: Record<number, VerseState>, surah: number, today: string): SurahStats {
@@ -25,9 +28,11 @@ export function surahStats(verses: Record<number, VerseState>, surah: number, to
   let learning = 0;
   let fragile = 0;
   let stale = 0;
+  let last = '';
   for (let a = 1; a <= n; a++) {
     const v = verses[ayahId(surah, a)];
     if (!v) continue;
+    if (v.lastReviewedAt && v.lastReviewedAt > last) last = v.lastReviewedAt;
     if (v.status === 'learning') learning++;
     else {
       memorized++;
@@ -37,7 +42,7 @@ export function surahStats(verses: Record<number, VerseState>, surah: number, to
     }
   }
   const state: SurahState = memorized === n ? 'complete' : memorized > 0 ? 'partial' : learning > 0 ? 'learning' : 'none';
-  return { surah, total: n, memorized, learning, fragile, stale, state, needsMaintenance: stale > 0, needsReinforcement: fragile > 0 };
+  return { surah, total: n, memorized, learning, fragile, stale, state, needsMaintenance: stale > 0, needsReinforcement: fragile > 0, last };
 }
 
 export function allSurahStats(verses: Record<number, VerseState>, today: string): SurahStats[] {
@@ -132,3 +137,57 @@ export function volumeByDay(history: HistoryEntry[], today: string, n: number): 
   }
   return out;
 }
+
+// ---------- Vue des 114 sourates ----------
+
+/**
+ * État visuel d'une sourate (tableau des 114 cases). Dérivé uniquement des données réelles :
+ *  - reinforce : au moins un verset mémorisé est dans le circuit de renforcement (fragile) ;
+ *  - learned   : tous les versets sont mémorisés, aucun fragile ;
+ *  - learning  : des versets en apprentissage, ou sourate partiellement mémorisée ;
+ *  - none      : non commencée.
+ */
+export type CellState = 'learned' | 'learning' | 'reinforce' | 'none';
+
+export function cellState(st: SurahStats): CellState {
+  if (st.needsReinforcement) return 'reinforce';
+  if (st.state === 'complete') return 'learned';
+  if (st.state === 'partial' || st.state === 'learning') return 'learning';
+  return 'none';
+}
+
+/** Pages du Mushaf mémorisées (somme pondérée des versets mémorisés). */
+export function memorizedPages(verses: Record<number, VerseState>): number {
+  let s = 0;
+  for (const k in verses) if (verses[k].status === 'memorized') s += verseWeight(Number(k));
+  return s;
+}
+
+/** Pages travaillées par jour sur les N derniers jours (ancien → récent). */
+export function pagesByDay(history: HistoryEntry[], today: string, n: number): { date: string; pages: number }[] {
+  const map = new Map<string, number>();
+  for (const h of history) map.set(h.date, (map.get(h.date) ?? 0) + rangePages(h.surah, h.from, h.to));
+  const out: { date: string; pages: number }[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = addDays(today, -i);
+    out.push({ date: d, pages: map.get(d) ?? 0 });
+  }
+  return out;
+}
+
+/** Sourates dont au moins un verset appartient au hizb. */
+export function hizbSurahs(h: number): number[] {
+  const [a, b] = hizbRange(h);
+  const s1 = fromAyahId(a).surah;
+  const s2 = fromAyahId(b).surah;
+  return Array.from({ length: s2 - s1 + 1 }, (_, i) => s1 + i);
+}
+
+// ---------- État d'un verset (couleurs de l'artefact : gris / bleu / vert / ambre) ----------
+export type VerseKind = 'n' | 'l' | 'm' | 'r';
+export function verseKind(v?: VerseState): VerseKind {
+  if (!v) return 'n';
+  if (v.status === 'learning') return 'l';
+  return v.fragile ? 'r' : 'm';
+}
+export const KIND_NAME: Record<VerseKind, string> = { n: 'Non suivi', l: 'En apprentissage', m: 'Appris', r: 'À renforcer' };

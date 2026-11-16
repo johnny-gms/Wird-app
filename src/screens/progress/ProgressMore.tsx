@@ -1,13 +1,11 @@
-import { Check, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { SurahPickerList } from '@/components/SurahPickerList';
 import { ConfirmSheet, Empty, GradeChip, KindBadge, ProgressBar, Segmented, Sheet, cx } from '@/components/ui';
-import { GRADE_LABEL } from '@/engine/config';
-import { addDays, endOfMonth, parseKey, startOfMonth, startOfWeek } from '@/engine/dates';
+import { addDays, startOfWeek } from '@/engine/dates';
 import { activeDaySet, activeDaysIn, surahStats } from '@/engine/progress';
 import { rangeLabel, surahMeta } from '@/engine/quran';
-import { periodReport } from '@/engine/reports';
-import type { Grade, GoalType, PersonalGoal } from '@/engine/types';
+import type { GoalType, PersonalGoal } from '@/engine/types';
 import { formatDateShort, useToday } from '@/lib/hooks';
 import { useWird } from '@/store/useWird';
 
@@ -20,7 +18,7 @@ export function History() {
     for (const h of [...history].reverse()) map.set(h.date, [...(map.get(h.date) ?? []), h]);
     return [...map.entries()];
   }, [history]);
-  if (!groups.length) return <Empty title="Pas encore d’historique">Chaque évaluation enregistrée apparaîtra ici : date, sourate, versets, type de travail et résultat.</Empty>;
+  if (!groups.length) return <Empty title="Pas encore d’historique">Chaque évaluation enregistrée apparaît ici : date, sourate, versets, type de travail et résultat.</Empty>;
   return (
     <div className="space-y-5">
       {groups.slice(0, limit).map(([date, entries]) => {
@@ -58,82 +56,6 @@ export function History() {
   );
 }
 
-// ------------------------------------------------------------------ Bilans
-export function Reports() {
-  const today = useToday();
-  const { history, progressLog } = useWird();
-  const [mode, setMode] = useState<'week' | 'month'>('week');
-  const [offset, setOffset] = useState(0);
-  const { from, to, label } = useMemo(() => {
-    if (mode === 'week') {
-      const f = addDays(startOfWeek(today), offset * 7);
-      const t = addDays(f, 6);
-      return { from: f, to: t, label: `${formatDateShort(f)} → ${formatDateShort(t)}` };
-    }
-    const d = parseKey(today);
-    const m = new Date(d.getFullYear(), d.getMonth() + offset, 1, 12);
-    const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-01`;
-    return { from: startOfMonth(key), to: endOfMonth(key), label: new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(m) };
-  }, [mode, offset, today]);
-  const r = useMemo(() => periodReport(history, progressLog, from, to), [history, progressLog, from, to]);
-  const total = r.verses || 1;
-  const GR: Grade[] = ['mastered', 'hesitant', 'difficult', 'failed'];
-  const barTone: Record<Grade, string> = { mastered: 'bg-good', hesitant: 'bg-warn', difficult: 'bg-hard', failed: 'bg-alert' };
-
-  return (
-    <div className="space-y-3">
-      <Segmented value={mode} onChange={(m) => { setMode(m); setOffset(0); }} options={[{ value: 'week', label: 'Semaine' }, { value: 'month', label: 'Mois' }]} />
-      <div className="flex items-center justify-between">
-        <button onClick={() => setOffset(offset - 1)} aria-label="Période précédente" className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-surface2"><ChevronLeft /></button>
-        <p className="text-sm font-semibold capitalize">{label}</p>
-        <button onClick={() => setOffset(offset + 1)} disabled={offset >= 0} aria-label="Période suivante" className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-surface2 disabled:opacity-30"><ChevronRight /></button>
-      </div>
-      {r.items === 0 ? (
-        <Empty title="Aucun travail sur cette période">Les bilans se construisent à partir de vos évaluations réelles. Rien n’est estimé.</Empty>
-      ) : (
-        <>
-          <section className="card grid grid-cols-3 gap-2 p-5 text-center">
-            <div><p className="font-display text-3xl font-semibold tabular-nums">{r.activeDays}</p><p className="text-xs text-muted">jour{r.activeDays > 1 ? 's' : ''} actif{r.activeDays > 1 ? 's' : ''} / {r.periodDays}</p></div>
-            <div><p className="font-display text-3xl font-semibold tabular-nums">{r.verses}</p><p className="text-xs text-muted">versets travaillés</p></div>
-            <div><p className="font-display text-3xl font-semibold tabular-nums">{r.surahs.length}</p><p className="text-xs text-muted">sourate{r.surahs.length > 1 ? 's' : ''}</p></div>
-          </section>
-          <section className="card p-5">
-            <h3 className="label mb-3">Évaluations</h3>
-            <div className="flex h-2.5 overflow-hidden rounded-full bg-surface2">
-              {GR.map((g) => r.byGrade[g] > 0 && <div key={g} className={barTone[g]} style={{ width: `${(r.byGrade[g] / total) * 100}%` }} />)}
-            </div>
-            <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-              {GR.map((g) => <li key={g} className="flex items-center gap-2"><i className={cx('h-2.5 w-2.5 rounded-full', barTone[g])} /><span className="text-muted">{GRADE_LABEL[g]}</span><b className="ml-auto tabular-nums">{r.byGrade[g]}</b></li>)}
-            </ul>
-          </section>
-          {r.memorizedDelta !== null && r.memorizedDelta !== 0 && (
-            <section className="card p-5"><h3 className="label">Progrès</h3><p className="mt-2 text-sm">{r.memorizedDelta > 0 ? `Votre mémorisation suivie a progressé de ${r.memorizedDelta} verset${r.memorizedDelta > 1 ? 's' : ''} sur cette période.` : `${-r.memorizedDelta} verset${-r.memorizedDelta > 1 ? 's' : ''} retiré${-r.memorizedDelta > 1 ? 's' : ''} du suivi sur cette période.`}</p></section>
-          )}
-          <section className="card p-5">
-            <h3 className="label">Difficultés récurrentes</h3>
-            {r.difficulties.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">Aucun verset n’a été jugé difficile à répétition. 👍</p>
-            ) : (
-              <>
-                <p className="mb-2 mt-1 text-xs text-muted">Versets évalués « difficile » ou « non maîtrisé » au moins deux fois.</p>
-                <ul className="divide-y divide-line/60">
-                  {r.difficulties.map((d) => <li key={`${d.surah}-${d.from}`} className="py-2.5 text-sm"><b>{surahMeta(d.surah).tr}</b> <span className="text-muted">· {rangeLabel(d.surah, d.from, d.to).replace(/^Sourate \d+ — /, '')}</span></li>)}
-                </ul>
-              </>
-            )}
-          </section>
-          <section className="card p-5">
-            <h3 className="label mb-2">Sourates travaillées</h3>
-            <ul className="space-y-1.5">
-              {r.surahs.slice(0, 8).map((s) => <li key={s.surah} className="flex justify-between text-sm"><span>{s.surah}. {surahMeta(s.surah).tr}</span><span className="text-muted tabular-nums">{s.verses} versets</span></li>)}
-            </ul>
-          </section>
-        </>
-      )}
-    </div>
-  );
-}
-
 // ------------------------------------------------------------------ Objectifs
 const TYPE_LABEL: Record<GoalType, string> = { memorization: 'Mémorisation', review: 'Révision', regularity: 'Régularité' };
 
@@ -149,7 +71,7 @@ export function Goals() {
   return (
     <div className="space-y-3">
       <p className="text-sm leading-relaxed text-muted">Des intentions simples, sans chiffres imposés. Elles servent de repères, jamais de pression.</p>
-      {personalGoals.length === 0 && <Empty title="Aucun objectif">Par exemple : « Mémoriser la sourate Al-Mulk » ou « Réviser un peu chaque jour ».</Empty>}
+      {personalGoals.length === 0 && <Empty title="Aucun objectif">Par exemple : « Apprendre la sourate Al-Mulk » ou « Réviser un peu chaque jour ».</Empty>}
       {personalGoals.map((g) => {
         let progress: { v: number; text: string } | null = null;
         if (g.type === 'memorization' && g.surah) {
@@ -195,12 +117,12 @@ function AddGoal({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const suggestions: Record<GoalType, string[]> = {
     memorization: [],
-    review: ['Réviser régulièrement tout ce que j’ai mémorisé', 'Terminer un tour complet de ma rotation'],
+    review: ['Réviser régulièrement tout ce que j’ai appris', 'Terminer un tour complet de ma rotation'],
     regularity: ['Travailler un peu chaque jour', 'Revenir régulièrement, même brièvement'],
   };
   const reset = () => { setTitle(''); setSurah(null); setDays(null); setPick(false); };
   const save = () => {
-    const t = title.trim() || (type === 'memorization' && surah ? `Mémoriser la sourate ${surahMeta(surah).tr}` : '');
+    const t = title.trim() || (type === 'memorization' && surah ? `Apprendre la sourate ${surahMeta(surah).tr}` : '');
     if (!t) return;
     add({ type, title: t, surah: type === 'memorization' ? surah ?? undefined : undefined, daysPerWeek: type === 'regularity' ? days ?? undefined : undefined });
     reset();
@@ -234,5 +156,31 @@ function AddGoal({ open, onClose }: { open: boolean; onClose: () => void }) {
         <button className="btn-primary w-full" onClick={save} disabled={!title.trim() && !(type === 'memorization' && surah)}>Enregistrer</button>
       </div>
     </Sheet>
+  );
+}
+
+/** Version courte de la section Objectifs : trois objectifs au plus, gestion complète dans une feuille. */
+export function GoalsCompact() {
+  const { personalGoals, toggleGoalAchieved } = useWird();
+  const [open, setOpen] = useState(false);
+  const active = personalGoals.filter((g) => !g.achievedAt);
+  const shown = (active.length ? active : personalGoals).slice(0, 3);
+  return (
+    <div className="card p-4">
+      {shown.length === 0 ? (
+        <p className="text-sm text-muted">Des intentions simples, sans chiffres imposés : « Apprendre Al-Mulk », « Réviser un peu chaque jour »…</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {shown.map((g) => (
+            <li key={g.id} className="flex items-center gap-3">
+              <button onClick={() => toggleGoalAchieved(g.id)} aria-pressed={!!g.achievedAt} aria-label={g.achievedAt ? 'Marquer comme non atteint' : 'Marquer comme atteint'} className={cx('flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition', g.achievedAt ? 'border-good bg-good text-white' : 'border-line')}>{g.achievedAt && <Check size={15} strokeWidth={3} />}</button>
+              <span className={cx('flex-1 text-[15px]', g.achievedAt && 'text-muted line-through')}>{g.title}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button className="btn-soft mt-3 !min-h-[40px] text-sm" onClick={() => setOpen(true)}>{personalGoals.length ? `Gérer mes objectifs (${personalGoals.length})` : 'Ajouter un objectif'}</button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Mes objectifs"><Goals /></Sheet>
+    </div>
   );
 }

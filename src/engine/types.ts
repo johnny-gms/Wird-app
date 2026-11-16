@@ -23,6 +23,8 @@ export interface VerseState {
   reviews: number;
   addedAt: string; // AAAA-MM-JJ
   source: 'user' | 'demo';
+  /** Verset déclaré « déjà appris » avant WIRD et jamais travaillé dans l'application : hors rotation de révision. */
+  declared?: boolean;
 }
 
 export interface LearningGoal {
@@ -32,6 +34,8 @@ export interface LearningGoal {
   to: number;
   /** Prochain verset à travailler. > to quand tout a été parcouru. */
   cursor: number;
+  /** Créé automatiquement par WIRD (prochaine sourate dans le sens d'apprentissage) ; terminé automatiquement. */
+  auto?: boolean;
   paused: boolean;
   createdAt: string;
   completedAt: string | null;
@@ -61,13 +65,24 @@ export interface DailyPlan {
   items: PlanItem[];
 }
 
+/** Évaluation en cours de saisie pour un élément : une note, ou « skip » (non travaillé). */
+export type DraftGrade = Grade | 'skip';
+
+/**
+ * Séance : on consulte le programme, on travaille, puis on évalue TOUT d'un coup (« Passer à l'évaluation »).
+ * Les évaluations saisies restent un brouillon modifiable jusqu'à la validation du bilan.
+ */
 export interface SessionState {
   date: string;
-  currentItemId: string | null;
-  step: 'recite' | 'evaluate';
+  step: 'program' | 'evaluate';
+  /** Éléments du programme concernés par la séance (ordre du programme). */
+  scope: 'all' | string[];
+  draft: Record<string, DraftGrade>;
   /** Temps actif cumulé (ms), mesuré uniquement quand l'application est visible. */
   activeMs: number;
   startedAt: string;
+  /** Passages ouverts pendant la séance (indicateur « Consulté » : ne valide rien). */
+  viewed?: string[];
 }
 
 export interface HistoryEntry {
@@ -119,21 +134,31 @@ export interface NotificationPrefs {
   comeback: { enabled: boolean; afterDays: number; time: string };
 }
 
+export type LearnMode = 'surah' | 'pages';
+
+export type Gender = 'male' | 'female';
+
 export interface Settings {
-  direction: Direction;
-  /** Quantité de rotation par jour, en versets (indicatif, jamais une dette). */
-  reviewVersesPerDay: number;
+  /** Sens dans lequel on apprend de NOUVELLES sourates (indépendant du sens de révision). */
+  learnDirection: Direction;
+  /** Rythme d'apprentissage : « une sourate par semaine » (débutants) ou un nombre de pages par semaine. */
+  learnMode: LearnMode;
+  /** Pages du Mushaf à apprendre par semaine (mode « pages » ; 0 = pas d'apprentissage). */
+  learnPagesPerWeek: number;
+  /** Objectif quotidien de révision, en pages entières du Mushaf. */
+  reviewPagesPerDay: number;
   /** Plafond de versets de renforcement proposés par jour. */
   reinforceVersesPerDay: number;
-  learningEnabled: boolean;
-  /** Taille d'un élément d'apprentissage, en versets. */
-  learningChunk: number;
   theme: ThemeMode;
+  /** Retours haptiques (vibrations) lorsque l'appareil les permet. */
+  haptics: boolean;
   notifications: NotificationPrefs;
 }
 
 export interface Profile {
   name: string;
+  age?: number | null;
+  gender?: Gender | null;
   createdAt: string;
   onboarded: boolean;
   demo: boolean;
@@ -154,6 +179,28 @@ export interface DayRecord {
   notDone: number;
 }
 
+/** Élément de la corbeille (conservé 30 jours, restaurable). */
+export type TrashItem =
+  | { id: string; kind: 'verses'; deletedAt: string; label: string; verses: VerseState[] }
+  | { id: string; kind: 'goal'; deletedAt: string; label: string; goal: LearningGoal; verses: VerseState[] }
+  | { id: string; kind: 'personalGoal'; deletedAt: string; label: string; goal: PersonalGoal };
+
+/** Instantané avant une validation de séance : permet « Annuler la validation ». */
+export interface UndoSnapshot {
+  at: string; // ISO
+  date: string;
+  /** États des versets AVANT la validation (absent = verset non suivi). */
+  verses: Record<number, VerseState | null>;
+  goals: LearningGoal[];
+  rotation: RotationState;
+  plan: DailyPlan | null;
+  session: SessionState | null;
+  progressLog: ProgressPoint[];
+  summaries: SessionSummary[];
+  /** Entrées d'historique ajoutées par la validation. */
+  historyIds: string[];
+}
+
 /** Instantané complet persisté (hors table des versets, stockée à part). */
 export interface PersistedState {
   profile: Profile;
@@ -168,4 +215,6 @@ export interface PersistedState {
   summaries: SessionSummary[];
   personalGoals: PersonalGoal[];
   dayLog: DayRecord[];
+  trash: TrashItem[];
+  lastValidation: UndoSnapshot | null;
 }

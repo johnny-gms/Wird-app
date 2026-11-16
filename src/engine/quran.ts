@@ -46,6 +46,20 @@ export function rangeLabel(surah: number, from: number, to: number): string {
   return from === to ? `Sourate ${surah} — verset ${from}` : `Sourate ${surah} — versets ${from} à ${to}`;
 }
 
+const HIZB_START_IDS: number[] = HIZB_STARTS.map(([s, a]) => ayahId(s, a));
+
+/** Numéro de Hizb (1..60) d'un verset. */
+export function hizbOf(id: number): number {
+  let lo = 0;
+  let hi = HIZB_START_IDS.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (HIZB_START_IDS[mid] <= id) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo + 1;
+}
+
 /** Plage d'ids globaux d'un hizb. */
 export function hizbRange(h: number): [number, number] {
   const [s, a] = HIZB_STARTS[h - 1];
