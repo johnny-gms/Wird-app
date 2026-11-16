@@ -97,7 +97,12 @@ export interface ServerHealth {
   /** La clé publique VAPID du serveur est celle de l'application. */
   keyMatches: boolean | null;
   lastCron: string | null;
+  /** Clés tronquées (4 premiers et 4 derniers caractères) : de l'application et du serveur, pour le diagnostic. */
+  appKey?: string;
+  serverKey?: string;
 }
+
+export const maskKey = (k: string | undefined): string => (k ? `${k.slice(0, 4)}…${k.slice(-4)}` : 'absente');
 
 /** Vérifie le serveur de rappels (GET /api/health). Ne dit « ok » que si le serveur répond réellement. */
 export async function checkServer(): Promise<ServerHealth> {
@@ -106,7 +111,7 @@ export async function checkServer(): Promise<ServerHealth> {
     const r = await fetch(`${API_URL}/api/health`, { cache: 'no-store' });
     if (!r.ok) return { reachable: false, keyMatches: null, lastCron: null };
     const j = (await r.json()) as { publicKey?: string; lastCron?: string | null };
-    return { reachable: true, keyMatches: j.publicKey === VAPID_PUBLIC_KEY, lastCron: j.lastCron ?? null };
+    return { reachable: true, keyMatches: j.publicKey === VAPID_PUBLIC_KEY, lastCron: j.lastCron ?? null, appKey: maskKey(VAPID_PUBLIC_KEY), serverKey: maskKey(j.publicKey) };
   } catch {
     return { reachable: false, keyMatches: null, lastCron: null };
   }
