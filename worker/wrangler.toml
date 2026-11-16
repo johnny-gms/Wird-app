@@ -15,8 +15,8 @@ crons = ["*/15 * * * *"]
 
 [vars]
 ALLOWED_ORIGIN = "https://wird-app-u62.pages.dev"   # origine autorisée (CORS), sans / final
+VAPID_PUBLIC_KEY = "BIm_xxz1SXHFiCQgiP8xsJAVtCQh6UUgQUJIMEs0OT4YEOBTmqvQpANch5JdjVsh63nlzyc1qExPsyBOz8C3lrc"   # clé PUBLIQUE (pas un secret) : dans ce fichier pour survivre aux redéploiements
 VAPID_SUBJECT = "mailto:gomesj.pro@gmail.com"        # exigé par les services Push (Apple, Google, Mozilla)
 
-# Secrets (jamais dans ce fichier) :
-#   npx wrangler secret put VAPID_PUBLIC_KEY
+# Secret (jamais dans ce fichier) : seule la clé PRIVÉE. Ne pas recréer VAPID_PUBLIC_KEY comme secret (conflit avec la variable ci-dessus).
 #   npx wrangler secret put VAPID_PRIVATE_KEY
