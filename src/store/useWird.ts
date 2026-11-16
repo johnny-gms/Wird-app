@@ -6,6 +6,7 @@ import {
   completeGoal as completeGoalCore,
   evaluateItem,
   hasOpenGoal,
+  itemSig,
   learningEnabled,
   memorizedIds,
   nextLearnTargets,
@@ -21,6 +22,8 @@ import type {
   DraftGrade,
   Gender,
   LearnEvery,
+  PhoneProgress,
+  SessionMode,
   LearnMode,
   LearnUnit,
   LearningGoal,
@@ -78,11 +81,17 @@ interface Actions {
 
   addAdhoc(surah: number, from: number, to: number): string | null;
   /** Ouvre la séance (tout le programme restant, ou un seul élément). Retourne false s'il n'y a rien à faire. */
-  startSession(only?: string | string[]): boolean;
+  startSession(only?: string | string[], opts?: { mode?: SessionMode; minutes?: number }): boolean;
+  chooseMode(mode: SessionMode): void;
+  /** Mode Téléphone : met à jour la progression d'un passage / ouvre ou ferme un passage. */
+  setPhone(sig: string, patch: Partial<PhoneProgress>): void;
+  setCurrent(sig: string | null): void;
+  /** Séance ouverte la veille : la reprendre (progression et brouillons retrouvés sur les passages du jour) ou l'abandonner. */
+  resumeStaleSession(): void;
+  discardStaleSession(): void;
   openEvaluation(): void;
   backToProgram(): void;
   setDraft(itemId: string, grade: DraftGrade | null): void;
-  markViewed(itemId: string): void;
   /** Valide le bilan : applique toutes les évaluations. Retourne 'bilan' si du travail a été enregistré. */
   validateSession(): 'bilan' | 'none';
   skipItem(id: string): void;
@@ -163,7 +172,7 @@ export const useWird = create<WirdStore>((set, get) => {
     // Séance ouverte : on ne garde que les éléments encore présents et à faire.
     let session = s.session;
     const nextPlan = buildPlan(s, today, s.plan);
-    if (session) {
+    if (session && session.date === nextPlan.date) {
       const open = new Set(nextPlan.items.filter((i) => i.status === 'pending').map((i) => i.id));
       if (session.scope !== 'all') {
         const scope = session.scope.filter((id) => open.has(id));
@@ -246,7 +255,8 @@ export const useWird = create<WirdStore>((set, get) => {
         };
         dayLog = [...dayLog.filter((d) => d.date !== rec.date), rec].slice(-400);
       }
-      rebuild({ dayLog, session: null, plan: null });
+      // une séance restée ouverte est conservée : l'utilisateur choisira de la reprendre ou non (voir resumeStaleSession)
+      rebuild({ dayLog, session: s.session && s.session.step !== 'choose' ? s.session : null, plan: null });
     },
 
     /** Fin du parcours de premier lancement : enregistre la configuration et les sourates déjà apprises. */
@@ -367,7 +377,7 @@ export const useWird = create<WirdStore>((set, get) => {
       return item.id;
     },
 
-    startSession(only) {
+    startSession(only, opts) {
       get().ensureToday();
       const s = get();
       if (!s.plan) return false;
@@ -377,9 +387,61 @@ export const useWird = create<WirdStore>((set, get) => {
       const wanted: SessionState['scope'] = ids ?? 'all';
       const prev = s.session && s.session.date === s.plan.date ? s.session : null;
       const same = prev && JSON.stringify(prev.scope) === JSON.stringify(wanted);
-      if (same) return true; // reprise : brouillon d'évaluation conservé
-      set({ session: { date: s.plan.date, step: 'program', scope: wanted, draft: {}, activeMs: prev?.activeMs ?? 0, startedAt: prev?.startedAt ?? new Date().toISOString() } });
+      if (same) return true; // reprise : état de la séance conservé
+      const kind: SessionState['kind'] = s.summaries.some((x) => x.date === s.plan!.date) ? 'extra' : 'main';
+      set({
+        session: {
+          date: s.plan.date,
+          step: opts?.mode ? 'program' : 'choose',
+          mode: opts?.mode,
+          kind,
+          minutes: opts?.minutes,
+          scope: wanted,
+          draft: {},
+          phone: {},
+          current: null,
+          activeMs: prev?.activeMs ?? 0,
+          startedAt: prev?.startedAt ?? new Date().toISOString(),
+        },
+      });
       return true;
+    },
+
+    chooseMode(mode) {
+      const s = get().session;
+      if (s) set({ session: { ...s, mode, step: 'program' } });
+    },
+    setPhone(sig, patch) {
+      const s = get().session;
+      if (!s) return;
+      const cur = s.phone?.[sig] ?? { shown: 1, hidden: false, done: false };
+      set({ session: { ...s, phone: { ...(s.phone ?? {}), [sig]: { ...cur, ...patch } } } });
+    },
+    setCurrent(sig) {
+      const s = get().session;
+      if (s) set({ session: { ...s, current: sig } });
+    },
+    resumeStaleSession() {
+      const s = get();
+      const sess = s.session;
+      if (!sess || !s.plan || sess.date === s.plan.date) return;
+      // les passages non terminés reviennent d'eux-mêmes au programme du jour : on y retrouve la progression et les évaluations saisies
+      const idBySig = new Map(s.plan.items.map((i) => [itemSig(i), i.id]));
+      const draft: SessionState['draft'] = {};
+      const sigs: Record<string, string> = {};
+      for (const [id, grade] of Object.entries(sess.draft)) {
+        const sig = sess.sigs?.[id];
+        const nid = sig ? idBySig.get(sig) : undefined;
+        if (nid) {
+          draft[nid] = grade;
+          sigs[nid] = sig!;
+        }
+      }
+      set({ session: { ...sess, date: s.plan.date, scope: 'all', draft, sigs } });
+    },
+    discardStaleSession() {
+      const s = get();
+      if (s.session && s.plan && s.session.date !== s.plan.date) set({ session: null });
     },
 
     openEvaluation() {
@@ -390,18 +452,14 @@ export const useWird = create<WirdStore>((set, get) => {
       const s = get().session;
       if (s) set({ session: { ...s, step: 'program' } });
     },
-    markViewed(itemId) {
-      const s = get().session;
-      if (!s || s.viewed?.includes(itemId)) return;
-      set({ session: { ...s, viewed: [...(s.viewed ?? []), itemId] } });
-    },
     setDraft(itemId, grade) {
       const s = get().session;
       if (!s) return;
       const draft = { ...s.draft };
       if (grade === null) delete draft[itemId];
       else draft[itemId] = grade;
-      set({ session: { ...s, draft } });
+      const item = get().plan?.items.find((i) => i.id === itemId);
+      set({ session: { ...s, draft, sigs: item ? { ...(s.sigs ?? {}), [itemId]: itemSig(item) } : s.sigs } });
     },
 
     /**

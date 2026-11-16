@@ -27,7 +27,7 @@ export function GradeChip({ grade }: { grade: Grade }) {
 }
 
 export function KindBadge({ kind }: { kind: WorkKind }) {
-  return <span className={cx('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold', KIND_STYLE[kind])}>{KIND_LABEL[kind]}</span>;
+  return <span className={cx('inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold', KIND_STYLE[kind])}>{KIND_LABEL[kind]}</span>;
 }
 
 export function ProgressBar({ value, tone = 'primary', className }: { value: number; tone?: 'primary' | 'good' | 'warn' | 'blue' | 'gold'; className?: string }) {

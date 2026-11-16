@@ -1,6 +1,6 @@
 // Parcours de bout en bout (Playwright) — nécessite `npm run build && npm run preview`.
 // Usage : PW_REQUIRE=/chemin/package.json BASE_URL=http://127.0.0.1:4173 node tests/e2e/smoke.mjs
-import { BASE, OUT, chromium, devices, done, markWorked, ok, onboard, settle } from './lib.mjs';
+import { BASE, OUT, chooseMode, chromium, devices, done, markWorked, ok, onboard, settle } from './lib.mjs';
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ ...devices['iPhone 14'], serviceWorkers: 'allow', locale: 'fr-FR', reducedMotion: 'reduce' });
@@ -152,6 +152,8 @@ await page.screenshot({ path: `${OUT}/07-revisions.png`, fullPage: true });
 await page.goto(BASE + '/');
 await page.getByRole('button', { name: 'Commencer ma séance' }).click();
 await page.waitForURL('**/session');
+await page.getByText('Comment veux-tu travailler ?').waitFor();
+await chooseMode(page, 'mushaf');
 await page.getByRole('heading', { name: 'Travail des passages' }).waitFor();
 const items = await page.locator('main ol > li').count();
 ok(items >= 3, `la séance affiche tout le programme (${items} éléments)`);
@@ -168,7 +170,7 @@ await page.getByText('Activités inachevées').waitFor();
 ok(true, 'séance interrompue → « Activités inachevées » dans Révisions');
 await page.getByRole('button', { name: /Reprendre/ }).first().click();
 await page.getByRole('heading', { name: 'Travail des passages' }).waitFor();
-await page.getByRole('button', { name: 'Passer à l’évaluation' }).click();
+await page.getByRole('button', { name: 'Terminer ma séance' }).click();
 const groups = page.getByRole('radiogroup');
 const n = await groups.count();
 ok(await page.getByRole('button', { name: 'Valider le bilan' }).isDisabled(), 'validation impossible tant que tout n’est pas évalué');

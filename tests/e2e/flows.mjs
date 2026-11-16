@@ -128,6 +128,33 @@ await p2.getByText('Ma progression').first().waitFor();
 ok(true, 'migration : ancienne séance remplacée sans erreur');
 await ctx2.close();
 
+// ---------- Séance restée ouverte la veille : reprise ou nouvelle séance ----------
+await setDays(14);
+await page.goto(BASE + '/');
+await page.getByRole('button', { name: /(Commencer|Reprendre) ma séance/ }).first().click();
+await page.getByText(/Comment veux-tu travailler|Travail des passages/).first().waitFor();
+if (await page.getByText('Comment veux-tu travailler ?').isVisible().catch(() => false)) await page.getByRole('radio', { name: /Avec mon téléphone/ }).click();
+await page.getByRole('button', { name: /^(Travailler|Continuer)/ }).first().click();
+while (!(await page.getByRole('button', { name: 'Passage terminé' }).isVisible().catch(() => false))) await page.getByRole('button', { name: 'Verset suivant' }).click();
+await page.getByRole('button', { name: 'Passage terminé' }).click();
+await page.getByText('Travaillé', { exact: true }).first().waitFor();
+await settle(page, 500);
+await setDays(15);
+await page.goto(BASE + '/');
+await page.getByText('Ta dernière séance n’a pas été terminée').waitFor();
+ok(await page.getByRole('button', { name: 'Reprendre ma précédente séance' }).isVisible() && await page.getByRole('button', { name: 'Commencer la séance du jour' }).isVisible(), 'lendemain : « Ta dernière séance n’a pas été terminée » avec les deux choix');
+await page.getByRole('button', { name: 'Reprendre ma précédente séance' }).click();
+await page.waitForURL('**/session');
+await page.getByText('Travaillé', { exact: true }).first().waitFor();
+ok(true, 'reprise de la séance de la veille : le passage travaillé est retrouvé tel quel');
+await page.getByRole('button', { name: /Interrompre/ }).click();
+await setDays(16);
+await page.goto(BASE + '/');
+await page.getByText('Ta dernière séance n’a pas été terminée').waitFor();
+await page.getByRole('button', { name: 'Commencer la séance du jour' }).click();
+await page.getByRole('button', { name: /Commencer ma séance|Reprendre ma séance/ }).first().waitFor();
+ok(!(await page.getByText('Ta dernière séance n’a pas été terminée').isVisible().catch(() => false)), 'nouvelle séance du jour : l’ancienne est abandonnée, les passages restent au programme');
+
 // ---------- Export / import / reset ----------
 await page.goto(BASE + '/profil/parametres');
 const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Exporter mes données/ }).click()]);

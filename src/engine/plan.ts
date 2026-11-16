@@ -49,6 +49,9 @@ export function itemVerseCount(item: Pick<PlanItem, 'from' | 'to'>): number {
   return item.to - item.from + 1;
 }
 
+/** Signature d'un passage (type, sourate, versets) : identique d'un jour à l'autre, contrairement à l'id du programme. */
+export const itemSig = (item: Pick<PlanItem, 'kind' | 'surah' | 'from' | 'to'>): string => `${item.kind}:${item.surah}:${item.from}-${item.to}`;
+
 export const itemPages = (item: Pick<PlanItem, 'surah' | 'from' | 'to'>): number => rangePages(item.surah, item.from, item.to);
 
 const mkId = (date: string, kind: WorkKind, surah: number, from: number, to: number) => `${date}:${kind}:${surah}:${from}-${to}`;

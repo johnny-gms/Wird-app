@@ -74,17 +74,39 @@ export type DraftGrade = Grade | 'skip';
  * Séance : on consulte le programme, on travaille, puis on évalue TOUT d'un coup (« Passer à l'évaluation »).
  * Les évaluations saisies restent un brouillon modifiable jusqu'à la validation du bilan.
  */
+/** Mode de séance : avec un Mushaf papier, ou directement dans WIRD (dévoilement cumulatif des versets). */
+export type SessionMode = 'mushaf' | 'phone';
+
+/** Progression d'un passage en mode Téléphone. */
+export interface PhoneProgress {
+  /** Nombre de versets dévoilés (cumulatif : les précédents restent intégrés). */
+  shown: number;
+  /** Tous les versets dévoilés sont masqués (récitation de mémoire). */
+  hidden: boolean;
+  /** Passage travaillé jusqu'au bout. */
+  done: boolean;
+}
+
 export interface SessionState {
   date: string;
-  step: 'program' | 'evaluate';
+  step: 'choose' | 'program' | 'evaluate';
+  mode?: SessionMode;
+  /** Séance principale du jour ou séance supplémentaire. */
+  kind?: 'main' | 'extra';
+  /** Durée indicative choisie pour une séance supplémentaire (jamais une limite). */
+  minutes?: number;
+  /** Mode Téléphone : progression par passage (clé = signature du passage, stable d'un jour à l'autre). */
+  phone?: Record<string, PhoneProgress>;
+  /** Mode Téléphone : signature du passage ouvert. */
+  current?: string | null;
+  /** id d'élément → signature, pour retrouver ses évaluations si la séance est reprise le lendemain. */
+  sigs?: Record<string, string>;
   /** Éléments du programme concernés par la séance (ordre du programme). */
   scope: 'all' | string[];
   draft: Record<string, DraftGrade>;
   /** Temps actif cumulé (ms), mesuré uniquement quand l'application est visible. */
   activeMs: number;
   startedAt: string;
-  /** Passages ouverts pendant la séance (indicateur « Consulté » : ne valide rien). */
-  viewed?: string[];
 }
 
 export interface HistoryEntry {

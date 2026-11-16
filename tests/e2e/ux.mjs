@@ -1,5 +1,5 @@
 // Vérifications de la refonte UX : accueil adaptatif, séance (Consulté), progression, filtres, sélection de versets, avatars, paramètres, thèmes, petits écrans.
-import { BASE, OUT, chromium, devices, done, markWorked, ok, onboard, settle } from './lib.mjs';
+import { BASE, OUT, chooseMode, chromium, devices, done, markWorked, ok, onboard, settle } from './lib.mjs';
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ ...devices['iPhone 14'], serviceWorkers: 'allow', locale: 'fr-FR', reducedMotion: 'reduce' });
@@ -23,24 +23,64 @@ ok(await page.getByText('Continuons ensemble').isVisible(), 'accueil : révision
 ok(await page.getByRole('button', { name: 'Commencer ma séance' }).isVisible(), 'accueil : bouton principal « Commencer ma séance »');
 ok(await page.getByRole('button', { name: 'Recalculer' }).isVisible() && !(await page.getByRole('button', { name: 'Recalculer' }).evaluate((b) => b.className.includes('btn'))), 'accueil : « Recalculer » est une action secondaire');
 
-// ---------- Séance : titre, « Consulté », sauvegarde, reprise ----------
+// ---------- Séance : deux modes, dévoilement cumulatif, fin de séance, sauvegarde ----------
 await page.getByRole('button', { name: 'Commencer ma séance' }).click();
 await page.waitForURL('**/session');
+await page.getByText('Comment veux-tu travailler ?').waitFor();
+ok(await page.getByRole('radio', { name: /Avec mon Mushaf/ }).isVisible() && await page.getByRole('radio', { name: /Avec mon téléphone/ }).isVisible(), 'séance : choix Mushaf / Téléphone');
+await chooseMode(page, 'phone');
 await page.getByRole('heading', { name: 'Travail des passages' }).waitFor();
-ok(await page.getByRole('button', { name: 'Passer à l’évaluation' }).isVisible(), 'séance : « Passer à l’évaluation »');
-ok(!(await page.getByText('Consulté', { exact: true }).count()), 'séance : rien n’est « Consulté » avant ouverture');
-await page.locator('main ol > li button[aria-expanded]').first().click();
-await page.getByText('Consulté', { exact: true }).first().waitFor();
-ok(true, 'séance : un passage ouvert est marqué « Consulté »');
+ok(await page.getByRole('button', { name: 'Terminer ma séance' }).first().isVisible(), 'séance : « Terminer ma séance » toujours accessible');
+// premier passage : un verset dévoilé, puis le suivant (cumulatif)
+await page.getByRole('button', { name: /^(Travailler|Continuer)/ }).first().click();
+await page.getByText(/Verset 1 sur/).waitFor();
+const nVerses = Number((await page.getByText(/Verset 1 sur/).innerText()).match(/sur (\d+)/)[1]);
+const len1 = (await page.getByTestId('verses').innerText()).length;
+if (nVerses > 1) {
+  await page.getByRole('button', { name: 'Verset suivant' }).click();
+  await page.getByText(/Verset 2 sur/).waitFor();
+  ok((await page.getByTestId('verses').innerText()).length > len1, 'téléphone : le verset suivant s’ajoute aux précédents (dévoilement cumulatif)');
+}
+await page.getByRole('button', { name: 'Masquer' }).click();
+ok((await page.getByTestId('verses').getAttribute('aria-hidden')) === 'true' && await page.getByRole('button', { name: 'Afficher' }).isVisible(), 'téléphone : « Masquer » masque tous les versets dévoilés, « Afficher » les révèle');
+await page.getByRole('button', { name: 'Afficher' }).click();
 await settle(page, 500);
 await page.reload();
-await page.getByRole('heading', { name: 'Travail des passages' }).waitFor();
-ok((await page.getByText('Consulté', { exact: true }).count()) > 0, 'séance sauvegardée : « Consulté » conservé après rechargement');
+await page.getByText(/Verset \d+ sur/).waitFor();
+ok(true, 'séance sauvegardée : le passage en cours est retrouvé après rechargement');
+// fin de séance avec des passages restants : confirmation
+await page.getByRole('button', { name: 'Terminer ma séance' }).first().click();
+await page.getByText(/Il te reste encore \d+ passage/).waitFor();
+ok(await page.getByRole('button', { name: 'Continuer ma séance' }).isVisible() && await page.getByRole('button', { name: 'Terminer quand même' }).isVisible(), 'fin de séance : confirmation avec « Continuer ma séance » / « Terminer quand même »');
+await page.getByRole('button', { name: 'Continuer ma séance' }).click();
 await page.getByRole('button', { name: /Interrompre/ }).click();
-await page.getByRole('button', { name: /Interrompre|Quitter|Oui/ }).last().click().catch(() => {});
 await page.goto(BASE + '/');
 await page.getByText('Reprenons là où tu en étais').waitFor();
 ok(true, 'accueil : séance en cours → « Reprenons là où tu en étais »');
+// reprise : bon passage, évaluation seulement des passages travaillés, restants reportés
+await page.getByRole('button', { name: 'Reprendre la séance' }).click();
+await page.getByText(/Verset \d+ sur/).waitFor(); // le passage ouvert est retrouvé tel quel
+await page.getByRole('button', { name: 'Retour à la liste des passages' }).click();
+await page.getByRole('button', { name: /^(Travailler|Continuer)/ }).first().click();
+while (!(await page.getByRole('button', { name: 'Passage terminé' }).isVisible().catch(() => false))) await page.getByRole('button', { name: 'Verset suivant' }).click();
+await page.getByRole('button', { name: 'Passage terminé' }).click();
+await page.getByText('Travaillé', { exact: true }).first().waitFor();
+await page.getByRole('button', { name: 'Terminer ma séance' }).first().click();
+await page.getByRole('button', { name: 'Terminer quand même' }).click();
+await page.getByRole('heading', { name: 'Bilan de la séance' }).waitFor();
+ok((await page.getByRole('radiogroup', { name: /Évaluation/ }).count()) === 1 && /passages restants/i.test(await body()), 'bilan : seul le passage travaillé est évalué, les restants sont reportés automatiquement');
+await page.getByRole('radiogroup', { name: /Évaluation/ }).first().getByRole('radio', { name: 'Maîtrisé', exact: true }).click();
+await page.getByRole('button', { name: 'Valider le bilan' }).click();
+await page.waitForURL('**/session/bilan');
+await page.getByText('Envie de continuer ?').waitFor();
+ok(true, 'après la séance principale : proposition de séance supplémentaire');
+await page.getByRole('radio', { name: '5 min', exact: true }).click();
+await page.getByRole('button', { name: 'Prochains passages recommandés' }).click();
+await page.waitForURL('**/session');
+await page.getByRole('heading', { name: 'Séance supplémentaire' }).waitFor();
+ok(true, 'séance supplémentaire : passages recommandés, durée indicative');
+await page.getByRole('button', { name: /Interrompre/ }).click();
+await page.goto(BASE + '/');
 
 // ---------- Progression ----------
 await page.goto(BASE + '/progression');

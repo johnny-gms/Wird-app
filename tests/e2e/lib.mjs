@@ -51,12 +51,19 @@ export async function markWorked(page) {
 }
 
 /** Ouvre la séance, évalue chaque élément avec pick(i, textes), valide. */
+/** Choix du mode de séance (écran « Comment veux-tu travailler ? ») : 'mushaf' ou 'phone'. */
+export async function chooseMode(page, mode = 'mushaf') {
+  await page.getByRole('radio', { name: mode === 'mushaf' ? /Avec mon Mushaf/ : /Avec mon téléphone/ }).click();
+}
+
 export async function runSession(page, pick) {
   await page.goto(BASE + '/');
   await page.getByRole('button', { name: /(Commencer|Reprendre) ma séance/ }).first().click();
+  await page.getByText(/Comment veux-tu travailler|Travail des passages/).first().waitFor();
+  if (await page.getByText('Comment veux-tu travailler ?').isVisible().catch(() => false)) await chooseMode(page, 'mushaf');
   await page.getByRole('heading', { name: 'Travail des passages' }).waitFor();
   const ranges = await page.locator('main ol > li button[aria-expanded]').allInnerTexts();
-  await page.getByRole('button', { name: 'Passer à l’évaluation' }).click();
+  await page.getByRole('button', { name: 'Terminer ma séance' }).click();
   const groups = page.getByRole('radiogroup');
   const n = await groups.count();
   for (let i = 0; i < n; i++) await groups.nth(i).getByRole('radio', { name: pick(i, ranges), exact: true }).click();
