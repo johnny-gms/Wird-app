@@ -5,7 +5,7 @@ import type { NotificationPrefs } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
 import { isIOS, isStandalone } from '@/lib/pwa';
 import { APP_VERSION } from '@/lib/version';
-import { checkServer, disableNotifications, enableNotifications, getPushStatus, sendLocalTest, sendServerTest, serverConfigured, type PushStatus, type ServerHealth } from '@/notifications/client';
+import { API_URL, checkServer, disableNotifications, enableNotifications, getPushStatus, sendLocalTest, sendServerTest, serverConfigured, type PushStatus, type ServerHealth } from '@/notifications/client';
 import { useWird } from '@/store/useWird';
 
 // ------------------------------------------------------------------ Rappels
@@ -139,7 +139,7 @@ function Dashboard({ status, onChanged }: { status: PushStatus | null; onChanged
       id: 'vars',
       label: 'Variables de l’application',
       state: serverConfigured ? 'ok' : 'todo',
-      detail: serverConfigured ? 'VITE_PUSH_API_URL et VITE_VAPID_PUBLIC_KEY présentes dans ce build.' : undefined,
+      detail: serverConfigured ? `VITE_PUSH_API_URL et VITE_VAPID_PUBLIC_KEY présentes dans ce build (serveur : ${API_URL.replace(/^https?:\/\//, '')}).` : undefined,
       todo: <>Cloudflare Pages › ton projet › <b>Settings › Variables and secrets</b> : ajoute <code>VITE_PUSH_API_URL</code> (URL du Worker) et <code>VITE_VAPID_PUBLIC_KEY</code> (clé publique), puis relance un déploiement.</>,
     },
     {
@@ -153,6 +153,7 @@ function Dashboard({ status, onChanged }: { status: PushStatus | null; onChanged
       id: 'key',
       label: 'Clé VAPID identique des deux côtés',
       state: health?.keyMatches === true ? 'ok' : health?.keyMatches === false ? 'todo' : 'unknown',
+      detail: health?.appKey ? `Clé de l’application : ${health.appKey} · clé du serveur : ${health.serverKey}` : undefined,
       todo: <>La clé publique du Worker (secret <code>VAPID_PUBLIC_KEY</code>) doit être identique à <code>VITE_VAPID_PUBLIC_KEY</code>. Régénère un couple avec <code>node scripts/gen-vapid.mjs</code> et mets à jour les deux.</>,
     },
     {
@@ -190,7 +191,7 @@ function Dashboard({ status, onChanged }: { status: PushStatus | null; onChanged
               {c.state === 'ok' ? <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-good" /> : c.state === 'todo' ? <XCircle size={20} className="mt-0.5 shrink-0 text-hard" /> : <CircleDashed size={20} className="mt-0.5 shrink-0 text-muted" />}
               <div className="min-w-0 text-sm">
                 <p className="font-semibold">{c.label}</p>
-                {c.state === 'ok' && c.detail && <p className="text-muted">{c.detail}</p>}
+                {c.detail && (c.state === 'ok' || c.id === 'key') && <p className="text-muted">{c.detail}</p>}
                 {c.state === 'unknown' && <p className="text-muted">Non vérifiable pour le moment (serveur non configuré ou injoignable).</p>}
                 {c.state === 'todo' && <p className="mt-0.5 leading-relaxed text-muted"><b className="text-ink">À faire :</b> {c.todo}</p>}
               </div>
