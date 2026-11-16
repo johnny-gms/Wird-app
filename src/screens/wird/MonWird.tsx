@@ -59,14 +59,13 @@ export default function MonWird() {
 
   return (
     <Screen title="Mes sourates" sub="Mon Wird">
-      <div className="mb-3 grid grid-cols-2 gap-1 rounded-2xl bg-surface2 p-1" role="tablist" aria-label="Organisation">
-        {([['surahs', 'Sourates'], ['juz', 'Juz et Hizb']] as const).map(([v, l]) => (
-          <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)} className={cx('rounded-xl py-2 text-sm font-semibold transition', view === v ? 'bg-surface shadow-sm' : 'text-muted')}>{l}</button>
-        ))}
-      </div>
       {view === 'juz' ? (
         <>
           <Link to="/coran" className="btn-soft w-full !min-h-[36px] !py-1.5 text-sm" aria-label="Ouvrir le Coran numérique"><BookOpen size={16} /> Coran numérique</Link>
+          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted">
+            <p>30 Juz · 60 Hizb</p>
+            <button onClick={() => setView('surahs')} className="font-semibold text-primary">Voir par sourate</button>
+          </div>
           <JuzHizbList />
         </>
       ) : (
@@ -81,7 +80,10 @@ export default function MonWird() {
             <button key={x.v} onClick={() => setF(x.v)} aria-pressed={f === x.v} className="chip chip-sm">{x.l}</button>
           ))}
         </div>
-        <p className="mt-3 text-xs text-muted">{list.length} sourate{list.length > 1 ? 's' : ''}</p>
+        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted">
+        <p>{list.length} sourate{list.length > 1 ? 's' : ''}</p>
+        <button onClick={() => setView('juz')} className="font-semibold text-primary">Organiser par Juz et Hizb</button>
+      </div>
         <div ref={listRef} className="mt-1 space-y-2.5">
           {list.map((s) => <SurahCard key={s.id} st={stats[s.id - 1]} declared={!workedSurahs.has(s.id)} />)}
           {!list.length && <p className="card p-6 text-center text-sm text-muted">Aucune sourate ne correspond.</p>}

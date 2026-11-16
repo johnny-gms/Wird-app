@@ -56,7 +56,8 @@ await page.goto(BASE + '/wird');
 await page.getByRole('heading', { name: 'Mes sourates' }).waitFor();
 const chips = await page.locator('[role=group][aria-label="Filtrer par état"] button').evaluateAll((els) => els.map((e) => ({ t: e.innerText, h: e.getBoundingClientRect().height })));
 ok(chips.length === 5 && chips[0].t === 'Toutes' && chips.every((c) => c.h >= 30 && c.h <= 34), `filtres d’état compacts (${chips.map((c) => `${c.t} ${Math.round(c.h)}px`).join(', ')})`);
-ok(!(await page.getByRole('button', { name: /par Hizb/ }).count()) && (await page.getByRole('tab', { name: 'Juz et Hizb' }).isVisible()), 'filtre Hizb retiré ; navigation par Juz et Hizb dans un onglet distinct');
+const chipsText = await page.locator('[role=group][aria-label="Filtrer par état"]').innerText();
+ok(!/Hizb|Juz/.test(chipsText) && (await page.getByRole('button', { name: 'Organiser par Juz et Hizb' }).isVisible()), 'Juz et Hizb séparés des filtres d’état : petit lien discret, pas un filtre');
 
 // ---------- Détail : sélection simple / multiple ----------
 await page.goto(BASE + '/wird/112');
