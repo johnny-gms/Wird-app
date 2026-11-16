@@ -15,7 +15,7 @@ Rien de ceci n'a été fait ni ne peut l'être depuis le dépôt : il faut ton c
 6. **Enregistrer les secrets** : `npx wrangler secret put VAPID_PUBLIC_KEY` puis `npx wrangler secret put VAPID_PRIVATE_KEY` (colle les valeurs).
 7. **Déployer** : `npx wrangler deploy` → note l'URL du Worker (`https://wird-push.<ton-compte>.workers.dev`).
 8. **Vérifier le Cron** : Cloudflare › Workers & Pages › `wird-push` › Settings › Trigger Events › Cron Triggers → `*/15 * * * *`.
-9. **Brancher l'app** : Cloudflare Pages › ton projet › Settings › Variables and secrets → `VITE_PUSH_API_URL` (URL du Worker) et `VITE_VAPID_PUBLIC_KEY` (clé publique), puis relance un déploiement.
+9. **Brancher l'app** (dans ce dépôt, l'adresse du Worker et la clé publique sont déjà dans `.env.production` : valeurs publiques, la clé privée n'y est jamais ; ne pas les redéfinir dans le tableau de bord Pages, qui aurait la priorité) : Cloudflare Pages › ton projet › Settings › Variables and secrets → `VITE_PUSH_API_URL` (URL du Worker) et `VITE_VAPID_PUBLIC_KEY` (clé publique), puis relance un déploiement.
 10. **Tester sur iPhone** (iOS 16.4+) : installe l'app sur l'écran d'accueil, ouvre-la depuis l'icône, Profil › Rappels › *Activer les rappels*, puis *Envoyer un test depuis le serveur*. Le tableau de bord doit afficher toutes les lignes en vert.
 
 ## Contrat d'API (JSON)
