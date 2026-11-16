@@ -34,6 +34,9 @@ export const ENGINE = {
   /** Les versets simplement déclarés « déjà appris » (jamais travaillés dans WIRD) entrent-ils dans la rotation de révision ? */
   declaredInRotation: false,
 
+  /** Sourates exclues du programme automatique (révision et propositions d'apprentissage) : Al-Fatiha, récitée chaque jour en prière. Elles restent consultables. */
+  autoExcludedSurahs: [1] as readonly number[],
+
   /** Durée de conservation de la corbeille (jours). */
   trashDays: 30,
 } as const;
@@ -66,7 +69,8 @@ export const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
 export const DEFAULT_SETTINGS: Settings = {
   learnDirection: 'forward',
   learnMode: 'surah',
-  learnPagesPerWeek: 2,
+  learnUnit: 'half',
+  learnEvery: 7,
   reviewPagesPerDay: 1,
   reinforceVersesPerDay: 15,
   theme: 'system',

@@ -2,7 +2,7 @@ import { BookOpen, Check, ChevronRight, Leaf } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ProfileAvatar } from '@/components/Avatar';
-import { ProgressBar, Screen, cx } from '@/components/ui';
+import { ProgressBar, Screen, Sheet, cx } from '@/components/ui';
 import { addDays, diffDays, startOfWeek } from '@/engine/dates';
 import { formatPages, pageOf } from '@/engine/pages';
 import { itemPages, upcomingRotation } from '@/engine/plan';
@@ -28,6 +28,7 @@ export default function Home() {
   useEffect(() => {
     void loadQuranText().then((d) => d && setMotivation(d.s[72][3].split(' ').slice(-3).join(' ')));
   }, []);
+  const stale = !!session && !!plan && session.date !== plan.date;
   const items = plan?.items ?? [];
   const pending = items.filter((i) => i.status === 'pending');
   const done = items.filter((i) => i.status === 'done');
@@ -98,6 +99,13 @@ export default function Home() {
       sub={formatDateLong()}
       right={<Link to="/profil" aria-label="Profil" className="mt-1"><ProfileAvatar name={profile.name} gender={profile.gender} size={42} /></Link>}
     >
+      <Sheet open={!!stale} onClose={() => undefined} title="Ta dernière séance n’a pas été terminée">
+        <p className="mb-5 text-[15px] leading-relaxed text-muted">Que souhaites-tu faire ? Les passages non terminés sont intégrés à ton programme du jour, sans surcharge.</p>
+        <div className="flex flex-col gap-2">
+          <button className="btn-primary" onClick={() => { store.resumeStaleSession(); haptic('tap'); nav('/session'); }}>Reprendre ma précédente séance</button>
+          <button className="btn-soft" onClick={() => { store.discardStaleSession(); haptic('tap'); }}>Commencer la séance du jour</button>
+        </div>
+      </Sheet>
       {profile.demo && <Link to="/profil" className="mb-3 block rounded-xl bg-warn-soft px-4 py-2.5 text-xs font-medium text-warn">Données de démonstration — tu peux les effacer depuis Profil.</Link>}
       {away && (
         <div className="card mb-3 p-4">

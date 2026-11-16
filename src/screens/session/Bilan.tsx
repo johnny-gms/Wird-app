@@ -1,29 +1,73 @@
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
-import { useMemo } from 'react';
-import { goalProgress } from '@/engine/plan';
+import { useMemo, useState } from 'react';
+import { goalProgress, upcomingRotation } from '@/engine/plan';
 import { overall } from '@/engine/progress';
 import { formatDuration, rangeLabel, surahMeta } from '@/engine/quran';
 import { useToday } from '@/lib/hooks';
 import { haptic } from '@/lib/haptics';
 import { planCounts } from '@/lib/plan';
 import { useWird } from '@/store/useWird';
-import { ProgressBar, Screen } from '@/components/ui';
+import { lastMode } from './Phone';
+import { GradeChip, ProgressBar, Screen, cx, toast } from '@/components/ui';
 import { formatPages } from '@/engine/pages';
 import { itemPages } from '@/engine/plan';
 
 export default function Bilan() {
   const nav = useNavigate();
   const today = useToday();
-  const { summaries, plan, goals, verses, startSession, lastValidation, undoValidation, session } = useWird();
+  const loc = useLocation();
+  const extraState = (loc.state as { extra?: { ms: number; ids: string[] } } | null)?.extra;
+  const [minutes, setMinutes] = useState(10);
+  const { summaries, plan, goals, verses, rotation, settings, startSession, addAdhoc, lastValidation, undoValidation, session } = useWird();
   const summary = [...summaries].reverse().find((s) => s.date === today);
   const c = planCounts(plan);
   const o = useMemo(() => overall(verses, today), [verses, today]);
   // après une annulation de validation, la séance est restaurée : on la rouvre au lieu de retourner à l'accueil
   if (!summary) return session ? <Navigate to="/session" replace /> : <Navigate to="/" replace />;
   const complete = c.open === 0;
+  // séance supplémentaire : bilan simplifié
+  const extraItems = extraState ? (plan?.items ?? []).filter((i) => extraState.ids.includes(i.id)) : [];
+  const startExtra = (kind: 'next' | 'free') => {
+    if (kind === 'free') {
+      toast('Choisis une sourate, puis « Réviser maintenant »');
+      nav('/wird');
+      return;
+    }
+    const chunks = upcomingRotation({ verses, goals, rotation, settings }, plan, Math.max(1, Math.round(minutes / 5)));
+    const ids = chunks.map((g) => addAdhoc(g.surah, g.from, g.to)).filter((x): x is string => !!x);
+    if (!ids.length) {
+      toast('Aucun passage à proposer pour le moment');
+      return;
+    }
+    if (startSession(ids, { mode: lastMode() ?? undefined, minutes })) nav('/session');
+  };
   const learnToday = (plan?.items ?? []).filter((i) => i.kind === 'learn' && i.status === 'done');
 
+  if (extraState) {
+    return (
+      <Screen title="Séance supplémentaire terminée" sub="Chaque minute de plus compte, in châ’ Allah.">
+        <section className="card p-5" aria-label="Bilan de la séance supplémentaire">
+          <div className="grid grid-cols-2 gap-2 text-center">
+            <Big n={extraItems.length} l="passages travaillés" />
+            <div><p className="font-display text-4xl font-semibold tabular-nums">{extraState.ms >= 60_000 ? Math.round(extraState.ms / 60000) : '< 1'}<span className="ml-1 text-sm">min</span></p><p className="mt-0.5 text-xs leading-tight text-muted">temps actif</p></div>
+          </div>
+          <ul className="mt-4 divide-y divide-line border-t border-line">
+            {extraItems.map((i) => (
+              <li key={i.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span className="min-w-0 flex-1"><b className="block truncate">{surahMeta(i.surah).tr}</b><span className="text-muted">{rangeLabel(i.surah, i.from, i.to).replace(/^Sourate \d+ — /, '')}</span></span>
+                {i.grade && <GradeChip grade={i.grade} />}
+              </li>
+            ))}
+          </ul>
+        </section>
+        <div className="mt-6 flex flex-col gap-2">
+          <button className="btn-soft" onClick={() => startExtra('next')}>Encore un peu</button>
+          <Link to="/" className="btn-primary">Retour à l’accueil</Link>
+        </div>
+      </Screen>
+    );
+  }
   const donePages = (plan?.items ?? []).filter((i) => i.status === 'done').reduce((a, i) => a + itemPages(i), 0);
   return (
     <Screen title={complete ? 'Séance accomplie' : 'Bien joué pour aujourd’hui'} sub={complete ? 'Qu’Allah accepte ton effort. À demain, in châ’ Allah.' : 'Ce qui reste peut attendre : rien n’est reporté ni dû.'}>
@@ -88,6 +132,18 @@ export default function Bilan() {
           <button className="btn-soft !min-h-[40px] text-sm" onClick={() => { if (undoValidation()) { haptic('warning'); nav('/session', { replace: true }); } }}>Annuler la validation</button>
         </div>
       )}
+
+      <section className="card mt-4 p-5" aria-label="Séance supplémentaire">
+        <b className="block">Envie de continuer ?</b>
+        <p className="mt-1 text-sm text-muted">Une séance supplémentaire, sans pression. La durée est indicative : tu peux t’arrêter ou continuer quand tu veux.</p>
+        <div className="mt-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Durée indicative">
+          {[5, 10, 15, 20].map((m) => <button key={m} role="radio" aria-checked={minutes === m} onClick={() => setMinutes(m)} className={cx('chip chip-sm')}>{m} min</button>)}
+        </div>
+        <div className="mt-3 grid gap-2">
+          <button className="btn-soft" onClick={() => startExtra('next')}>Prochains passages recommandés</button>
+          <button className="btn-soft" onClick={() => startExtra('free')}>Choisir une sourate ou un passage</button>
+        </div>
+      </section>
 
       <div className="mt-6 flex flex-col gap-2">
         {!complete && (

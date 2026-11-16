@@ -1,11 +1,12 @@
 import { BookOpen, Search } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { JuzHizbList } from './JuzHizb';
 import { FastScroll } from '@/components/FastScroll';
 import { matchSurah } from '@/components/SurahPickerList';
-import { Screen, Sheet, cx } from '@/components/ui';
-import { allSurahStats, cellState, hizbSurahs, type CellState, type SurahStats } from '@/engine/progress';
-import { HIZB_STARTS, SURAHS, fromAyahId, surahMeta } from '@/engine/quran';
+import { Screen, cx } from '@/components/ui';
+import { allSurahStats, cellState, type CellState, type SurahStats } from '@/engine/progress';
+import { SURAHS, fromAyahId, surahMeta } from '@/engine/quran';
 import { formatDateShort, useToday } from '@/lib/hooks';
 import { useWird } from '@/store/useWird';
 
@@ -31,8 +32,7 @@ export default function MonWird() {
   const verses = useWird((s) => s.verses);
   const [q, setQ] = useState('');
   const [f, setF] = useState<Filter>('all');
-  const [hizb, setHizb] = useState<number | null>(null);
-  const [hizbOpen, setHizbOpen] = useState(false);
+  const [view, setView] = useState<'surahs' | 'juz'>('surahs');
   const listRef = useRef<HTMLDivElement>(null);
   const stats = useMemo(() => allSurahStats(verses, today), [verses, today]);
   // sourates dont tous les versets appris sont simplement déclarés (jamais travaillés dans WIRD)
@@ -41,10 +41,9 @@ export default function MonWird() {
     for (const k in verses) if (verses[k].status === 'memorized' && !verses[k].declared) worked.add(fromAyahId(Number(k)).surah);
     return worked;
   }, [verses]);
-  const inHizb = useMemo(() => (hizb ? new Set(hizbSurahs(hizb)) : null), [hizb]);
   const list = useMemo(
     () =>
-      SURAHS.filter((s) => matchSurah(s, q)).filter((s) => !inHizb || inHizb.has(s.id)).filter((s) => {
+      SURAHS.filter((s) => matchSurah(s, q)).filter((s) => {
         const st = stats[s.id - 1];
         const cs = cellState(st);
         switch (f) {
@@ -55,39 +54,43 @@ export default function MonWird() {
           default: return true;
         }
       }),
-    [q, f, stats, inHizb],
+    [q, f, stats],
   );
 
   return (
     <Screen title="Mes sourates" sub="Mon Wird">
-      <div className="relative">
-        <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-        <input className="input pl-10" placeholder="Rechercher une sourate…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une sourate" />
-      </div>
-      <Link to="/coran" className="btn-soft mt-2.5 w-full !min-h-[36px] !py-1.5 text-sm" aria-label="Ouvrir le Coran numérique"><BookOpen size={16} /> Coran numérique</Link>
-      <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Filtrer par état">
-        {FILTERS.map((x) => (
-          <button key={x.v} onClick={() => setF(x.v)} aria-pressed={f === x.v} className="chip chip-sm">{x.l}</button>
-        ))}
-      </div>
-      <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted">
-        <p>{list.length} sourate{list.length > 1 ? 's' : ''}{hizb ? ` dans le Hizb ${hizb}` : ''}</p>
-        <button onClick={() => (hizb ? setHizb(null) : setHizbOpen(true))} className="font-semibold text-primary">{hizb ? `Hizb ${hizb} ✕` : 'Organiser par Hizb'}</button>
-      </div>
-      <div ref={listRef} className="mt-1 space-y-2.5">
-        {list.map((s) => <SurahCard key={s.id} st={stats[s.id - 1]} declared={!workedSurahs.has(s.id)} />)}
-        {!list.length && <p className="card p-6 text-center text-sm text-muted">Aucune sourate ne correspond.</p>}
-      </div>
-      <FastScroll targetRef={listRef} count={list.length} label={(i) => (list[i] ? `${list[i].id}. ${list[i].tr}` : '')} />
-      <Sheet open={hizbOpen} onClose={() => setHizbOpen(false)} title="Filtrer par Hizb">
-        <p className="mb-3 text-sm text-muted">Affiche les sourates dont au moins un verset appartient au Hizb choisi (Mushaf de Médine).</p>
-        <div className="grid grid-cols-6 gap-2">
-          {HIZB_STARTS.map((_, i) => (
-            <button key={i} onClick={() => { setHizb(hizb === i + 1 ? null : i + 1); setHizbOpen(false); }} className={cx('flex h-11 items-center justify-center rounded-xl text-sm font-bold tabular-nums', hizb === i + 1 ? 'bg-primary text-primary-ink' : 'bg-surface2')}>{i + 1}</button>
+      {view === 'juz' ? (
+        <>
+          <Link to="/coran" className="btn-soft w-full !min-h-[36px] !py-1.5 text-sm" aria-label="Ouvrir le Coran numérique"><BookOpen size={16} /> Coran numérique</Link>
+          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted">
+            <p>30 Juz · 60 Hizb</p>
+            <button onClick={() => setView('surahs')} className="font-semibold text-primary">Voir par sourate</button>
+          </div>
+          <JuzHizbList />
+        </>
+      ) : (
+        <>
+        <div className="relative">
+          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+          <input className="input pl-10" placeholder="Rechercher une sourate…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une sourate" />
+        </div>
+        <Link to="/coran" className="btn-soft mt-2.5 w-full !min-h-[36px] !py-1.5 text-sm" aria-label="Ouvrir le Coran numérique"><BookOpen size={16} /> Coran numérique</Link>
+        <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Filtrer par état">
+          {FILTERS.map((x) => (
+            <button key={x.v} onClick={() => setF(x.v)} aria-pressed={f === x.v} className="chip chip-sm">{x.l}</button>
           ))}
         </div>
-        {hizb && <button className="btn-ghost mt-3 w-full" onClick={() => { setHizb(null); setHizbOpen(false); }}>Toutes les sourates</button>}
-      </Sheet>
+        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted">
+        <p>{list.length} sourate{list.length > 1 ? 's' : ''}</p>
+        <button onClick={() => setView('juz')} className="font-semibold text-primary">Organiser par Juz et Hizb</button>
+      </div>
+        <div ref={listRef} className="mt-1 space-y-2.5">
+          {list.map((s) => <SurahCard key={s.id} st={stats[s.id - 1]} declared={!workedSurahs.has(s.id)} />)}
+          {!list.length && <p className="card p-6 text-center text-sm text-muted">Aucune sourate ne correspond.</p>}
+        </div>
+        <FastScroll targetRef={listRef} count={list.length} label={(i) => (list[i] ? `${list[i].id}. ${list[i].tr}` : '')} />
+        </>
+      )}
     </Screen>
   );
 }

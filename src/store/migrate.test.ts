@@ -8,7 +8,7 @@ describe('migration des données V1', () => {
     expect('direction' in s).toBe(false); // le sens de révision n'existe plus
     expect(s.learnDirection).toBe('backward');
     expect(s.reviewPagesPerDay).toBe(3);
-    expect(s.learnPagesPerWeek).toBe(0);
+    expect(s.learnMode).toBe('off');
     expect(s.reinforceVersesPerDay).toBe(20);
     expect(s.theme).toBe('dark');
     expect(s.notifications.daily).toEqual({ enabled: false, time: '06:00' });
@@ -38,5 +38,15 @@ describe('versets déclarés', () => {
     const out = normalizeState({ verses: { 1: { ...base }, 2: { ...base, id: 2, reviews: 3, lastGrade: 'mastered' } } } as never, {} as never);
     expect(out.verses[1].declared).toBe(true);
     expect(out.verses[2].declared).toBeUndefined();
+  });
+});
+
+describe('rythme d’apprentissage Hizb / demi-Hizb', () => {
+  it('l’ancien objectif en pages devient un demi-Hizb à un rythme équivalent', () => {
+    expect(migrateSettings({ learnMode: 'pages', learnPagesPerWeek: 30 })).toMatchObject({ learnMode: 'hizb', learnUnit: 'half', learnEvery: 1 });
+    expect(migrateSettings({ learnMode: 'pages', learnPagesPerWeek: 14 })).toMatchObject({ learnMode: 'hizb', learnEvery: 2 });
+    expect(migrateSettings({ learnMode: 'pages', learnPagesPerWeek: 3 })).toMatchObject({ learnMode: 'hizb', learnEvery: 7 });
+    expect(migrateSettings({ learnMode: 'pages', learnPagesPerWeek: 0 }).learnMode).toBe('off');
+    expect(migrateSettings({ learnMode: 'surah' }).learnMode).toBe('surah');
   });
 });

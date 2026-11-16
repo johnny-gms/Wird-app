@@ -56,8 +56,8 @@ await page.goto(BASE + '/revisions');
 await page.getByText('Auto', { exact: true }).first().waitFor();
 ok(true, 'apprentissage automatique : une sourate est proposée dans le sens choisi');
 await page.goto(BASE + '/profil/parametres');
-await page.getByRole('radio', { name: /Pages par semaine/ }).click();
-for (let i = 0; i < 16; i++) await page.getByRole('button', { name: /Plus de pages.*par semaine/ }).click();
+await page.getByRole('radio', { name: /Un demi-Hizb ou un Hizb/ }).click();
+await page.getByRole('radio', { name: 'Chaque jour' }).click();
 await settle(page);
 const j11b = await runSession(page, () => 'Maîtrisé');
 ok(j11b.n >= 3, 'séance avec objectif d’apprentissage relevé');
@@ -65,7 +65,11 @@ await page.goto(BASE + '/wird/1');
 await page.getByRole('heading', { name: /1\. Al-Fatihah/ }).waitFor();
 await page.getByRole('button', { name: /Verset 1 : /, exact: false }).first().waitFor();
 const v1 = await page.getByRole('button', { name: /^Verset 1 :/ }).getAttribute('aria-label');
-ok(/À renforcer|Appris/.test(v1), `Al-Fatiha apprise → confirmation à venir (${v1})`);
+ok(/Non suivi/.test(v1), `Al-Fatiha n’est jamais proposée automatiquement (${v1})`);
+await page.goto(BASE + '/wird/2');
+await page.getByRole('heading', { name: /2\. Al-Baqarah/ }).waitFor();
+const b1 = await page.getByRole('button', { name: /^Verset 1 :/ }).getAttribute('aria-label');
+ok(/apprentissage|Appris|À renforcer/.test(b1), `l’apprentissage automatique démarre à Al-Baqarah, 1er demi-Hizb (${b1})`);
 
 // ---------- Corbeille 30 jours ----------
 await page.goto(BASE + '/wird/112');
@@ -123,6 +127,33 @@ await p2.goto(BASE + '/');
 await p2.getByText('Ma progression').first().waitFor();
 ok(true, 'migration : ancienne séance remplacée sans erreur');
 await ctx2.close();
+
+// ---------- Séance restée ouverte la veille : reprise ou nouvelle séance ----------
+await setDays(14);
+await page.goto(BASE + '/');
+await page.getByRole('button', { name: /(Commencer|Reprendre) ma séance/ }).first().click();
+await page.getByText(/Comment veux-tu travailler|Travail des passages/).first().waitFor();
+if (await page.getByText('Comment veux-tu travailler ?').isVisible().catch(() => false)) await page.getByRole('radio', { name: /Avec mon téléphone/ }).click();
+await page.getByRole('button', { name: /^(Travailler|Continuer)/ }).first().click();
+while (!(await page.getByRole('button', { name: 'Passage terminé' }).isVisible().catch(() => false))) await page.getByRole('button', { name: 'Verset suivant' }).click();
+await page.getByRole('button', { name: 'Passage terminé' }).click();
+await page.getByText('Travaillé', { exact: true }).first().waitFor();
+await settle(page, 500);
+await setDays(15);
+await page.goto(BASE + '/');
+await page.getByText('Ta dernière séance n’a pas été terminée').waitFor();
+ok(await page.getByRole('button', { name: 'Reprendre ma précédente séance' }).isVisible() && await page.getByRole('button', { name: 'Commencer la séance du jour' }).isVisible(), 'lendemain : « Ta dernière séance n’a pas été terminée » avec les deux choix');
+await page.getByRole('button', { name: 'Reprendre ma précédente séance' }).click();
+await page.waitForURL('**/session');
+await page.getByText('Travaillé', { exact: true }).first().waitFor();
+ok(true, 'reprise de la séance de la veille : le passage travaillé est retrouvé tel quel');
+await page.getByRole('button', { name: /Interrompre/ }).click();
+await setDays(16);
+await page.goto(BASE + '/');
+await page.getByText('Ta dernière séance n’a pas été terminée').waitFor();
+await page.getByRole('button', { name: 'Commencer la séance du jour' }).click();
+await page.getByRole('button', { name: /Commencer ma séance|Reprendre ma séance/ }).first().waitFor();
+ok(!(await page.getByText('Ta dernière séance n’a pas été terminée').isVisible().catch(() => false)), 'nouvelle séance du jour : l’ancienne est abandonnée, les passages restent au programme');
 
 // ---------- Export / import / reset ----------
 await page.goto(BASE + '/profil/parametres');

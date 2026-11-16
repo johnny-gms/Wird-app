@@ -75,7 +75,6 @@
     overscroll-behavior-y: none;
     line-height: 1.4;
   }
-  .font-display { letter-spacing: -0.015em; }
   button {
     @apply select-none;
     touch-action: manipulation;
@@ -149,8 +148,8 @@
     background: radial-gradient(circle, transparent 62%, rgba(143, 168, 150, 0.18) 64%);
   }
   /* Hiérarchie typographique centralisée */
-  .title-page { @apply font-display text-[28px] font-bold leading-[1.15] tracking-[-0.02em]; }
-  .title-section { @apply font-display text-[21px] font-bold leading-tight tracking-[-0.015em]; }
+  .title-page { @apply font-display text-[27px] font-semibold leading-[1.15] tracking-[-0.2px]; }
+  .title-section { @apply font-display text-[21px] font-semibold leading-tight tracking-[-0.1px]; }
   .chip-sm { @apply !min-h-[32px] !px-3 !text-[12.5px]; }
   .ar {
     font-family: 'Amiri Quran', 'Geeza Pro', 'Traditional Arabic', 'Noto Naskh Arabic', serif;
@@ -171,7 +170,7 @@
   display: none;
 }
 
-/* écran de démarrage : l'icône WIRD sur fond crème, comme la référence */
+/* écran de démarrage : le logo WIRD (même image que l'icône de l'app) sur le fond de l'app, avec un halo vert discret */
 #spl {
   position: fixed;
   inset: 0;
@@ -179,17 +178,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #faf6ee;
+  background: radial-gradient(circle at 50% 44%, #e9eee3 0%, #f3f1e6 38%, #faf6ee 72%);
   transition: opacity 0.6s ease;
 }
 html[data-theme='dark'] #spl {
-  background: #121a16;
+  background: radial-gradient(circle at 50% 44%, #1f3329 0%, #162119 40%, #101713 75%);
 }
 #spl img {
-  width: 116px;
-  height: 116px;
-  border-radius: 27px;
-  box-shadow: 0 10px 30px rgba(31, 77, 58, 0.22);
+  width: 132px;
+  height: 132px;
+  filter: drop-shadow(0 12px 26px rgba(31, 77, 58, 0.28));
   opacity: 0;
   transform: scale(0.88);
   animation: splIn 0.7s 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
@@ -265,3 +263,6 @@ html.fs-active::-webkit-scrollbar { display: none; }
 }
 .mushaf-title { margin: 4px 0 10px; padding: 4px 0; text-align: center; font-size: 22px; border: 1.5px solid #3aa89a; border-radius: 8px; background: #3aa89a1a; }
 .mushaf-tab { padding: 2px 14px; font-size: 14px; border: 1.5px solid #3aa89a; border-radius: 6px; background: rgb(var(--surface)); }
+
+/* Contenu au-dessus d'un pied de page fixe (bouton + barre) : laisse toujours le dernier élément entièrement visible */
+.pb-footer { padding-bottom: calc(11.5rem + env(safe-area-inset-bottom)); }

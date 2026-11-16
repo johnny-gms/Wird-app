@@ -36,6 +36,8 @@ export interface LearningGoal {
   cursor: number;
   /** Créé automatiquement par WIRD (prochaine sourate dans le sens d'apprentissage) ; terminé automatiquement. */
   auto?: boolean;
+  /** Objectifs d'un même Hizb / demi-Hizb créés ensemble (ex. « h:3 », « hh:5 ») : ils partagent le rythme du jour. */
+  unitKey?: string;
   paused: boolean;
   createdAt: string;
   completedAt: string | null;
@@ -72,17 +74,39 @@ export type DraftGrade = Grade | 'skip';
  * Séance : on consulte le programme, on travaille, puis on évalue TOUT d'un coup (« Passer à l'évaluation »).
  * Les évaluations saisies restent un brouillon modifiable jusqu'à la validation du bilan.
  */
+/** Mode de séance : avec un Mushaf papier, ou directement dans WIRD (dévoilement cumulatif des versets). */
+export type SessionMode = 'mushaf' | 'phone';
+
+/** Progression d'un passage en mode Téléphone. */
+export interface PhoneProgress {
+  /** Nombre de versets dévoilés (cumulatif : les précédents restent intégrés). */
+  shown: number;
+  /** Tous les versets dévoilés sont masqués (récitation de mémoire). */
+  hidden: boolean;
+  /** Passage travaillé jusqu'au bout. */
+  done: boolean;
+}
+
 export interface SessionState {
   date: string;
-  step: 'program' | 'evaluate';
+  step: 'choose' | 'program' | 'evaluate';
+  mode?: SessionMode;
+  /** Séance principale du jour ou séance supplémentaire. */
+  kind?: 'main' | 'extra';
+  /** Durée indicative choisie pour une séance supplémentaire (jamais une limite). */
+  minutes?: number;
+  /** Mode Téléphone : progression par passage (clé = signature du passage, stable d'un jour à l'autre). */
+  phone?: Record<string, PhoneProgress>;
+  /** Mode Téléphone : signature du passage ouvert. */
+  current?: string | null;
+  /** id d'élément → signature, pour retrouver ses évaluations si la séance est reprise le lendemain. */
+  sigs?: Record<string, string>;
   /** Éléments du programme concernés par la séance (ordre du programme). */
   scope: 'all' | string[];
   draft: Record<string, DraftGrade>;
   /** Temps actif cumulé (ms), mesuré uniquement quand l'application est visible. */
   activeMs: number;
   startedAt: string;
-  /** Passages ouverts pendant la séance (indicateur « Consulté » : ne valide rien). */
-  viewed?: string[];
 }
 
 export interface HistoryEntry {
@@ -134,7 +158,11 @@ export interface NotificationPrefs {
   comeback: { enabled: boolean; afterDays: number; time: string };
 }
 
-export type LearnMode = 'surah' | 'pages';
+/** Rythme d'apprentissage : une sourate par semaine, un Hizb / demi-Hizb à intervalle choisi, ou aucun nouvel apprentissage. */
+export type LearnMode = 'surah' | 'hizb' | 'off';
+export type LearnUnit = 'half' | 'full';
+/** Un passage tous les N jours (1 = chaque jour, 2 = tous les 2 jours, 7 = chaque semaine). */
+export type LearnEvery = 1 | 2 | 7;
 
 export type Gender = 'male' | 'female';
 
@@ -143,8 +171,10 @@ export interface Settings {
   learnDirection: Direction;
   /** Rythme d'apprentissage : « une sourate par semaine » (débutants) ou un nombre de pages par semaine. */
   learnMode: LearnMode;
-  /** Pages du Mushaf à apprendre par semaine (mode « pages » ; 0 = pas d'apprentissage). */
-  learnPagesPerWeek: number;
+  /** Unité du mode « hizb » : demi-Hizb ou Hizb. */
+  learnUnit: LearnUnit;
+  /** Rythme du mode « hizb » : une unité tous les N jours. */
+  learnEvery: LearnEvery;
   /** Objectif quotidien de révision, en pages entières du Mushaf. */
   reviewPagesPerDay: number;
   /** Plafond de versets de renforcement proposés par jour. */

@@ -81,7 +81,7 @@ export default function Revisions() {
 
       <Section title="Aujourd’hui" items={pending.filter((i) => i.kind === 'review')} empty="Rien ici 🌿" onGo={begin} onSkip={(id) => { store.skipItem(id); toast('Ignoré pour aujourd’hui'); }} />
       <Section title="Renforcement" hint="Versets fragiles : ils restent dans la rotation et reviennent plus tôt, jusqu’à se stabiliser." items={pending.filter((i) => i.kind === 'reinforce')} empty="Rien ici 🌿" onGo={begin} onSkip={(id) => store.skipItem(id)} />
-      <Section title="Nouvel apprentissage" items={pending.filter((i) => i.kind === 'learn')} empty={learningEnabled(settings) ? 'Rien ici 🌿' : 'Aucun nouvel apprentissage proposé (0 page par semaine).'} onGo={begin} onSkip={(id) => store.skipItem(id)} />
+      <Section title="Nouvel apprentissage" items={pending.filter((i) => i.kind === 'learn')} empty={learningEnabled(settings) ? 'Rien ici 🌿' : 'Pas de nouvel apprentissage choisi.'} onGo={begin} onSkip={(id) => store.skipItem(id)} />
 
       {done.length > 0 && (
         <>
@@ -123,8 +123,8 @@ export default function Revisions() {
       <h1 className="title-section mt-10">Mon apprentissage</h1>
       <p className="text-sm text-muted">Les versets que tu <b>apprends encore</b>, pas encore solides.</p>
       <p className="card mt-3 px-4 py-3 text-sm leading-relaxed text-muted">
-        {learningEnabled(settings) ? <>Repère : <b className="text-ink">{settings.learnMode === 'surah' ? 'une sourate par semaine' : `${formatPages(settings.learnPagesPerWeek)} par semaine`}</b>, nouvelles sourates {settings.learnDirection === 'forward' ? 'de Al-Fatiha vers An-Nas' : 'de An-Nas vers Al-Fatiha'}. </> : 'Pas d’objectif d’apprentissage (0 page par semaine). '}
-        <Link to="/profil" className="font-semibold text-primary">Modifier</Link>
+        {learningEnabled(settings) ? <>Repère : <b className="text-ink">{settings.learnMode === 'surah' ? 'une sourate par semaine' : `${settings.learnUnit === 'half' ? 'un demi-Hizb' : 'un Hizb'} ${settings.learnEvery === 1 ? 'par jour' : settings.learnEvery === 2 ? 'tous les 2 jours' : 'par semaine'}`}</b>, {settings.learnDirection === 'forward' ? 'du début du Coran' : 'de la fin du Coran'}. </> : 'Pas de nouvel apprentissage. '}
+        <Link to="/profil/parametres" className="font-semibold text-primary">Modifier</Link>
       </p>
       <div className="mt-3 space-y-2.5">
         {active.length === 0 && <p className="card p-5 text-center text-sm text-muted">{learningEnabled(settings) ? 'WIRD ouvrira automatiquement la prochaine sourate à apprendre.' : 'Aucun apprentissage en cours. Ajoutes-en un ci-dessous.'}</p>}

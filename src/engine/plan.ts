@@ -1,7 +1,8 @@
 import { ENGINE } from './config';
 import { pageOf, rangePages } from './pages';
 import { applyGrade, newLearningVerse, promoteLearned } from './scheduling';
-import { SURAHS, ayahId, surahMeta } from './quran';
+import { SURAHS, ayahId, fromAyahId, surahMeta } from './quran';
+import { learnUnits } from './units';
 import { groupRuns, nextChunk } from './rotation';
 import type { DailyPlan, Direction, Grade, HistoryEntry, LearningGoal, PlanItem, RotationState, Settings, VerseState, WorkKind } from './types';
 
@@ -31,7 +32,9 @@ export function rotationIds(verses: Record<number, VerseState>): number[] {
   const out: number[] = [];
   for (const k in verses) {
     const v = verses[k];
-    if (v.status === 'memorized' && (ENGINE.declaredInRotation || !v.declared)) out.push(Number(k));
+    if (v.status !== 'memorized' || (!ENGINE.declaredInRotation && v.declared)) continue;
+    if (ENGINE.autoExcludedSurahs.includes(fromAyahId(Number(k)).surah)) continue;
+    out.push(Number(k));
   }
   return out.sort((a, b) => a - b);
 }
@@ -45,6 +48,9 @@ export function itemIds(item: Pick<PlanItem, 'surah' | 'from' | 'to'>): number[]
 export function itemVerseCount(item: Pick<PlanItem, 'from' | 'to'>): number {
   return item.to - item.from + 1;
 }
+
+/** Signature d'un passage (type, sourate, versets) : identique d'un jour à l'autre, contrairement à l'id du programme. */
+export const itemSig = (item: Pick<PlanItem, 'kind' | 'surah' | 'from' | 'to'>): string => `${item.kind}:${item.surah}:${item.from}-${item.to}`;
 
 export const itemPages = (item: Pick<PlanItem, 'surah' | 'from' | 'to'>): number => rangePages(item.surah, item.from, item.to);
 
@@ -116,18 +122,21 @@ export function buildPlan(ctx: PlanContext, date: string, prev: DailyPlan | null
   const keptLearn = kept.filter((i) => i.kind === 'learn').reduce((a, i) => a + itemPages(i), 0);
   let learnBudget = 0;
   let budgeted = false;
+  // au moins un passage par jour tant qu'il reste quelque chose à apprendre, même si la sourate est très courte (budget < 0,05 page)
+  let added = keptLearn > 0;
   for (const g of ctx.goals) {
     if (g.paused || g.completedAt) continue;
     // un seul objectif à la fois reçoit le budget du jour
-    if (!budgeted) { learnBudget = dailyLearnPages(ctx.settings, g) - keptLearn; budgeted = true; }
-    if (learnBudget <= 0.05) break;
+    if (!budgeted) { learnBudget = dailyLearnPages(ctx.settings, g, ctx.goals.filter((x) => !x.paused && !x.completedAt)) - keptLearn; budgeted = true; }
+    if (learnBudget <= 0.05 && added) break;
     const keptG = kept.filter((i) => i.kind === 'learn' && i.goalId === g.id);
     let at = Math.max(g.cursor, ...keptG.map((i) => i.to + 1));
-    while (learnBudget > 0.05) {
+    while (learnBudget > 0.05 || !added) {
       const seg = learningSegment(ctx, g, at);
       if (!seg) break;
       items.push({ id: mkId(date, 'learn', g.surah, seg.from, seg.to), kind: 'learn', surah: g.surah, from: seg.from, to: seg.to, status: 'pending', goalId: g.id });
       learnBudget -= rangePages(g.surah, seg.from, seg.to);
+      added = true;
       at = seg.to + 1;
     }
   }
@@ -137,17 +146,20 @@ export function buildPlan(ctx: PlanContext, date: string, prev: DailyPlan | null
 }
 
 /**
- * Pages à apprendre aujourd'hui, réparties sur la semaine :
- *  - « une sourate par semaine » : la sourate de l'objectif en cours est étalée sur 7 jours ;
- *  - « N pages par semaine » : N / 7 par jour (0 = pas d'apprentissage).
+ * Pages à apprendre aujourd'hui :
+ *  - objectif d'un Hizb / demi-Hizb : pages de l'unité ÷ nombre de jours choisi (1, 2 ou 7) ;
+ *  - sinon (une sourate par semaine, ou objectif choisi à la main) : pages de la sourate étalées sur 7 jours.
  */
-export function dailyLearnPages(settings: Pick<Settings, 'learnMode' | 'learnPagesPerWeek'>, g: Pick<LearningGoal, 'surah' | 'from' | 'to'>): number {
-  if (settings.learnMode === 'surah') return rangePages(g.surah, g.from, g.to) / 7;
-  return settings.learnPagesPerWeek / 7;
+export function dailyLearnPages(settings: Pick<Settings, 'learnMode' | 'learnEvery'>, g: Pick<LearningGoal, 'surah' | 'from' | 'to' | 'unitKey'>, group: Pick<LearningGoal, 'surah' | 'from' | 'to' | 'unitKey'>[] = [g]): number {
+  if (settings.learnMode === 'hizb' && g.unitKey) {
+    const pages = group.filter((x) => x.unitKey === g.unitKey).reduce((a, x) => a + rangePages(x.surah, x.from, x.to), 0);
+    return pages / settings.learnEvery;
+  }
+  return rangePages(g.surah, g.from, g.to) / 7;
 }
 
 /** L'apprentissage est-il activé ? */
-export const learningEnabled = (s: Pick<Settings, 'learnMode' | 'learnPagesPerWeek'>): boolean => s.learnMode === 'surah' || s.learnPagesPerWeek > 0;
+export const learningEnabled = (s: Pick<Settings, 'learnMode'>): boolean => s.learnMode !== 'off';
 
 /** Segment d'apprentissage suivant : versets non encore mémorisés contigus, à partir de `start` (par défaut le curseur). */
 export function learningSegment(ctx: Pick<PlanContext, 'verses'>, g: LearningGoal, start: number = g.cursor): { from: number; to: number } | null {
@@ -167,9 +179,10 @@ export function goalProgress(g: LearningGoal): { done: number; total: number } {
 /**
  * Prochaine sourate à apprendre, dans le sens d'apprentissage choisi : la première sourate (dans l'ordre du sens)
  * qui n'est pas entièrement mémorisée et sans objectif d'apprentissage en cours. Retourne la plage de versets restante.
+ * Les sourates exclues du programme automatique (Al-Fatiha) ne sont jamais proposées.
  */
 export function nextLearnTarget(verses: Record<number, VerseState>, goals: LearningGoal[], dir: Direction): { surah: number; from: number; to: number } | null {
-  const order = SURAHS.map((s) => s.id);
+  const order = SURAHS.map((s) => s.id).filter((id) => !ENGINE.autoExcludedSurahs.includes(id));
   if (dir === 'backward') order.reverse();
   const busy = new Set(goals.filter((g) => !g.completedAt).map((g) => g.surah));
   for (const sNum of order) {
@@ -183,6 +196,45 @@ export function nextLearnTarget(verses: Record<number, VerseState>, goals: Learn
       last = a;
     }
     if (first) return { surah: sNum, from: first, to: last };
+  }
+  return null;
+}
+
+export interface LearnTargets {
+  /** Renseigné pour un Hizb / demi-Hizb : les objectifs créés ensemble partagent le même rythme. */
+  unitKey?: string;
+  segments: { surah: number; from: number; to: number }[];
+}
+
+/**
+ * Prochain(s) passage(s) à apprendre selon le rythme choisi :
+ *  - « une sourate par semaine » : la prochaine sourate (voir nextLearnTarget) ;
+ *  - « Hizb / demi-Hizb » : le prochain Hizb (ou demi-Hizb) dans le sens choisi qui a encore des versets à apprendre,
+ *    découpé en parties de sourates exactes (un verset déjà appris est sauté, Al-Fatiha n'est jamais proposée).
+ */
+export function nextLearnTargets(verses: Record<number, VerseState>, goals: LearningGoal[], settings: Pick<Settings, 'learnMode' | 'learnUnit' | 'learnDirection'>): LearnTargets | null {
+  if (settings.learnMode === 'off') return null;
+  if (settings.learnMode === 'surah') {
+    const t = nextLearnTarget(verses, goals, settings.learnDirection);
+    return t ? { segments: [t] } : null;
+  }
+  const open = goals.filter((g) => !g.completedAt);
+  const busyKeys = new Set(open.map((g) => g.unitKey).filter(Boolean));
+  const covered = new Set<number>();
+  for (const g of open) for (let a = g.from; a <= g.to; a++) covered.add(ayahId(g.surah, a));
+  const units = learnUnits(settings.learnUnit);
+  if (settings.learnDirection === 'backward') units.reverse();
+  for (const u of units) {
+    if (busyKeys.has(u.key)) continue;
+    const bySurah = new Map<number, { from: number; to: number }>();
+    for (let id = u.from; id <= u.to; id++) {
+      const { surah, ayah } = fromAyahId(id);
+      if (ENGINE.autoExcludedSurahs.includes(surah) || verses[id]?.status === 'memorized' || covered.has(id)) continue;
+      const cur = bySurah.get(surah);
+      if (cur) cur.to = ayah;
+      else bySurah.set(surah, { from: ayah, to: ayah });
+    }
+    if (bySurah.size) return { unitKey: u.key, segments: [...bySurah].map(([surah, r]) => ({ surah, ...r })) };
   }
   return null;
 }
@@ -315,4 +367,16 @@ export function upcomingRotation(ctx: PlanContext, today: DailyPlan | null, maxI
     cursor = c.endCursor;
   }
   return out;
+}
+
+/** Aperçu d'un rythme d'apprentissage : prochain passage et pages par jour correspondantes (calculés sur les versets réels). */
+export function learnPreview(verses: Record<number, VerseState>, settings: Pick<Settings, 'learnMode' | 'learnUnit' | 'learnDirection' | 'learnEvery'>): { label: string; pagesPerDay: number } | null {
+  const t = nextLearnTargets(verses, [], settings);
+  if (!t) return null;
+  const pages = t.segments.reduce((a, g) => a + rangePages(g.surah, g.from, g.to), 0);
+  const first = surahMeta(t.segments[0].surah).tr;
+  const last = surahMeta(t.segments[t.segments.length - 1].surah).tr;
+  const name = t.unitKey ? (t.unitKey.startsWith('hh:') ? `Demi-Hizb ${t.unitKey.slice(3)}` : `Hizb ${t.unitKey.slice(2)}`) : first;
+  const span = t.unitKey ? (first === last ? first : `${first} → ${last}`) : `${t.segments[0].from === 1 && t.segments[0].to === surahMeta(t.segments[0].surah).n ? 'sourate entière' : `versets ${t.segments[0].from} à ${t.segments[0].to}`}`;
+  return { label: `${name} · ${span}`, pagesPerDay: settings.learnMode === 'hizb' ? pages / settings.learnEvery : pages / 7 };
 }

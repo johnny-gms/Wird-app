@@ -46,6 +46,8 @@ export default function ProgressPage() {
   const days = useMemo(() => activeDaySet(history), [history]);
   const inProgress = stats.filter((s) => s.state === 'partial' || s.state === 'learning').length;
   const reinforceSurahs = stats.filter((s) => s.needsReinforcement).length;
+  const consolidated = stats.filter((s) => s.state === 'complete' && !s.needsReinforcement).length;
+  const streakNow = currentStreak(days, today);
 
   return (
     <Screen title="Ma progression">
@@ -61,9 +63,9 @@ export default function ProgressPage() {
         <Big n={o.surahsComplete} l="sourates apprises" />
         <Big n={inProgress} l="en cours" />
         <Big n={reinforceSurahs} l="à renforcer" />
-        <Big n={Math.max(0, 114 - o.surahsWorked)} l="non commencées" />
+        <Big n={consolidated} l="sourates consolidées" />
       </div>
-      <p className="mt-2 text-xs text-muted">{o.memorizedVerses === 0 ? '0' : `≈ ${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Math.round(pagesMem * 10) / 10)}`} pages mémorisées sur 604 · {o.hizbCovered} hizb couverts sur 60 · {o.ratio === 0 ? '0' : o.ratio < 0.01 ? '<1' : Math.round(o.ratio * 100)} % du Coran</p>
+      <p className="mt-2 text-xs text-muted">{o.memorizedVerses === 0 ? '0' : `≈ ${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Math.round(pagesMem * 10) / 10)}`} pages mémorisées sur 604 · {o.hizbCovered} hizb couverts sur 60 · {streakNow > 0 ? `série de ${streakNow} jour${streakNow > 1 ? 's' : ''} · ` : ''}{o.ratio === 0 ? '0' : o.ratio < 0.01 ? '<1' : Math.round(o.ratio * 100)} % du Coran</p>
 
       {/* ---------- Évolution ---------- */}
       <H2>Évolution</H2>

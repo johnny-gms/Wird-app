@@ -1,25 +1,27 @@
-import { ArrowLeft, ArrowRight, Check, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Minus, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { KnownPicker } from '@/components/KnownPicker';
+import { Avatar } from '@/components/Avatar';
+import { LearnPicker, type LearnValue } from '@/components/LearnPicker';
 import { StickyFooter, cx } from '@/components/ui';
 import { DEFAULT_SETTINGS } from '@/engine/config';
 import { formatPages, rangePages } from '@/engine/pages';
-import { nextLearnTarget } from '@/engine/plan';
 import { ayahId, surahMeta } from '@/engine/quran';
 import { newMemorizedVerse } from '@/engine/scheduling';
-import type { Direction, LearnMode, VerseState } from '@/engine/types';
+import type { Direction, Gender, LearnEvery, LearnMode, LearnUnit, VerseState } from '@/engine/types';
 import { loadQuranText } from '@/lib/quranText';
 import { accountAvailable, authenticate } from '@/sync/account';
 import { useWird } from '@/store/useWird';
 
-// 0-2 présentation · 3 compte · 4 prénom · 5 sourates connues · 6 apprentissage · 7 révision · 8 récapitulatif
+// 0-2 présentation · 3 compte · 4 prénom · 5 genre · 6 sourates connues · 7 apprentissage · 8 révision · 9 récapitulatif
 const INTRO = 3;
 const ACCOUNT = 3;
 const NAME = 4;
-const KNOWN = 5;
-const LEARN = 6;
-const REVIEW = 7;
-const RECAP = 8;
+const GENDER = 5;
+const KNOWN = 6;
+const LEARN = 7;
+const REVIEW = 8;
+const RECAP = 9;
 const SETUP_FIRST = NAME;
 const SETUP_COUNT = RECAP - NAME + 1;
 const surahPages = (id: number) => rangePages(id, 1, surahMeta(id).n);
@@ -28,16 +30,18 @@ export default function Onboarding() {
   const complete = useWird((s) => s.completeOnboarding);
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
+  const [gender, setGender] = useState<Gender | null>(null);
   const [known, setKnown] = useState<Set<number>>(new Set());
   const [learnDir, setLearnDir] = useState<Direction>('forward');
   const [learnMode, setLearnMode] = useState<LearnMode>(DEFAULT_SETTINGS.learnMode);
-  const [learnPages, setLearnPages] = useState(DEFAULT_SETTINGS.learnPagesPerWeek);
+  const [learnUnit, setLearnUnit] = useState<LearnUnit>(DEFAULT_SETTINGS.learnUnit);
+  const [learnEvery, setLearnEvery] = useState<LearnEvery>(DEFAULT_SETTINGS.learnEvery);
   const [reviewPages, setReviewPages] = useState(DEFAULT_SETTINGS.reviewPagesPerDay);
 
   const knownPages = useMemo(() => [...known].reduce((a, id) => a + surahPages(id), 0), [known]);
   const go = (n: number) => setStep(Math.max(0, Math.min(RECAP, n)));
-  const finish = () => complete({ name, knownSurahs: [...known], learnDirection: learnDir, learnMode, learnPagesPerWeek: learnPages, reviewPagesPerDay: reviewPages });
-  const demo = () => complete({ name, knownSurahs: [], learnDirection: 'forward', learnMode: 'surah', learnPagesPerWeek: 2, reviewPagesPerDay: 1, demo: true });
+  const finish = () => complete({ name, gender, knownSurahs: [...known], learnDirection: learnDir, learnMode, learnUnit, learnEvery, reviewPagesPerDay: reviewPages });
+  const demo = () => complete({ name, gender, knownSurahs: [], learnDirection: 'forward', learnMode: 'surah', learnUnit: 'half', learnEvery: 7, reviewPagesPerDay: 1, demo: true });
 
   if (step < INTRO) return <Intro i={step} go={go} onDemo={demo} />;
 
@@ -51,11 +55,12 @@ export default function Onboarding() {
         </div>
       </header>
       {step === ACCOUNT && <AccountStep onDone={() => go(NAME)} />}
-      {step === NAME && <NameStep name={name} setName={setName} onNext={() => go(KNOWN)} />}
+      {step === NAME && <NameStep name={name} setName={setName} onNext={() => go(GENDER)} />}
+      {step === GENDER && <GenderStep gender={gender} setGender={setGender} onNext={() => go(KNOWN)} />}
       {step === KNOWN && <KnownStep known={known} setKnown={setKnown} knownPages={knownPages} onNext={() => go(LEARN)} />}
-      {step === LEARN && <LearnStep mode={learnMode} setMode={setLearnMode} pages={learnPages} setPages={setLearnPages} dir={learnDir} setDir={setLearnDir} known={known} onNext={() => go(REVIEW)} />}
+      {step === LEARN && <LearnStep value={{ mode: learnMode, unit: learnUnit, every: learnEvery }} setValue={(v) => { setLearnMode(v.mode); setLearnUnit(v.unit); setLearnEvery(v.every); }} dir={learnDir} setDir={setLearnDir} known={known} onNext={() => go(REVIEW)} />}
       {step === REVIEW && <ReviewStep pages={reviewPages} setPages={setReviewPages} known={known} knownPages={knownPages} onNext={() => go(RECAP)} />}
-      {step === RECAP && <Recap known={known} knownPages={knownPages} learnDir={learnDir} learnMode={learnMode} learnPages={learnPages} reviewPages={reviewPages} goTo={go} onFinish={finish} />}
+      {step === RECAP && <Recap known={known} knownPages={knownPages} learnDir={learnDir} learn={{ mode: learnMode, unit: learnUnit, every: learnEvery }} reviewPages={reviewPages} goTo={go} onFinish={finish} />}
     </div>
   );
 }
@@ -168,7 +173,7 @@ function AccountStep({ onDone }: { onDone: () => void }) {
   };
   return (
     <>
-      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-32 pt-5">
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-footer pt-5">
         <p className="text-xs font-bold uppercase tracking-[.14em] text-primary">Ton compte</p>
         <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">{mode === 'register' ? 'Crée ton compte' : 'Content de te revoir'}</h1>
         <p className="mt-2 text-[14.5px] leading-snug text-muted">Avec un compte, ta progression pourra te suivre d’un appareil à l’autre.</p>
@@ -192,7 +197,7 @@ function AccountStep({ onDone }: { onDone: () => void }) {
 function NameStep({ name, setName, onNext }: { name: string; setName: (s: string) => void; onNext: () => void }) {
   return (
     <>
-      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-32 pt-5">
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-footer pt-5">
         <p className="text-xs font-bold uppercase tracking-[.14em] text-primary">Faisons connaissance</p>
         <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Comment t’appelles-tu ?</h1>
         <p className="mt-2 text-[14.5px] leading-snug text-muted">Pour te saluer chaque jour.</p>
@@ -203,11 +208,34 @@ function NameStep({ name, setName, onNext }: { name: string; setName: (s: string
   );
 }
 
+// ------------------------------------------------------------------ Genre (après le prénom)
+function GenderStep({ gender, setGender, onNext }: { gender: Gender | null; setGender: (g: Gender) => void; onNext: () => void }) {
+  const opts: { v: Gender; label: string }[] = [{ v: 'male', label: 'Homme' }, { v: 'female', label: 'Femme' }];
+  return (
+    <>
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-footer pt-5">
+        <p className="text-xs font-bold uppercase tracking-[.14em] text-primary">Faisons connaissance</p>
+        <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Tu es…</h1>
+        <p className="mt-2 text-[14.5px] leading-snug text-muted">Pour choisir ta photo de profil. Tu pourras la changer dans Profil.</p>
+        <div className="mt-6 grid grid-cols-2 gap-3" role="radiogroup" aria-label="Genre">
+          {opts.map((o) => (
+            <button key={o.v} role="radio" aria-checked={gender === o.v} onClick={() => setGender(o.v)} className={cx('flex flex-col items-center gap-3 rounded-[20px] border-2 bg-surface p-4 transition active:scale-[.98]', gender === o.v ? 'border-primary' : 'border-line')}>
+              <Avatar gender={o.v} size={88} className="rounded-full" />
+              <span className="text-[16px] font-semibold">{o.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <StickyFooter><button className="btn-primary w-full" disabled={!gender} onClick={onNext}>Continuer</button></StickyFooter>
+    </>
+  );
+}
+
 // ------------------------------------------------------------------ Sourates déjà apprises
 function KnownStep({ known, setKnown, knownPages, onNext }: { known: Set<number>; setKnown: (s: Set<number>) => void; knownPages: number; onNext: () => void }) {
   return (
     <>
-      <div className="mx-auto w-full max-w-[520px] flex-1 px-4 pb-32 pt-3">
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-4 pb-footer pt-3">
         <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.2px]">Quelles sourates connais-tu déjà ?</h1>
         <p className="mb-4 mt-2 text-sm leading-relaxed text-muted">Coche celles que tu as apprises. Elles seront marquées comme apprises, sans compter comme du travail dans WIRD. Tu pourras préciser verset par verset plus tard.</p>
         <KnownPicker known={known} setKnown={setKnown} />
@@ -225,34 +253,27 @@ function KnownStep({ known, setKnown, knownPages, onNext }: { known: Set<number>
 }
 
 // ------------------------------------------------------------------ Apprentissage
-function LearnStep({ mode, setMode, pages, setPages, dir, setDir, known, onNext }: { mode: LearnMode; setMode: (m: LearnMode) => void; pages: number; setPages: (n: number) => void; dir: Direction; setDir: (d: Direction) => void; known: Set<number>; onNext: () => void }) {
-  const target = useMemo(() => {
-    const verses: Record<number, VerseState> = {};
-    for (const id of known) for (let a = 1; a <= surahMeta(id).n; a++) verses[ayahId(id, a)] = newMemorizedVerse(ayahId(id, a), '2000-01-01');
-    return nextLearnTarget(verses, [], dir);
-  }, [known, dir]);
-  const modes: { v: LearnMode; title: string; sub: string }[] = [
-    { v: 'surah', title: 'Une sourate par semaine', sub: 'Pour débuter : une sourate à la fois, répartie sur la semaine' },
-    { v: 'pages', title: 'Des pages par semaine', sub: 'Une ou plusieurs pages du Mushaf chaque semaine' },
-  ];
-  const dirs: { v: Direction; label: string }[] = [{ v: 'forward', label: 'Al-Fatiha → An-Nas' }, { v: 'backward', label: 'An-Nas → Al-Fatiha' }];
+function LearnStep({ value, setValue, dir, setDir, known, onNext }: { value: LearnValue; setValue: (v: LearnValue) => void; dir: Direction; setDir: (d: Direction) => void; known: Set<number>; onNext: () => void }) {
+  const verses = useMemo(() => {
+    const out: Record<number, VerseState> = {};
+    for (const id of known) for (let a = 1; a <= surahMeta(id).n; a++) out[ayahId(id, a)] = newMemorizedVerse(ayahId(id, a), '2000-01-01');
+    return out;
+  }, [known]);
+  const dirs: { v: Direction; label: string }[] = [{ v: 'forward', label: 'Du début du Coran' }, { v: 'backward', label: 'De la fin du Coran' }];
   return (
     <>
-      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-32 pt-5">
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-footer pt-5">
         <p className="text-xs font-bold uppercase tracking-[.14em] text-primary">Ton apprentissage</p>
         <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Comment veux-tu apprendre ?</h1>
-        <div className="mt-6 grid gap-2.5" role="radiogroup">
-          {modes.map((o) => (
-            <button key={o.v} role="radio" aria-checked={mode === o.v} onClick={() => setMode(o.v)} className={cx('flex w-full items-center gap-3.5 rounded-[18px] border-[1.5px] p-4 text-left transition', mode === o.v ? 'border-primary bg-primary/10' : 'border-line bg-surface')}>
-              <span className="flex-1"><b className="block text-[15.5px]">{o.title}</b><small className="text-[13px] text-muted">{o.sub}</small></span>
-              <span className={cx('flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2', mode === o.v ? 'border-primary bg-primary text-primary-ink' : 'border-line')}>{mode === o.v && <Check size={12} strokeWidth={3.5} />}</span>
-            </button>
-          ))}
+        <div className="mt-6">
+          <LearnPicker value={value} onChange={setValue} verses={verses} direction={dir} />
         </div>
-        {mode === 'pages' && <div className="card mt-3 flex items-center justify-between gap-3 p-4"><span className="font-semibold">Pages par semaine</span><PagesStepper value={pages} onChange={setPages} min={0} max={35} label="par semaine" /></div>}
-        <p className="mb-2 mt-6 text-sm text-muted">Sens d’apprentissage des nouvelles sourates</p>
-        <div className="grid grid-cols-2 gap-2" role="radiogroup">{dirs.map((d) => <button key={d.v} role="radio" aria-checked={dir === d.v} onClick={() => setDir(d.v)} className="chip justify-center">{d.label}</button>)}</div>
-        <p className="card mt-4 px-4 py-3 text-sm leading-relaxed">{target ? <>Prochaine sourate proposée : <b>{target.surah}. {surahMeta(target.surah).tr}</b>{target.from > 1 ? ` (à partir du verset ${target.from})` : ''}.</> : 'Tu as coché tout le Coran : il n’y a plus de nouvelle sourate à apprendre.'}</p>
+        {value.mode !== 'off' && (
+          <>
+            <p className="mb-2 mt-6 text-sm text-muted">Sens d’apprentissage des nouveaux passages</p>
+            <div className="grid grid-cols-2 gap-2" role="radiogroup">{dirs.map((d) => <button key={d.v} role="radio" aria-checked={dir === d.v} onClick={() => setDir(d.v)} className="chip justify-center">{d.label}</button>)}</div>
+          </>
+        )}
       </div>
       <StickyFooter><button className="btn-primary w-full" onClick={onNext}>Continuer</button></StickyFooter>
     </>
@@ -278,7 +299,7 @@ export function PagesStepper({ value, onChange, min, max, label, step = 1 }: { v
 function ReviewStep({ pages, setPages, known, knownPages, onNext }: { pages: number; setPages: (n: number) => void; known: Set<number>; knownPages: number; onNext: () => void }) {
   return (
     <>
-      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-32 pt-5">
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-footer pt-5">
         <p className="text-xs font-bold uppercase tracking-[.14em] text-primary">Ton rythme</p>
         <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Combien de pages réviser par jour ?</h1>
         <p className="mt-2 text-[14.5px] leading-snug text-muted">La régularité compte plus que la quantité. Tu pourras changer cela à tout moment dans Profil.</p>
@@ -296,16 +317,15 @@ function ReviewStep({ pages, setPages, known, knownPages, onNext }: { pages: num
 }
 
 // ------------------------------------------------------------------ Récapitulatif
-function Recap({ known, knownPages, learnDir, learnMode, learnPages, reviewPages, goTo, onFinish }: { known: Set<number>; knownPages: number; learnDir: Direction; learnMode: LearnMode; learnPages: number; reviewPages: number; goTo: (s: number) => void; onFinish: () => void }) {
-  const dir = (d: Direction) => (d === 'forward' ? 'Al-Fatiha → An-Nas' : 'An-Nas → Al-Fatiha');
+function Recap({ known, knownPages, learnDir, learn, reviewPages, goTo, onFinish }: { known: Set<number>; knownPages: number; learnDir: Direction; learn: LearnValue; reviewPages: number; goTo: (s: number) => void; onFinish: () => void }) {
   const rows: { label: string; value: string; step: number }[] = [
     { label: 'Sourates déjà apprises', value: known.size ? `${known.size} sourate${known.size > 1 ? 's' : ''} · ≈ ${formatPages(knownPages)}` : 'Aucune pour l’instant', step: KNOWN },
-    { label: 'Apprentissage', value: `${learnMode === 'surah' ? 'Une sourate par semaine' : learnPages ? `${formatPages(learnPages)} par semaine` : 'Pas d’apprentissage'} · ${dir(learnDir)}`, step: LEARN },
+    { label: 'Apprentissage', value: learn.mode === 'off' ? 'Pas de nouvel apprentissage' : `${learn.mode === 'surah' ? 'Une sourate par semaine' : `${learn.unit === 'half' ? 'Un demi-Hizb' : 'Un Hizb'} ${learn.every === 1 ? 'par jour' : learn.every === 2 ? 'tous les 2 jours' : 'par semaine'}`} · ${learnDir === 'forward' ? 'du début du Coran' : 'de la fin du Coran'}`, step: LEARN },
     { label: 'Révision', value: `${formatPages(reviewPages)} par jour`, step: REVIEW },
   ];
   return (
     <>
-      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-32 pt-5">
+      <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-footer pt-5">
         <h1 className="text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Tout est prêt</h1>
         <p className="mt-2 text-[14.5px] leading-snug text-muted">Voici ta configuration, modifiable à tout moment depuis Profil.</p>
         <ul className="card mt-6 divide-y divide-line overflow-hidden">

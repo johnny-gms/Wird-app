@@ -5,6 +5,7 @@ import { verseKind } from '@/engine/progress';
 import { ayahId, fromAyahId, hizbOf, surahMeta } from '@/engine/quran';
 import { haptic } from '@/lib/haptics';
 import { basmalaFor, loadQuranText, type QuranData } from '@/lib/quranText';
+import { loadTranslation, type TranslationData } from '@/lib/translation';
 import { TAJWEED_LEGEND, loadTajweed, tajweedParts, type TajweedData } from '@/lib/tajweed';
 import { useWird } from '@/store/useWird';
 import { VerseSheet } from './VerseSheet';
@@ -24,6 +25,10 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
   const [data, setData] = useState<QuranData | null>(null);
   const [failed, setFailed] = useState(false);
   const [tj, setTj] = useState<TajweedData | null>(null);
+  const [fr, setFr] = useState<TranslationData | null>(null);
+  useEffect(() => {
+    void loadTranslation().then(setFr);
+  }, []);
   const [tjOn, setTjOn] = useState(() => {
     try { return localStorage.getItem('wird-tajweed') !== '0'; } catch { return true; }
   });
@@ -148,7 +153,8 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
                 return (
                   <button key={a} id={`v${a}`} onClick={() => { haptic('tap'); setSel({ surah: s, ayah: a }); }} className={cx('block w-full rounded-[10px] border border-line border-r-[5px] bg-surface px-3 py-1.5 text-right', BORDER[k], inHl(s, a) && 'ring-2 ring-primary/30')}>
                     <span className="ar block leading-[2.3]" style={{ fontSize: `${24 * size}px` }} lang="ar">{colored(s, a, t)}</span>
-                    <span className="block text-left text-xs text-muted">Verset {a}</span>
+                    {fr && <span className="mt-1 block border-t border-line/70 pt-1.5 text-left text-[14px] leading-snug text-ink/80">{fr.s[s - 1][a - 1]}</span>}
+                    <span className="mt-1 block text-left text-xs text-muted">Verset {a}</span>
                   </button>
                 );
               })}
@@ -161,7 +167,6 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
         );
       })()}
 
-      <p className="mt-5 text-xs leading-relaxed text-muted">Texte et pagination : Projet Tanzil (<a className="underline" href="https://tanzil.net" target="_blank" rel="noreferrer">tanzil.net</a>), CC BY 3.0, copie non modifiée. Touche un verset pour voir sa fiche.</p>
       {sel && <VerseSheet surah={sel.surah} ayah={sel.ayah} onClose={() => setSel(null)} />}
     </div>
   );

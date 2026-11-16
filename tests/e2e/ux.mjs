@@ -1,5 +1,5 @@
 // Vérifications de la refonte UX : accueil adaptatif, séance (Consulté), progression, filtres, sélection de versets, avatars, paramètres, thèmes, petits écrans.
-import { BASE, OUT, chromium, devices, done, markWorked, ok, onboard, settle } from './lib.mjs';
+import { BASE, OUT, chooseMode, chromium, devices, done, markWorked, ok, onboard, settle } from './lib.mjs';
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ ...devices['iPhone 14'], serviceWorkers: 'allow', locale: 'fr-FR', reducedMotion: 'reduce' });
@@ -23,31 +23,71 @@ ok(await page.getByText('Continuons ensemble').isVisible(), 'accueil : révision
 ok(await page.getByRole('button', { name: 'Commencer ma séance' }).isVisible(), 'accueil : bouton principal « Commencer ma séance »');
 ok(await page.getByRole('button', { name: 'Recalculer' }).isVisible() && !(await page.getByRole('button', { name: 'Recalculer' }).evaluate((b) => b.className.includes('btn'))), 'accueil : « Recalculer » est une action secondaire');
 
-// ---------- Séance : titre, « Consulté », sauvegarde, reprise ----------
+// ---------- Séance : deux modes, dévoilement cumulatif, fin de séance, sauvegarde ----------
 await page.getByRole('button', { name: 'Commencer ma séance' }).click();
 await page.waitForURL('**/session');
+await page.getByText('Comment veux-tu travailler ?').waitFor();
+ok(await page.getByRole('radio', { name: /Avec mon Mushaf/ }).isVisible() && await page.getByRole('radio', { name: /Avec mon téléphone/ }).isVisible(), 'séance : choix Mushaf / Téléphone');
+await chooseMode(page, 'phone');
 await page.getByRole('heading', { name: 'Travail des passages' }).waitFor();
-ok(await page.getByRole('button', { name: 'Passer à l’évaluation' }).isVisible(), 'séance : « Passer à l’évaluation »');
-ok(!(await page.getByText('Consulté', { exact: true }).count()), 'séance : rien n’est « Consulté » avant ouverture');
-await page.locator('main ol > li button[aria-expanded]').first().click();
-await page.getByText('Consulté', { exact: true }).first().waitFor();
-ok(true, 'séance : un passage ouvert est marqué « Consulté »');
+ok(await page.getByRole('button', { name: 'Terminer ma séance' }).first().isVisible(), 'séance : « Terminer ma séance » toujours accessible');
+// premier passage : un verset dévoilé, puis le suivant (cumulatif)
+await page.getByRole('button', { name: /^(Travailler|Continuer)/ }).first().click();
+await page.getByText(/Verset 1 sur/).waitFor();
+const nVerses = Number((await page.getByText(/Verset 1 sur/).innerText()).match(/sur (\d+)/)[1]);
+const len1 = (await page.getByTestId('verses').innerText()).length;
+if (nVerses > 1) {
+  await page.getByRole('button', { name: 'Verset suivant' }).click();
+  await page.getByText(/Verset 2 sur/).waitFor();
+  ok((await page.getByTestId('verses').innerText()).length > len1, 'téléphone : le verset suivant s’ajoute aux précédents (dévoilement cumulatif)');
+}
+await page.getByRole('button', { name: 'Masquer' }).click();
+ok((await page.getByTestId('verses').getAttribute('aria-hidden')) === 'true' && await page.getByRole('button', { name: 'Afficher' }).isVisible(), 'téléphone : « Masquer » masque tous les versets dévoilés, « Afficher » les révèle');
+await page.getByRole('button', { name: 'Afficher' }).click();
 await settle(page, 500);
 await page.reload();
-await page.getByRole('heading', { name: 'Travail des passages' }).waitFor();
-ok((await page.getByText('Consulté', { exact: true }).count()) > 0, 'séance sauvegardée : « Consulté » conservé après rechargement');
+await page.getByText(/Verset \d+ sur/).waitFor();
+ok(true, 'séance sauvegardée : le passage en cours est retrouvé après rechargement');
+// fin de séance avec des passages restants : confirmation
+await page.getByRole('button', { name: 'Terminer ma séance' }).first().click();
+await page.getByText(/Il te reste encore \d+ passage/).waitFor();
+ok(await page.getByRole('button', { name: 'Continuer ma séance' }).isVisible() && await page.getByRole('button', { name: 'Terminer quand même' }).isVisible(), 'fin de séance : confirmation avec « Continuer ma séance » / « Terminer quand même »');
+await page.getByRole('button', { name: 'Continuer ma séance' }).click();
 await page.getByRole('button', { name: /Interrompre/ }).click();
-await page.getByRole('button', { name: /Interrompre|Quitter|Oui/ }).last().click().catch(() => {});
 await page.goto(BASE + '/');
 await page.getByText('Reprenons là où tu en étais').waitFor();
 ok(true, 'accueil : séance en cours → « Reprenons là où tu en étais »');
+// reprise : bon passage, évaluation seulement des passages travaillés, restants reportés
+await page.getByRole('button', { name: 'Reprendre la séance' }).click();
+await page.getByText(/Verset \d+ sur/).waitFor(); // le passage ouvert est retrouvé tel quel
+await page.getByRole('button', { name: 'Retour à la liste des passages' }).click();
+await page.getByRole('button', { name: /^(Travailler|Continuer)/ }).first().click();
+while (!(await page.getByRole('button', { name: 'Passage terminé' }).isVisible().catch(() => false))) await page.getByRole('button', { name: 'Verset suivant' }).click();
+await page.getByRole('button', { name: 'Passage terminé' }).click();
+await page.getByText('Travaillé', { exact: true }).first().waitFor();
+await page.getByRole('button', { name: 'Terminer ma séance' }).first().click();
+await page.getByRole('button', { name: 'Terminer quand même' }).click();
+await page.getByRole('heading', { name: 'Bilan de la séance' }).waitFor();
+ok((await page.getByRole('radiogroup', { name: /Évaluation/ }).count()) === 1 && /passages restants/i.test(await body()), 'bilan : seul le passage travaillé est évalué, les restants sont reportés automatiquement');
+await page.getByRole('radiogroup', { name: /Évaluation/ }).first().getByRole('radio', { name: 'Maîtrisé', exact: true }).click();
+await page.getByRole('button', { name: 'Valider le bilan' }).click();
+await page.waitForURL('**/session/bilan');
+await page.getByText('Envie de continuer ?').waitFor();
+ok(true, 'après la séance principale : proposition de séance supplémentaire');
+await page.getByRole('radio', { name: '5 min', exact: true }).click();
+await page.getByRole('button', { name: 'Prochains passages recommandés' }).click();
+await page.waitForURL('**/session');
+await page.getByRole('heading', { name: 'Séance supplémentaire' }).waitFor();
+ok(true, 'séance supplémentaire : passages recommandés, durée indicative');
+await page.getByRole('button', { name: /Interrompre/ }).click();
+await page.goto(BASE + '/');
 
 // ---------- Progression ----------
 await page.goto(BASE + '/progression');
 await page.getByText('Mes 114 sourates').waitFor();
 const prog = await body();
 ok(!/versets en apprentissage|versets mémorisés|versets ajoutés/i.test(prog), 'progression : plus de statistiques « versets mémorisés / en apprentissage »');
-ok(/sourates apprises/.test(prog) && /non commencées/.test(prog), 'progression : sourates apprises / en cours / à renforcer / non commencées');
+ok(/sourates apprises/.test(prog) && /sourates consolidées/.test(prog) && !/non commencées\s*$/m.test(prog.split('ÉVOLUTION')[0].split('VUE D’ENSEMBLE')[1] ?? ''), 'progression : apprises / en cours / à renforcer / consolidées (plus de « non commencées »)');
 const pos = (t) => prog.indexOf(t);
 ok(pos('MES 114 SOURATES') < pos('VUE D’ENSEMBLE') && pos('VUE D’ENSEMBLE') < pos('ÉVOLUTION') && pos('SUIVI DES HIZB') < pos('MES OBJECTIFS'), 'progression : grille, vue d’ensemble, évolution … objectifs en dernier');
 
@@ -56,7 +96,8 @@ await page.goto(BASE + '/wird');
 await page.getByRole('heading', { name: 'Mes sourates' }).waitFor();
 const chips = await page.locator('[role=group][aria-label="Filtrer par état"] button').evaluateAll((els) => els.map((e) => ({ t: e.innerText, h: e.getBoundingClientRect().height })));
 ok(chips.length === 5 && chips[0].t === 'Toutes' && chips.every((c) => c.h >= 30 && c.h <= 34), `filtres d’état compacts (${chips.map((c) => `${c.t} ${Math.round(c.h)}px`).join(', ')})`);
-ok(await page.getByRole('button', { name: 'Organiser par Hizb' }).isVisible(), '« Par Hizb » séparé des filtres d’état');
+const chipsText = await page.locator('[role=group][aria-label="Filtrer par état"]').innerText();
+ok(!/Hizb|Juz/.test(chipsText) && (await page.getByRole('button', { name: 'Organiser par Juz et Hizb' }).isVisible()), 'Juz et Hizb séparés des filtres d’état : petit lien discret, pas un filtre');
 
 // ---------- Détail : sélection simple / multiple ----------
 await page.goto(BASE + '/wird/112');
@@ -75,6 +116,40 @@ ok(true, 'grille : mode sélection (sélection / désélection de plusieurs vers
 await page.getByRole('button', { name: 'Choisir une action' }).click();
 ok(await page.getByRole('dialog').getByRole('button', { name: /Déjà appris/ }).isVisible(), 'sélection → feuille d’actions');
 await page.keyboard.press('Escape');
+
+// ---------- Coran : traduction française, mention retirée ----------
+await page.goto(BASE + '/coran?m=list&s=112');
+await page.getByText('Verset 4').waitFor();
+const coran = await body();
+ok(/Allah, Unique/.test(coran), 'liste des versets : traduction française sous le texte arabe');
+ok(!/Projet Tanzil \(tanzil\.net\)|Touche un verset pour voir sa fiche/.test(coran), 'mention « Texte et pagination : Projet Tanzil… » retirée des pages du Coran');
+await page.goto(BASE + '/coran?p=3');
+await page.locator('.vm').first().waitFor();
+ok(!/Projet Tanzil/.test(await body()), 'mention retirée aussi en vue Pages');
+const titleFont = await page.evaluate(() => getComputedStyle(document.querySelector('h1')).fontFamily);
+ok(/Iowan Old Style|Palatino|Georgia/.test(titleFont), `titres en serif (${titleFont.slice(0, 40)}…)`);
+
+// ---------- Balayage : uniquement les sous-pages, vers leur parent ----------
+const swipe = async (y = 300) => {
+  const cdp = await ctx.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 4, y }] });
+  for (const x of [30, 70, 120, 170]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + 2 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(400);
+};
+await page.goto(BASE + '/wird/112');
+await page.getByRole('heading', { name: /112\./ }).waitFor();
+await swipe();
+ok(new URL(page.url()).pathname === '/wird', 'balayage depuis une fiche de sourate → liste des sourates');
+await page.goto(BASE + '/progression');
+await page.getByText('Mes 114 sourates').waitFor();
+await swipe();
+ok(new URL(page.url()).pathname === '/progression', 'balayage sans effet sur un onglet principal');
+await page.goto(BASE + '/session');
+await page.waitForTimeout(500);
+const before = new URL(page.url()).pathname;
+await swipe();
+ok(new URL(page.url()).pathname === before, 'balayage sans effet pendant la séance');
 
 // ---------- Avatars ----------
 await page.goto(BASE + '/profil/profil');
@@ -101,6 +176,30 @@ const bgDark = await page.evaluate(() => getComputedStyle(document.body).backgro
 ok(bgLight !== bgDark, `thème sombre appliqué (${bgLight} → ${bgDark})`);
 await page.screenshot({ path: `${OUT}/ux-dark.png` });
 await page.getByRole('radio', { name: 'Clair' }).click();
+
+// ---------- Onboarding : la dernière sourate (An-Nas) reste entièrement visible ----------
+const small = await browser.newContext({ ...devices['iPhone SE'], serviceWorkers: 'block', locale: 'fr-FR', reducedMotion: 'reduce' });
+const sp = await small.newPage();
+await sp.goto(BASE);
+await sp.getByText('garde-le.').waitFor();
+await sp.getByRole('button', { name: /Suivant/ }).click();
+await sp.getByRole('button', { name: /Suivant/ }).click();
+await sp.getByRole('button', { name: /^Commencer/ }).click();
+await sp.getByRole('button', { name: 'Continuer sans compte' }).click();
+await sp.getByPlaceholder('Ton prénom').fill('Test');
+await sp.getByRole('button', { name: 'Continuer' }).click();
+await sp.getByRole('radio', { name: /Femme/ }).click();
+await sp.getByRole('button', { name: 'Continuer' }).click();
+await sp.getByText('Quelles sourates connais-tu déjà').waitFor();
+await sp.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+await sp.waitForTimeout(400);
+const geo = await sp.evaluate(() => {
+  const last = [...document.querySelectorAll('li')].pop();
+  const footer = [...document.querySelectorAll('div')].find((d) => getComputedStyle(d).position === 'fixed' && d.querySelector('button'));
+  return { lastBottom: last.getBoundingClientRect().bottom, footerTop: footer.getBoundingClientRect().top, text: last.innerText };
+});
+ok(/Nas/i.test(geo.text) && geo.lastBottom <= geo.footerTop + 1, `An-Nas entièrement visible au-dessus du pied de page (${Math.round(geo.lastBottom)} ≤ ${Math.round(geo.footerTop)})`);
+await small.close();
 
 // ---------- Lisibilité : petit écran (320 px) ----------
 await page.setViewportSize({ width: 320, height: 640 });
