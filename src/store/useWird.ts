@@ -8,7 +8,7 @@ import {
   hasOpenGoal,
   learningEnabled,
   memorizedIds,
-  nextLearnTarget,
+  nextLearnTargets,
   reopenItem,
   skipItem,
   type Core,
@@ -19,7 +19,10 @@ import type {
   DayRecord,
   Direction,
   DraftGrade,
+  Gender,
+  LearnEvery,
   LearnMode,
+  LearnUnit,
   LearningGoal,
   PersistedState,
   Profile,
@@ -108,11 +111,13 @@ interface Actions {
 
 export interface OnboardingConfig {
   name: string;
+  gender?: Gender | null;
   /** Sourates déjà apprises avant WIRD (déclarées : hors rotation de révision tant qu'elles ne sont pas travaillées). */
   knownSurahs: number[];
   learnDirection: Direction;
   learnMode: LearnMode;
-  learnPagesPerWeek: number;
+  learnUnit: LearnUnit;
+  learnEvery: LearnEvery;
   reviewPagesPerDay: number;
   demo?: boolean;
 }
@@ -140,15 +145,18 @@ export const useWird = create<WirdStore>((set, get) => {
     let s = { ...get(), ...patch };
     const today = dateKey();
     if (s.profile.onboarded && learningEnabled(s.settings) && !hasOpenGoal(s)) {
-      const t = nextLearnTarget(s.verses, s.goals, s.settings.learnDirection);
+      const t = nextLearnTargets(s.verses, s.goals, s.settings);
       if (t) {
         const verses = { ...s.verses };
-        for (let a = t.from; a <= t.to; a++) {
-          const id = ayahId(t.surah, a);
-          if (!verses[id]) verses[id] = newLearningVerse(id, today);
+        const created: LearningGoal[] = [];
+        for (const seg of t.segments) {
+          for (let a = seg.from; a <= seg.to; a++) {
+            const id = ayahId(seg.surah, a);
+            if (!verses[id]) verses[id] = newLearningVerse(id, today);
+          }
+          created.push({ id: uid(), surah: seg.surah, from: seg.from, to: seg.to, cursor: seg.from, paused: false, createdAt: today, completedAt: null, auto: true, ...(t.unitKey ? { unitKey: t.unitKey } : {}) });
         }
-        const goal: LearningGoal = { id: uid(), surah: t.surah, from: t.from, to: t.to, cursor: t.from, paused: false, createdAt: today, completedAt: null, auto: true };
-        patch = { ...patch, verses, goals: [...s.goals, goal] };
+        patch = { ...patch, verses, goals: [...s.goals, ...created] };
         s = { ...s, ...patch };
       }
     }
@@ -258,10 +266,11 @@ export const useWird = create<WirdStore>((set, get) => {
         ...get().settings,
         learnDirection: cfg.learnDirection,
         learnMode: cfg.learnMode,
-        learnPagesPerWeek: cfg.learnPagesPerWeek,
+        learnUnit: cfg.learnUnit,
+        learnEvery: cfg.learnEvery,
         reviewPagesPerDay: cfg.reviewPagesPerDay,
       };
-      const profile = { name: cfg.name.trim(), createdAt: today, onboarded: true, demo: !!cfg.demo };
+      const profile = { name: cfg.name.trim(), gender: cfg.gender ?? null, createdAt: today, onboarded: true, demo: !!cfg.demo };
       const progressLog = logProgress({ verses, progressLog: [] }, today);
       rebuild({ profile, verses, goals, settings, progressLog, plan: null, rotation: { cursor: null, cycles: 0 }, session: null });
     },
@@ -277,7 +286,7 @@ export const useWird = create<WirdStore>((set, get) => {
     updateSettings(patch) {
       const settings = { ...get().settings, ...patch };
       set({ settings });
-      if (patch.learnDirection || patch.learnMode !== undefined || patch.learnPagesPerWeek !== undefined || patch.reviewPagesPerDay !== undefined || patch.reinforceVersesPerDay) {
+      if (patch.learnDirection || patch.learnMode !== undefined || patch.learnUnit !== undefined || patch.learnEvery !== undefined || patch.reviewPagesPerDay !== undefined || patch.reinforceVersesPerDay) {
         // Le sens change le point de reprise : on repart du curseur existant dans le nouveau sens.
         rebuild({ settings });
       }

@@ -56,8 +56,8 @@ await page.goto(BASE + '/revisions');
 await page.getByText('Auto', { exact: true }).first().waitFor();
 ok(true, 'apprentissage automatique : une sourate est proposée dans le sens choisi');
 await page.goto(BASE + '/profil/parametres');
-await page.getByRole('radio', { name: /Pages par semaine/ }).click();
-for (let i = 0; i < 16; i++) await page.getByRole('button', { name: /Plus de pages.*par semaine/ }).click();
+await page.getByRole('radio', { name: /Un demi-Hizb ou un Hizb/ }).click();
+await page.getByRole('radio', { name: 'Chaque jour' }).click();
 await settle(page);
 const j11b = await runSession(page, () => 'Maîtrisé');
 ok(j11b.n >= 3, 'séance avec objectif d’apprentissage relevé');
@@ -65,7 +65,11 @@ await page.goto(BASE + '/wird/1');
 await page.getByRole('heading', { name: /1\. Al-Fatihah/ }).waitFor();
 await page.getByRole('button', { name: /Verset 1 : /, exact: false }).first().waitFor();
 const v1 = await page.getByRole('button', { name: /^Verset 1 :/ }).getAttribute('aria-label');
-ok(/À renforcer|Appris/.test(v1), `Al-Fatiha apprise → confirmation à venir (${v1})`);
+ok(/Non suivi/.test(v1), `Al-Fatiha n’est jamais proposée automatiquement (${v1})`);
+await page.goto(BASE + '/wird/2');
+await page.getByRole('heading', { name: /2\. Al-Baqarah/ }).waitFor();
+const b1 = await page.getByRole('button', { name: /^Verset 1 :/ }).getAttribute('aria-label');
+ok(/apprentissage|Appris|À renforcer/.test(b1), `l’apprentissage automatique démarre à Al-Baqarah, 1er demi-Hizb (${b1})`);
 
 // ---------- Corbeille 30 jours ----------
 await page.goto(BASE + '/wird/112');

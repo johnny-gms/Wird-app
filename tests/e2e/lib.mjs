@@ -22,9 +22,11 @@ export async function onboard(page, { name = 'Test', juz = true, learnDir = 'for
   await intro(page);
   await page.getByPlaceholder('Ton prénom').fill(name || 'Test');
   await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('radio', { name: /Homme/ }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click();
   if (juz) await page.getByRole('button', { name: /Juz/ }).click();
   await page.getByRole('button', { name: /Continuer|Je n’en connais/ }).click();
-  if (learnDir === 'backward') await page.getByRole('radio', { name: /An-Nas → Al-Fatiha/ }).click();
+  if (learnDir === 'backward') await page.getByRole('radio', { name: /De la fin du Coran/ }).click();
   await page.getByRole('button', { name: 'Continuer' }).click();
   for (let i = 0; i < reviewPlus; i++) await page.getByRole('button', { name: /Plus de pages à réviser/ }).click();
   await page.getByRole('button', { name: 'Continuer' }).click();

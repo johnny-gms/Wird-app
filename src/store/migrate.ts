@@ -20,13 +20,25 @@ export function migrateSettings(old: Record<string, unknown> | undefined | null)
     notifications: { ...DEFAULT_SETTINGS.notifications, ...(o.notifications ?? {}) },
     reviewPagesPerDay: o.reviewPagesPerDay ?? DEFAULT_SETTINGS.reviewPagesPerDay,
     learnMode: o.learnMode ?? DEFAULT_SETTINGS.learnMode,
-    learnPagesPerWeek: o.learnPagesPerWeek ?? DEFAULT_SETTINGS.learnPagesPerWeek,
+    learnUnit: o.learnUnit ?? DEFAULT_SETTINGS.learnUnit,
+    learnEvery: o.learnEvery ?? DEFAULT_SETTINGS.learnEvery,
   };
+  // ancien mode « pages par semaine » (v. intermédiaire) → demi-Hizb à un rythme équivalent (≈ 5 pages par demi-Hizb)
+  const oldMode = (o as { learnMode?: string }).learnMode;
+  const oldWeekly = (o as { learnPagesPerWeek?: number }).learnPagesPerWeek;
+  if (oldMode === 'pages') {
+    const n = typeof oldWeekly === 'number' ? oldWeekly : 0;
+    settings.learnMode = n <= 0 ? 'off' : 'hizb';
+    settings.learnUnit = 'half';
+    settings.learnEvery = n >= 25 ? 1 : n >= 12 ? 2 : 7;
+  }
   const oldLearn = (o as { learnPagesPerDay?: number }).learnPagesPerDay;
   if (o.learnMode === undefined && typeof oldLearn === 'number') {
     // ancien objectif quotidien → pages par semaine
-    settings.learnMode = 'pages';
-    settings.learnPagesPerWeek = Math.max(0, Math.min(35, Math.round(oldLearn * 7)));
+    const n = Math.round(oldLearn * 7);
+    settings.learnMode = n <= 0 ? 'off' : 'hizb';
+    settings.learnUnit = 'half';
+    settings.learnEvery = n >= 25 ? 1 : n >= 12 ? 2 : 7;
   }
   if (o.reviewPagesPerDay === undefined && typeof o.reviewVersesPerDay === 'number') {
     // ≈ 15 versets par page ; arrondi à la demi-page
@@ -34,7 +46,7 @@ export function migrateSettings(old: Record<string, unknown> | undefined | null)
   }
   // la révision se compte désormais en pages entières
   settings.reviewPagesPerDay = Math.max(0, Math.min(20, Math.ceil(settings.reviewPagesPerDay)));
-  if (o.learnMode === undefined && o.learningEnabled === false) { settings.learnMode = 'pages'; settings.learnPagesPerWeek = 0; }
+  if (o.learnMode === undefined && o.learningEnabled === false) settings.learnMode = 'off';
   return settings;
 }
 

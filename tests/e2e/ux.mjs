@@ -47,7 +47,7 @@ await page.goto(BASE + '/progression');
 await page.getByText('Mes 114 sourates').waitFor();
 const prog = await body();
 ok(!/versets en apprentissage|versets mémorisés|versets ajoutés/i.test(prog), 'progression : plus de statistiques « versets mémorisés / en apprentissage »');
-ok(/sourates apprises/.test(prog) && /non commencées/.test(prog), 'progression : sourates apprises / en cours / à renforcer / non commencées');
+ok(/sourates apprises/.test(prog) && /sourates consolidées/.test(prog) && !/non commencées\s*$/m.test(prog.split('ÉVOLUTION')[0].split('VUE D’ENSEMBLE')[1] ?? ''), 'progression : apprises / en cours / à renforcer / consolidées (plus de « non commencées »)');
 const pos = (t) => prog.indexOf(t);
 ok(pos('MES 114 SOURATES') < pos('VUE D’ENSEMBLE') && pos('VUE D’ENSEMBLE') < pos('ÉVOLUTION') && pos('SUIVI DES HIZB') < pos('MES OBJECTIFS'), 'progression : grille, vue d’ensemble, évolution … objectifs en dernier');
 
@@ -56,7 +56,7 @@ await page.goto(BASE + '/wird');
 await page.getByRole('heading', { name: 'Mes sourates' }).waitFor();
 const chips = await page.locator('[role=group][aria-label="Filtrer par état"] button').evaluateAll((els) => els.map((e) => ({ t: e.innerText, h: e.getBoundingClientRect().height })));
 ok(chips.length === 5 && chips[0].t === 'Toutes' && chips.every((c) => c.h >= 30 && c.h <= 34), `filtres d’état compacts (${chips.map((c) => `${c.t} ${Math.round(c.h)}px`).join(', ')})`);
-ok(await page.getByRole('button', { name: 'Organiser par Hizb' }).isVisible(), '« Par Hizb » séparé des filtres d’état');
+ok(!(await page.getByRole('button', { name: /par Hizb/ }).count()) && (await page.getByRole('tab', { name: 'Juz et Hizb' }).isVisible()), 'filtre Hizb retiré ; navigation par Juz et Hizb dans un onglet distinct');
 
 // ---------- Détail : sélection simple / multiple ----------
 await page.goto(BASE + '/wird/112');
@@ -75,6 +75,40 @@ ok(true, 'grille : mode sélection (sélection / désélection de plusieurs vers
 await page.getByRole('button', { name: 'Choisir une action' }).click();
 ok(await page.getByRole('dialog').getByRole('button', { name: /Déjà appris/ }).isVisible(), 'sélection → feuille d’actions');
 await page.keyboard.press('Escape');
+
+// ---------- Coran : traduction française, mention retirée ----------
+await page.goto(BASE + '/coran?m=list&s=112');
+await page.getByText('Verset 4').waitFor();
+const coran = await body();
+ok(/Allah, Unique/.test(coran), 'liste des versets : traduction française sous le texte arabe');
+ok(!/Projet Tanzil \(tanzil\.net\)|Touche un verset pour voir sa fiche/.test(coran), 'mention « Texte et pagination : Projet Tanzil… » retirée des pages du Coran');
+await page.goto(BASE + '/coran?p=3');
+await page.locator('.vm').first().waitFor();
+ok(!/Projet Tanzil/.test(await body()), 'mention retirée aussi en vue Pages');
+const titleFont = await page.evaluate(() => getComputedStyle(document.querySelector('h1')).fontFamily);
+ok(/Iowan Old Style|Palatino|Georgia/.test(titleFont), `titres en serif (${titleFont.slice(0, 40)}…)`);
+
+// ---------- Balayage : uniquement les sous-pages, vers leur parent ----------
+const swipe = async (y = 300) => {
+  const cdp = await ctx.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 4, y }] });
+  for (const x of [30, 70, 120, 170]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + 2 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(400);
+};
+await page.goto(BASE + '/wird/112');
+await page.getByRole('heading', { name: /112\./ }).waitFor();
+await swipe();
+ok(new URL(page.url()).pathname === '/wird', 'balayage depuis une fiche de sourate → liste des sourates');
+await page.goto(BASE + '/progression');
+await page.getByText('Mes 114 sourates').waitFor();
+await swipe();
+ok(new URL(page.url()).pathname === '/progression', 'balayage sans effet sur un onglet principal');
+await page.goto(BASE + '/session');
+await page.waitForTimeout(500);
+const before = new URL(page.url()).pathname;
+await swipe();
+ok(new URL(page.url()).pathname === before, 'balayage sans effet pendant la séance');
 
 // ---------- Avatars ----------
 await page.goto(BASE + '/profil/profil');
@@ -101,6 +135,30 @@ const bgDark = await page.evaluate(() => getComputedStyle(document.body).backgro
 ok(bgLight !== bgDark, `thème sombre appliqué (${bgLight} → ${bgDark})`);
 await page.screenshot({ path: `${OUT}/ux-dark.png` });
 await page.getByRole('radio', { name: 'Clair' }).click();
+
+// ---------- Onboarding : la dernière sourate (An-Nas) reste entièrement visible ----------
+const small = await browser.newContext({ ...devices['iPhone SE'], serviceWorkers: 'block', locale: 'fr-FR', reducedMotion: 'reduce' });
+const sp = await small.newPage();
+await sp.goto(BASE);
+await sp.getByText('garde-le.').waitFor();
+await sp.getByRole('button', { name: /Suivant/ }).click();
+await sp.getByRole('button', { name: /Suivant/ }).click();
+await sp.getByRole('button', { name: /^Commencer/ }).click();
+await sp.getByRole('button', { name: 'Continuer sans compte' }).click();
+await sp.getByPlaceholder('Ton prénom').fill('Test');
+await sp.getByRole('button', { name: 'Continuer' }).click();
+await sp.getByRole('radio', { name: /Femme/ }).click();
+await sp.getByRole('button', { name: 'Continuer' }).click();
+await sp.getByText('Quelles sourates connais-tu déjà').waitFor();
+await sp.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+await sp.waitForTimeout(400);
+const geo = await sp.evaluate(() => {
+  const last = [...document.querySelectorAll('li')].pop();
+  const footer = [...document.querySelectorAll('div')].find((d) => getComputedStyle(d).position === 'fixed' && d.querySelector('button'));
+  return { lastBottom: last.getBoundingClientRect().bottom, footerTop: footer.getBoundingClientRect().top, text: last.innerText };
+});
+ok(/Nas/i.test(geo.text) && geo.lastBottom <= geo.footerTop + 1, `An-Nas entièrement visible au-dessus du pied de page (${Math.round(geo.lastBottom)} ≤ ${Math.round(geo.footerTop)})`);
+await small.close();
 
 // ---------- Lisibilité : petit écran (320 px) ----------
 await page.setViewportSize({ width: 320, height: 640 });

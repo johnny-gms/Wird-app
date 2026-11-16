@@ -13,7 +13,7 @@ export interface SyncRecord {
   value: unknown;
 }
 
-const SETTINGS: (keyof Settings)[] = ['learnDirection', 'learnMode', 'learnPagesPerWeek', 'reviewPagesPerDay', 'reinforceVersesPerDay', 'theme', 'haptics', 'notifications'];
+const SETTINGS: (keyof Settings)[] = ['learnDirection', 'learnMode', 'learnUnit', 'learnEvery', 'reviewPagesPerDay', 'reinforceVersesPerDay', 'theme', 'haptics', 'notifications'];
 
 type Slice = Pick<PersistedState, 'verses' | 'goals' | 'personalGoals' | 'trash' | 'settings' | 'profile' | 'rotation' | 'history'>;
 

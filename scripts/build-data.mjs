@@ -77,6 +77,8 @@ const before = [0];
 surahs.forEach((s, i) => before.push(before[i] + s.n));
 const gid = (sura, aya) => before[sura - 1] + aya;
 const hizbStarts = Array.from({ length: 60 }, (_, h) => [Number(quarters[h * 4].sura), Number(quarters[h * 4].aya)]);
+// demi-Hizb : début de chaque deuxième quart (120 demi-Hizb = 240 quarts / 2)
+const halfHizbStarts = Array.from({ length: 120 }, (_, k) => [Number(quarters[k * 2].sura), Number(quarters[k * 2].aya)]);
 const pageStarts = pages.map((p) => gid(Number(p.sura), Number(p.aya)));
 if (pageStarts[0] !== 1) fail('la page 1 doit commencer à 1:1');
 
@@ -84,6 +86,10 @@ if (pageStarts[0] !== 1) fail('la page 1 doit commencer à 1:1');
 hizbStarts.forEach(([s, a], h) => {
   const [ms, ma] = getRubAlHizbMeta(h * 4 + 1).first;
   if (ms !== s || ma !== a) fail(`Hizb ${h + 1} : Tanzil ${s}:${a} ≠ quran-meta ${ms}:${ma}`);
+});
+quarters.forEach((q, i) => {
+  const [ms, ma] = getRubAlHizbMeta(i + 1).first;
+  if (ms !== Number(q.sura) || ma !== Number(q.aya)) fail(`quart ${i + 1} : Tanzil ${q.sura}:${q.aya} ≠ quran-meta ${ms}:${ma}`);
 });
 pageStarts.forEach((id, i) => {
   if (PageList[i + 1] !== id) fail('page ' + (i + 1) + ' différente de quran-meta');
@@ -106,6 +112,8 @@ export interface SurahMeta {
 export const SURAHS: SurahMeta[] = ${JSON.stringify(surahs)};
 /** Premier verset [sourate, verset] de chacun des 60 Hizb. */
 export const HIZB_STARTS: [number, number][] = ${JSON.stringify(hizbStarts)};
+/** Premier verset [sourate, verset] de chacun des 120 demi-Hizb. */
+export const HALF_HIZB_STARTS: [number, number][] = ${JSON.stringify(halfHizbStarts)};
 /** Id global du premier verset de chacune des 604 pages du Mushaf de Médine. */
 export const PAGE_STARTS: number[] = ${JSON.stringify(pageStarts)};
 `,

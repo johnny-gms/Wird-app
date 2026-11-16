@@ -1,9 +1,10 @@
 import { Bell, ChevronRight, Download, Smartphone, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { LearnPicker } from '@/components/LearnPicker';
 import { ConfirmSheet, Segmented, SubPage, Toggle, toast } from '@/components/ui';
 import { dateKey } from '@/engine/dates';
-import type { Direction, LearnMode, ThemeMode } from '@/engine/types';
+import type { Direction, ThemeMode } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
 import { isIOS, isStandalone, useInstall } from '@/lib/pwa';
 import { APP_VERSION } from '@/lib/version';
@@ -20,7 +21,7 @@ const Section = ({ children }: { children: React.ReactNode }) => <h2 className="
 /** Paramètres : réglages organisés en sections claires (le Profil ne garde que l'identité et les accès). */
 export default function Settings() {
   const nav = useNavigate();
-  const { profile, settings, updateSettings, exportData, importData, resetAll } = useWird();
+  const { profile, settings, verses, updateSettings, exportData, importData, resetAll } = useWird();
   const install = useInstall((s) => s.event);
   const [reset, setReset] = useState(false);
   const [restore, setRestore] = useState<string | null>(null);
@@ -45,11 +46,8 @@ export default function Settings() {
       <div className="card space-y-4 p-4">
         <b>Mémorisation et révision</b>
         <div>
-          <p className="mb-1.5 text-sm text-muted">Apprentissage</p>
-          <Segmented<LearnMode> value={settings.learnMode} onChange={(learnMode) => updateSettings({ learnMode })} options={[{ value: 'surah', label: 'Une sourate par semaine' }, { value: 'pages', label: 'Pages par semaine' }]} />
-          {settings.learnMode === 'pages' ? (
-            <div className="mt-3 flex items-center justify-between gap-3"><span>Pages par semaine</span><PagesStepper value={settings.learnPagesPerWeek} min={0} max={35} onChange={(n) => updateSettings({ learnPagesPerWeek: n })} label="à apprendre par semaine" /></div>
-          ) : <p className="mt-2 text-xs text-muted">Idéal pour débuter : une sourate à la fois, répartie sur la semaine.</p>}
+          <p className="mb-2 text-sm text-muted">Apprentissage</p>
+          <LearnPicker value={{ mode: settings.learnMode, unit: settings.learnUnit, every: settings.learnEvery }} onChange={(v) => updateSettings({ learnMode: v.mode, learnUnit: v.unit, learnEvery: v.every })} verses={verses} direction={settings.learnDirection} />
         </div>
         <div>
           <div className="flex items-center justify-between gap-3"><span>Pages à réviser par jour</span><PagesStepper value={settings.reviewPagesPerDay} min={1} max={20} onChange={(n) => updateSettings({ reviewPagesPerDay: n })} label="à réviser" /></div>

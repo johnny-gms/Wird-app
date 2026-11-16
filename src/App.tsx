@@ -22,6 +22,15 @@ import { ProfileNotifications, ProfileAbout } from './screens/profile/SubScreens
 import Session from './screens/session/Session';
 import Bilan from './screens/session/Bilan';
 
+/** Écran parent d'une sous-page (null = pas de retour par balayage : onglets principaux, séance, écrans à geste propre). */
+function parentRoute(pathname: string): string | null {
+  if (/^\/wird\/\d+$/.test(pathname) || pathname === '/coran') return '/wird';
+  if (pathname === '/connues') return '/profil/parametres';
+  if (['/profil/profil', '/profil/parametres', '/profil/apropos'].includes(pathname)) return '/profil';
+  if (['/profil/notifications', '/profil/corbeille'].includes(pathname)) return '/profil/parametres';
+  return null;
+}
+
 const ROOTS = new Set(['/', '/wird', '/revisions', '/progression', '/profil']);
 
 function RedirectSurah() {
@@ -55,9 +64,9 @@ export default function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
-  // retour par glissement depuis le bord gauche (sauf onglets racines et séance)
-  const sub = !ROOTS.has(pathname) && !pathname.startsWith('/session');
-  useEdgeSwipeBack(sub ? () => nav(-1) : null, sub);
+  // retour par glissement depuis le bord gauche : uniquement pour quitter une sous-page vers son écran parent
+  const parent = parentRoute(pathname);
+  useEdgeSwipeBack(parent ? () => nav(parent, { replace: true }) : null, !!parent);
 
   if (!ready) {
     return (

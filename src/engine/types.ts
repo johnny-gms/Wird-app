@@ -36,6 +36,8 @@ export interface LearningGoal {
   cursor: number;
   /** Créé automatiquement par WIRD (prochaine sourate dans le sens d'apprentissage) ; terminé automatiquement. */
   auto?: boolean;
+  /** Objectifs d'un même Hizb / demi-Hizb créés ensemble (ex. « h:3 », « hh:5 ») : ils partagent le rythme du jour. */
+  unitKey?: string;
   paused: boolean;
   createdAt: string;
   completedAt: string | null;
@@ -134,7 +136,11 @@ export interface NotificationPrefs {
   comeback: { enabled: boolean; afterDays: number; time: string };
 }
 
-export type LearnMode = 'surah' | 'pages';
+/** Rythme d'apprentissage : une sourate par semaine, un Hizb / demi-Hizb à intervalle choisi, ou aucun nouvel apprentissage. */
+export type LearnMode = 'surah' | 'hizb' | 'off';
+export type LearnUnit = 'half' | 'full';
+/** Un passage tous les N jours (1 = chaque jour, 2 = tous les 2 jours, 7 = chaque semaine). */
+export type LearnEvery = 1 | 2 | 7;
 
 export type Gender = 'male' | 'female';
 
@@ -143,8 +149,10 @@ export interface Settings {
   learnDirection: Direction;
   /** Rythme d'apprentissage : « une sourate par semaine » (débutants) ou un nombre de pages par semaine. */
   learnMode: LearnMode;
-  /** Pages du Mushaf à apprendre par semaine (mode « pages » ; 0 = pas d'apprentissage). */
-  learnPagesPerWeek: number;
+  /** Unité du mode « hizb » : demi-Hizb ou Hizb. */
+  learnUnit: LearnUnit;
+  /** Rythme du mode « hizb » : une unité tous les N jours. */
+  learnEvery: LearnEvery;
   /** Objectif quotidien de révision, en pages entières du Mushaf. */
   reviewPagesPerDay: number;
   /** Plafond de versets de renforcement proposés par jour. */
