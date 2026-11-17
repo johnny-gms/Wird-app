@@ -76,7 +76,7 @@ export default function Revisions() {
         <div className="flex items-center gap-4">
           <MiniRing value={ratio} label={planned ? `${done.length}/${planned}` : '0'} />
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-bold uppercase tracking-[1.2px] opacity-65">Aujourd’hui</p>
+            <p className="eyebrow text-[12px] font-bold uppercase tracking-[1.2px] opacity-70">Aujourd’hui</p>
             <p className="mt-0.5 text-[20px] font-extrabold leading-tight tracking-[-0.3px]">
               {session ? 'Séance en cours' : pending.length ? `${pending.length} passage${pending.length > 1 ? 's' : ''} à faire` : planned ? 'Programme terminé' : 'Rien de prévu'}
             </p>

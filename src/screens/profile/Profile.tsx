@@ -18,7 +18,7 @@ export default function Profile() {
       <Link to="/profil/parametres" className={row}><SlidersHorizontal size={20} className="text-primary" /><span className="flex-1"><b className="block">Paramètres</b><span className="text-sm text-muted">Mémorisation, apparence, rappels, sauvegardes</span></span><ChevronRight size={18} className="text-muted" /></Link>
       <Link to="/profil/apropos" className={row}><Info size={20} className="text-primary" /><span className="flex-1"><b className="block">À propos de WIRD</b><span className="text-sm text-muted">Sources du texte et licences</span></span><ChevronRight size={18} className="text-muted" /></Link>
       <figure className="kpi mt-6 text-center" aria-label="Hadith sur la récompense du Coran">
-        <p className="text-[10.5px] font-bold uppercase tracking-[1.4px] opacity-60">Hadith</p>
+        <p className="eyebrow text-[10.5px] font-bold uppercase tracking-[1.4px] opacity-70">Hadith</p>
         <blockquote>
           <p className="ar mt-3 text-[25px] leading-[1.9] text-[#F6F1E4]" lang="ar" dir="rtl">مَنْ قَرَأَ حَرْفًا مِنْ كِتَابِ اللَّهِ فَلَهُ بِهِ حَسَنَةٌ وَالْحَسَنَةُ بِعَشْرِ أَمْثَالِهَا</p>
           <p className="serif mt-3 text-[16px] italic leading-relaxed">« Celui qui lit une lettre du Livre d’Allah aura une bonne action, et chaque bonne action est multipliée par dix. »</p>

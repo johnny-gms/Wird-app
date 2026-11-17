@@ -38,7 +38,7 @@ function CountUp({ to }: { to: number }) {
 /** Cadre doré et vert de la fin de séance : badge, titre, chiffres clés et bouton de sortie. */
 function Hero({ title, lead, stats, foot, onDone }: { title: string; lead: string; stats: { n: number; l: string; tone?: string }[]; foot?: string; onDone: () => void }) {
   return (
-    <section className="relative overflow-hidden rounded-[28px] px-5 pb-5 pt-7 text-center text-[#F6F1E4]" style={{ background: 'radial-gradient(120% 80% at 50% -10%, rgba(227,194,119,.38) 0%, rgba(227,194,119,0) 55%), linear-gradient(165deg,#1f5240 0%,#12352a 100%)', boxShadow: '0 24px 44px -22px rgba(18,53,42,.75)' }} aria-label="Bilan de la séance">
+    <section className="glory-card px-5 pb-5 pt-7 text-center" aria-label="Bilan de la séance">
       {/* étoiles discrètes */}
       {[[8, 10, 8], [86, 14, 6], [14, 46, 5], [90, 52, 7], [50, 4, 4]].map(([x, y, r], i) => (
         <svg key={i} aria-hidden viewBox="0 0 24 24" className="absolute opacity-40" style={{ left: `${x}%`, top: `${y}%`, width: r * 2, height: r * 2 }}><path d="M12 1l2.6 7.6L22 11l-7.4 2.4L12 21l-2.6-7.6L2 11l7.4-2.4z" fill={GOLD} /></svg>

@@ -98,7 +98,7 @@ export default function Home() {
 
       <header className="flex items-start justify-between gap-3 pt-[18px]">
         <div className="min-w-0">
-          <p className="text-[13px] text-muted">{formatDateLong()}</p>
+          <p className="eyebrow text-[13px] text-muted">{formatDateLong()}</p>
           <h1 className="mt-0.5 text-[21px] font-bold leading-tight tracking-[-0.3px]">{greeting()}{profile.name ? `, ${profile.name}` : ''}</h1>
         </div>
         <Link to="/profil" aria-label="Profil" className="shrink-0"><ProfileAvatar name={profile.name} gender={profile.gender} size={42} /></Link>
@@ -109,7 +109,7 @@ export default function Home() {
         <div className="relative z-[1] flex items-center gap-3.5">
           <div className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[14px] border border-white/10 bg-white/10"><RefreshCw size={23} /></div>
           <div className="min-w-0">
-            <p className="text-[10.5px] font-bold uppercase tracking-[1.4px] opacity-60">Mémorisation</p>
+            <p className="eyebrow text-[10.5px] font-bold uppercase tracking-[1.4px] opacity-70">Mémorisation</p>
             <h2 className="mt-0.5 truncate text-[17px] font-bold">
               {session ? 'Séance en cours' : nextReview ? `${surahMeta(nextReview.surah).tr} · ${rangeLabel(nextReview.surah, nextReview.from, nextReview.to).replace(/^Sourate \d+ — /, '')}` : reviewItems.length ? 'Révisions terminées' : 'Rien à réviser pour le moment'}
             </h2>
@@ -147,7 +147,7 @@ export default function Home() {
       {/* Sourate à apprendre */}
       {learningEnabled(settings) && (
         <section className="card mt-3.5 p-[18px]" aria-label="Sourate à apprendre">
-          <p className="text-[10.5px] font-bold uppercase tracking-[1.4px] text-muted">Sourate à apprendre</p>
+          <p className="eyebrow text-[10.5px] font-bold uppercase tracking-[1.4px] text-muted">Sourate à apprendre</p>
           {goal && gp && seg ? (
             <>
               <div className="mt-2 flex items-center justify-between gap-3">
