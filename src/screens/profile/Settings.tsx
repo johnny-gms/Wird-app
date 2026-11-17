@@ -1,14 +1,13 @@
 import { Bell, ChevronRight, Download, Smartphone, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LearnPicker } from '@/components/LearnPicker';
+import { LearnLevels, ReviewLevels, learnPatch, learnValueFromSettings, reviewPatch, reviewValueFromSettings } from '@/components/LevelPickers';
 import { ConfirmSheet, Segmented, SubPage, Toggle, toast } from '@/components/ui';
 import { dateKey } from '@/engine/dates';
 import type { Direction, ThemeMode } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
 import { isIOS, isStandalone, useInstall } from '@/lib/pwa';
 import { APP_VERSION } from '@/lib/version';
-import { PagesStepper } from '@/screens/Onboarding';
 import { useWird } from '@/store/useWird';
 
 const DIR: { value: Direction; label: string }[] = [
@@ -21,7 +20,7 @@ const Section = ({ children }: { children: React.ReactNode }) => <h2 className="
 /** Paramètres : réglages organisés en sections claires (le Profil ne garde que l'identité et les accès). */
 export default function Settings() {
   const nav = useNavigate();
-  const { profile, settings, verses, updateSettings, exportData, importData, resetAll } = useWird();
+  const { profile, settings, updateSettings, exportData, importData, resetAll } = useWird();
   const install = useInstall((s) => s.event);
   const [reset, setReset] = useState(false);
   const [restore, setRestore] = useState<string | null>(null);
@@ -46,11 +45,12 @@ export default function Settings() {
       <div className="card space-y-4 p-4">
         <b>Mémorisation et révision</b>
         <div>
-          <p className="mb-2 text-sm text-muted">Apprentissage</p>
-          <LearnPicker value={{ mode: settings.learnMode, unit: settings.learnUnit, every: settings.learnEvery }} onChange={(v) => updateSettings({ learnMode: v.mode, learnUnit: v.unit, learnEvery: v.every })} verses={verses} direction={settings.learnDirection} />
+          <p className="mb-2 text-sm text-muted">Apprentissage de nouveaux versets</p>
+          <LearnLevels value={learnValueFromSettings(settings)} onChange={(v) => updateSettings(learnPatch(v))} />
         </div>
         <div>
-          <div className="flex items-center justify-between gap-3"><span>Pages à réviser par jour</span><PagesStepper value={settings.reviewPagesPerDay} min={1} max={20} onChange={(n) => updateSettings({ reviewPagesPerDay: n })} label="à réviser" /></div>
+          <p className="mb-2 text-sm text-muted">Révision</p>
+          <ReviewLevels value={reviewValueFromSettings(settings)} onChange={(v) => updateSettings(reviewPatch(v))} />
           <p className="mt-1 text-xs text-muted">Si tu connais moins de contenu, la révision se limite à ce que tu as. Rien n’est reporté ni dû.</p>
         </div>
         <div>

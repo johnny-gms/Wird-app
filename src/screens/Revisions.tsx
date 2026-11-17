@@ -55,7 +55,7 @@ export default function Revisions() {
   const finished = goals.filter((g) => g.completedAt);
 
   return (
-    <Screen title="Mémoriser" sub="Tes révisions du jour et tes 114 sourates" tabs={<MemoSwitch />}>
+    <Screen title="Mon Wird" sub="Tes révisions du jour et le Coran" tabs={<MemoSwitch />}>
       <p className="-mt-1 text-sm text-muted">Les versets que tu as déjà appris : on les garde au chaud. Rien n’est jamais dû : ce qui n’est pas fait aujourd’hui n’est pas reporté.</p>
 
       {/* Activités inachevées */}

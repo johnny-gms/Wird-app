@@ -19,6 +19,8 @@ export function migrateSettings(old: Record<string, unknown> | undefined | null)
     theme: o.theme ?? DEFAULT_SETTINGS.theme,
     notifications: { ...DEFAULT_SETTINGS.notifications, ...(o.notifications ?? {}) },
     reviewPagesPerDay: o.reviewPagesPerDay ?? DEFAULT_SETTINGS.reviewPagesPerDay,
+    learnWeekly: o.learnWeekly ?? null,
+    reviewWeekly: o.reviewWeekly ?? null,
     learnMode: o.learnMode ?? DEFAULT_SETTINGS.learnMode,
     learnUnit: o.learnUnit ?? DEFAULT_SETTINGS.learnUnit,
     learnEvery: o.learnEvery ?? DEFAULT_SETTINGS.learnEvery,

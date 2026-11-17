@@ -96,7 +96,7 @@ export function VersePicker({ surah, selected, onChange, verses }: { surah: numb
         </div>
       </div>
       <div
-        className="mt-2 grid grid-cols-6 gap-1.5 select-none sm:grid-cols-8"
+        className="mt-2 grid grid-cols-7 gap-1.5 select-none"
         style={{ touchAction: 'pan-y' }}
         onPointerDown={(e) => {
           const c = cellAt(e.clientX, e.clientY);
@@ -132,7 +132,7 @@ export function VersePicker({ surah, selected, onChange, verses }: { surah: numb
           const sel = selected.has(v);
           const k = verseKind(verses[ayahId(surah, v)]);
           return (
-            <div key={v} data-verse={v} className={cx('flex aspect-square min-h-[44px] items-center justify-center rounded-xl text-[15px] font-semibold tabular-nums transition', sel ? 'bg-primary text-primary-ink' : KIND_RING[k])}>
+            <div key={v} data-verse={v} className={cx('flex aspect-square items-center justify-center rounded-lg text-[14px] font-semibold tabular-nums transition', sel ? 'bg-primary text-primary-ink' : KIND_RING[k])}>
               {v}
             </div>
           );

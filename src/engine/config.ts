@@ -72,6 +72,8 @@ export const DEFAULT_SETTINGS: Settings = {
   learnUnit: 'half',
   learnEvery: 7,
   reviewPagesPerDay: 1,
+  learnWeekly: null,
+  reviewWeekly: null,
   reinforceVersesPerDay: 15,
   theme: 'system',
   haptics: true,

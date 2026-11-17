@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { VersePicker } from '@/components/VersePicker';
 import { VerseSheet, KIND_BG } from '@/components/VerseSheet';
-import { GradeChip, KindBadge, Sheet, SubPage, cx, toast } from '@/components/ui';
+import { GradeChip, KindBadge, ProgressBar, Sheet, SubPage, cx, toast } from '@/components/ui';
 import { ENGINE } from '@/engine/config';
 import { diffDays } from '@/engine/dates';
 import { dueReinforcement } from '@/engine/plan';
@@ -71,12 +71,19 @@ function Detail({ surah }: { surah: number }) {
 
   return (
     <SubPage title={`${meta.id}. ${meta.tr}`} back={-1} sub={<span className="flex items-baseline justify-between gap-3"><span>{meta.n} versets · {Math.round((st.memorized / st.total) * 100)} % appris</span><span className="ar text-[26px] leading-none text-ink" lang="ar">{meta.ar}</span></span>}>
-      <div className="grid grid-cols-4 gap-2">
-        <Tile n={st.memorized + st.learning} l="suivis" />
-        <Tile n={st.memorized} l="appris" />
-        <Tile n={st.learning} l="en apprentissage" />
-        <Tile n={st.fragile} l="à renforcer" />
-      </div>
+      <section className="card p-4" aria-label="Progression de la sourate">
+        <div className="flex items-center justify-between gap-3">
+          <p className="label">Progression</p>
+          <span className={cx('rounded-full px-3 py-1 text-[13px] font-semibold', complete ? 'bg-good-soft text-good' : st.learning || st.memorized ? 'bg-blue-soft text-blue' : 'bg-surface2 text-muted')}>{complete ? 'Apprise' : st.learning || st.memorized ? 'En cours' : 'Non commencée'}</span>
+        </div>
+        <div className="mt-3"><ProgressBar value={st.total ? st.memorized / st.total : 0} /></div>
+        <dl className="mt-4 grid grid-cols-4 gap-1 text-center">
+          <Stat n={st.memorized + st.learning} l="suivis" />
+          <Stat n={st.memorized} l="appris" />
+          <Stat n={st.learning} l="en apprentissage" />
+          <Stat n={st.fragile} l="à renforcer" />
+        </dl>
+      </section>
       {complete && <div className="card mt-3 p-4"><b>Sourate apprise ✓</b><p className="text-sm text-muted">Tous les versets sont appris. Continue à la réviser régulièrement.</p></div>}
 
       <Link to={`/coran?m=list&s=${surah}`} className="btn-soft mt-3 w-full"><BookOpen size={18} /> Ouvrir le Coran numérique</Link>
@@ -96,7 +103,7 @@ function Detail({ surah }: { surah: number }) {
         <h2 className="label">Versets</h2>
         <button className="chip chip-sm" aria-pressed={selecting} onClick={() => { setSelecting(!selecting); if (selecting) setSel(new Set()); haptic('select'); }}>{selecting ? 'Terminer la sélection' : 'Sélectionner'}</button>
       </div>
-      <div className="grid grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-7 gap-1.5">
         {Array.from({ length: meta.n }, (_, i) => {
           const v = verses[ayahId(surah, i + 1)];
           const k = verseKind(v);
@@ -109,13 +116,12 @@ function Detail({ surah }: { surah: number }) {
                 if (selecting) setSel((p) => { const n = new Set(p); n.has(i + 1) ? n.delete(i + 1) : n.add(i + 1); return n; });
                 else setVerse(i + 1);
               }}
-              className={cx('relative flex aspect-square min-h-[44px] flex-col items-center justify-center rounded-xl text-[15px] font-semibold tabular-nums transition active:scale-95', KIND_BG[k], selecting && on && 'ring-[3px] ring-ink')}
+              className={cx('relative flex aspect-square items-center justify-center rounded-lg text-[14px] font-semibold tabular-nums transition active:scale-95', KIND_BG[k], selecting && on && 'ring-[3px] ring-ink')}
               aria-label={`Verset ${i + 1} : ${KIND_NAME[k]}`}
               aria-pressed={selecting ? on : undefined}
             >
               {i + 1}
               {k === 'r' && <i className="absolute right-1 top-1 h-2 w-2 rounded-full bg-good ring-1 ring-white" title="Déjà appris" />}
-              <small className="text-[9px] font-medium opacity-90">{k === 'n' ? '—' : KIND_NAME[k].split(' ')[0].slice(0, 5)}</small>
             </button>
           );
         })}
@@ -187,11 +193,11 @@ function Detail({ surah }: { surah: number }) {
   );
 }
 
-function Tile({ n, l }: { n: number; l: string }) {
+function Stat({ n, l }: { n: number; l: string }) {
   return (
-    <div className="rounded-[14px] bg-surface2 px-1.5 py-2.5 text-center">
-      <p className="font-display text-[21px] font-bold leading-tight">{n}</p>
-      <p className="text-[11px] leading-snug text-muted">{l}</p>
+    <div>
+      <dd className="text-[22px] font-extrabold leading-tight tabular-nums">{n}</dd>
+      <dt className="text-[12px] leading-snug text-muted">{l}</dt>
     </div>
   );
 }

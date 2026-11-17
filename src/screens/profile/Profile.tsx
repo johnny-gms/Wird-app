@@ -23,7 +23,7 @@ export default function Profile() {
         <div>
           <p className="text-[13px] font-semibold opacity-70">Ma régularité</p>
           <p className="mt-0.5 text-[26px] font-extrabold">{level}</p>
-          <p className="mt-0.5 text-[13px] opacity-70">{active} jour{active > 1 ? 's' : ''} actif{active > 1 ? 's' : ''} sur 28</p>
+          <p className="mt-0.5 text-[13px] opacity-70">{active} jour{active > 1 ? 's' : ''} actif{active > 1 ? 's' : ''} sur les 28 derniers jours</p>
         </div>
         <div className="text-white [&_circle:first-child]:stroke-white/15 [&_circle:last-child]:stroke-[#A9C4AE]"><Ring value={pct / 100} size={72} stroke={7}>{pct}%</Ring></div>
       </div>

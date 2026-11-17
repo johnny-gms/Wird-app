@@ -1,7 +1,7 @@
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { goalProgress, upcomingRotation } from '@/engine/plan';
+import { goalProgress, learningSegment, upcomingRotation } from '@/engine/plan';
 import { overall } from '@/engine/progress';
 import { formatDuration, rangeLabel, surahMeta } from '@/engine/quran';
 import { useToday } from '@/lib/hooks';
@@ -43,6 +43,22 @@ export default function Bilan() {
     if (startSession(ids, { mode: lastMode() ?? undefined, minutes })) nav('/session');
   };
   const learnToday = (plan?.items ?? []).filter((i) => i.kind === 'learn' && i.status === 'done');
+  // L'app distingue révision et apprentissage : le bouton « continuer » s'adapte à ce qui vient d'être travaillé.
+  const sessionItems = extraState ? extraItems : plan?.items.filter((i) => i.status === 'done') ?? [];
+  const hasLearn = sessionItems.some((i) => i.kind === 'learn');
+  const hasReview = sessionItems.some((i) => i.kind !== 'learn');
+  const startLearnMore = () => {
+    const g = goals.find((x) => !x.completedAt && !x.paused && learningSegment({ verses }, x));
+    const seg = g ? learningSegment({ verses }, g) : null;
+    if (!g || !seg) {
+      toast('Rien de plus à apprendre pour le moment');
+      return;
+    }
+    const waiting = (plan?.items ?? []).find((i) => i.kind === 'learn' && i.status === 'pending' && i.goalId === g.id);
+    const id = waiting?.id ?? addAdhoc(g.surah, seg.from, Math.min(seg.to, seg.from + Math.max(2, Math.round(minutes / 3)) - 1), { kind: 'learn', goalId: g.id });
+    if (id && startSession([id], { mode: lastMode() ?? undefined, minutes })) nav('/session');
+  };
+  const done = () => { haptic('success'); nav('/session/felicitations', { replace: true }); };
 
   if (extraState) {
     return (
@@ -62,8 +78,9 @@ export default function Bilan() {
           </ul>
         </section>
         <div className="mt-6 flex flex-col gap-2">
-          <button className="btn-soft" onClick={() => startExtra('next')}>Encore un peu</button>
-          <Link to="/" className="btn-primary">Retour à l’accueil</Link>
+          {hasReview && <button className="btn-soft" onClick={() => startExtra('next')}>Continuer à réviser ?</button>}
+          {hasLearn && <button className="btn-soft" onClick={startLearnMore}>Continuer à apprendre ?</button>}
+          <button className="btn-primary" onClick={done}>Terminé pour aujourd’hui</button>
         </div>
       </Screen>
     );
@@ -140,7 +157,8 @@ export default function Bilan() {
           {[5, 10, 15, 20].map((m) => <button key={m} role="radio" aria-checked={minutes === m} onClick={() => setMinutes(m)} className={cx('chip chip-sm')}>{m} min</button>)}
         </div>
         <div className="mt-3 grid gap-2">
-          <button className="btn-soft" onClick={() => startExtra('next')}>Prochains passages recommandés</button>
+          {(hasReview || !hasLearn) && <button className="btn-soft" onClick={() => startExtra('next')}>Continuer à réviser ?</button>}
+          {hasLearn && <button className="btn-soft" onClick={startLearnMore}>Continuer à apprendre ?</button>}
           <button className="btn-soft" onClick={() => startExtra('free')}>Choisir une sourate ou un passage</button>
         </div>
       </section>
@@ -151,7 +169,7 @@ export default function Bilan() {
             Continuer maintenant
           </button>
         )}
-        <Link to="/" className="btn-primary">Retour à l’accueil</Link>
+        <button className="btn-primary" onClick={done}>Terminé pour aujourd’hui</button>
         <Link to="/progression" className="btn-ghost">Voir ma progression</Link>
       </div>
     </Screen>

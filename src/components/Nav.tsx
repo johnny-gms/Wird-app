@@ -10,7 +10,7 @@ import { useWird } from '@/store/useWird';
 
 const TABS = [
   { to: '/', label: 'Accueil', icon: House, match: (p: string) => p === '/' },
-  { to: '/revisions', label: 'Mémoriser', icon: BookOpen, match: (p: string) => p.startsWith('/revisions') || p.startsWith('/wird') || p === '/coran' },
+  { to: '/revisions', label: 'Mon Wird', icon: BookOpen, match: (p: string) => p.startsWith('/revisions') || p.startsWith('/wird') || p === '/coran' },
   { to: '/progression', label: 'Progression', icon: ChartNoAxesColumn, match: (p: string) => p.startsWith('/progression') },
   { to: '/profil', label: 'Profil', icon: UserRound, match: (p: string) => p.startsWith('/profil') || p === '/connues' },
 ];
@@ -53,13 +53,13 @@ export function Nav() {
       </NavLink>
     );
   };
-  const tab_label = (t: (typeof TABS)[number]) => t.label;
+  const tab_label = (t: (typeof TABS)[number]) => (t.to === '/revisions' && (pathname.startsWith('/wird') || pathname === '/coran') ? 'Coran' : t.label);
 
   return (
     <>
-      <nav aria-label="Navigation principale" className="pb-safe fixed inset-x-0 bottom-0 z-40 lg:inset-y-0 lg:left-0 lg:right-auto lg:w-60 lg:border-r lg:border-line lg:bg-surface lg:p-5">
+      <nav aria-label="Navigation principale" className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface lg:inset-y-0 lg:left-0 lg:right-auto lg:w-60 lg:border-r lg:border-t-0 lg:p-5">
         {/* mobile : barre arrondie avec bouton central */}
-        <div className="mx-auto grid max-w-[520px] grid-cols-[1fr_1fr_76px_1fr_1fr] items-end rounded-t-[26px] border-t border-line bg-surface px-2.5 pb-2.5 pt-2.5 shadow-[0_-10px_30px_-20px_rgba(0,0,0,.25)] lg:hidden">
+        <div className="mx-auto grid max-w-[520px] grid-cols-[1fr_1fr_76px_1fr_1fr] items-end px-2.5 pb-2 pt-2.5 lg:hidden">
           {tab(TABS[0])}
           {tab(TABS[1])}
           <button className="fab mx-auto -mt-[30px] mb-2" aria-label="Démarrer" onClick={() => { haptic('tap'); setOpen(true); }}>

@@ -55,13 +55,13 @@ export default function ProgressPage() {
 
       {/* ---------- Versets mémorisés ---------- */}
       <div className="kpi mt-4">
-        <p className="text-[13px] font-semibold opacity-70">Versets mémorisés</p>
+        <p className="text-[13px] font-semibold opacity-70">Sourates mémorisées</p>
         <div className="flex items-center justify-between gap-3">
-          <p className="mt-1 text-[38px] font-extrabold leading-none tracking-[-1px] tabular-nums">{new Intl.NumberFormat('fr-FR').format(o.memorizedVerses)}</p>
+          <p className="mt-1 text-[38px] font-extrabold leading-none tracking-[-1px] tabular-nums">{o.surahsComplete}<span className="ml-1.5 text-[18px] font-bold opacity-70">/ 114</span></p>
           {streakNow > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[12.5px] font-bold text-[#CFE3D3]">🔥 {streakNow} jour{streakNow > 1 ? 's' : ''}</span>}
         </div>
-        <p className="mt-1 text-[13px] opacity-70">sur 6 236 versets · {o.ratio === 0 ? '0' : o.ratio < 0.01 ? '<1' : Math.round(o.ratio * 100)} % du Coran</p>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/15"><i className="block h-full rounded-full bg-[#A9C4AE] transition-[width] duration-700" style={{ width: `${Math.max(o.ratio * 100, 2)}%` }} /></div>
+        <p className="mt-1 text-[13px] opacity-70">{inProgress} en cours · {reinforceSurahs} à renforcer · {o.ratio === 0 ? '0' : o.ratio < 0.01 ? '<1' : Math.round(o.ratio * 100)} % du Coran</p>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/15"><i className="block h-full rounded-full bg-[#A9C4AE] transition-[width] duration-700" style={{ width: `${Math.max((o.surahsComplete / 114) * 100, 2)}%` }} /></div>
       </div>
 
       {/* ---------- Les 114 sourates ---------- */}

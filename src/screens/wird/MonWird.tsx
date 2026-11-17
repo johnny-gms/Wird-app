@@ -59,7 +59,7 @@ export default function MonWird() {
   );
 
   return (
-    <Screen title="Mémoriser" sub="Tes révisions du jour et tes 114 sourates" tabs={<MemoSwitch />}>
+    <Screen title="Coran" sub="Les 114 sourates, le Coran numérique et les Juz" tabs={<MemoSwitch />}>
       {view === 'juz' ? (
         <>
           <Link to="/coran" className="btn-soft w-full !min-h-[36px] !py-1.5 text-sm" aria-label="Ouvrir le Coran numérique"><BookOpen size={16} /> Coran numérique</Link>

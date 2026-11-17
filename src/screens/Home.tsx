@@ -1,4 +1,4 @@
-import { BookOpen, Check, ChevronRight, Clock, Flame, Leaf, RefreshCw, Star } from 'lucide-react';
+import { BookOpen, Check, ChevronRight, Clock, Flame, RefreshCw, Star } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ProfileAvatar } from '@/components/Avatar';
@@ -102,20 +102,10 @@ export default function Home() {
         ? 'Qu’Allah te facilite, à demain 🌿'
         : hasAny
           ? 'Profite de ta journée.'
-          : 'Choisis une sourate à apprendre depuis Mémoriser.';
+          : 'Choisis une sourate à apprendre depuis Mon Wird.';
 
   return (
     <div className="mx-auto w-full max-w-[520px] animate-fade px-[18px] pb-10 pt-safe">
-      <header className="flex items-center justify-between pb-4 pt-[14px]">
-        <div className="flex items-center gap-2 text-[18px] font-extrabold tracking-[.5px] text-primary">
-          <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-deep">
-            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden><path d="M12 3c3 3 5 6 5 9.5A5 5 0 0 1 12 18a5 5 0 0 1-5-5.5C7 9 9 6 12 3z" fill="#A9C4AE" /><path d="M12 8v13" stroke="#F4F3ED" strokeWidth="1.6" strokeLinecap="round" /></svg>
-          </span>
-          WIRD
-        </div>
-        <Link to="/profil" aria-label="Profil"><ProfileAvatar name={profile.name} gender={profile.gender} size={42} /></Link>
-      </header>
-
       <Sheet open={!!stale} onClose={() => undefined} title="Ta dernière séance n’a pas été terminée">
         <p className="mb-5 text-[15px] leading-relaxed text-muted">Que souhaites-tu faire ? Les passages non terminés sont intégrés à ton programme du jour, sans surcharge.</p>
         <div className="flex flex-col gap-2">
@@ -132,10 +122,13 @@ export default function Home() {
         </div>
       )}
 
-      <div>
-        <p className="text-[13px] text-muted">{formatDateLong()}</p>
-        <h1 className="mt-0.5 text-[21px] font-bold leading-tight tracking-[-0.3px]">{greeting()}{profile.name ? `, ${profile.name}` : ''}</h1>
-      </div>
+      <header className="flex items-start justify-between gap-3 pt-[18px]">
+        <div className="min-w-0">
+          <p className="text-[13px] text-muted">{formatDateLong()}</p>
+          <h1 className="mt-0.5 text-[21px] font-bold leading-tight tracking-[-0.3px]">{greeting()}{profile.name ? `, ${profile.name}` : ''}</h1>
+        </div>
+        <Link to="/profil" aria-label="Profil" className="shrink-0"><ProfileAvatar name={profile.name} gender={profile.gender} size={42} /></Link>
+      </header>
 
       {/* Apprentissage en cours */}
       {goal && gp && seg ? (
@@ -225,7 +218,7 @@ export default function Home() {
               ) : (
                 <div className="py-3">
                   <p><b>Rien de prévu aujourd’hui.</b></p>
-                  <p className="text-sm text-muted">{hasAny ? 'Profite de ta journée, ou ajuste tes objectifs en pages.' : 'Choisis une sourate à apprendre depuis Mémoriser.'}</p>
+                  <p className="text-sm text-muted">{hasAny ? 'Profite de ta journée, ou ajuste tes objectifs en pages.' : 'Choisis une sourate à apprendre depuis Mon Wird.'}</p>
                 </div>
               )}
               <div className="flex justify-center gap-5 border-t border-line py-3 text-sm font-semibold text-primary">
@@ -289,11 +282,10 @@ export default function Home() {
 
       {/* Verset du jour */}
       <div className="verse-card mt-3.5">
-        <span className="chip-ic bg-surface text-good"><Leaf size={21} /></span>
-        <div className="min-w-0">
-          <p className="ar text-[24px] leading-[1.6] text-primary" lang="ar" dir="rtl">{motivation ?? ' '}</p>
+        <div className="min-w-0 flex-1">
+          <p className="ar text-[24px] leading-[1.6] text-primary" lang="ar" dir="rtl">{motivation ?? '\u00A0'}</p>
           <em className="serif mt-0.5 block text-[14.5px] not-italic italic">« Et récite le Coran lentement et clairement. »</em>
-          <small className="mt-1.5 block text-xs text-muted">Al-Muzzammil · verset 4</small>
+          <small className="mt-1 block text-xs text-muted">Al-Muzzammil · verset 4</small>
         </div>
       </div>
 

@@ -21,6 +21,7 @@ import Settings from './screens/profile/Settings';
 import { ProfileNotifications, ProfileAbout } from './screens/profile/SubScreens';
 import Session from './screens/session/Session';
 import Bilan from './screens/session/Bilan';
+import Congrats from './screens/session/Congrats';
 
 /** Écran parent d'une sous-page (null = pas de retour par balayage : onglets principaux, séance, écrans à geste propre). */
 function parentRoute(pathname: string): string | null {
@@ -137,6 +138,7 @@ export default function App() {
           <Route path="/profil/apropos" element={<ProfileAbout />} />
           <Route path="/session" element={<Session />} />
           <Route path="/session/bilan" element={<Bilan />} />
+          <Route path="/session/felicitations" element={<Congrats />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

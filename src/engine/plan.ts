@@ -1,5 +1,6 @@
 import { ENGINE } from './config';
-import { pageOf, rangePages } from './pages';
+import { diffDays, startOfWeek } from './dates';
+import { idsPages, pageOf, rangePages } from './pages';
 import { applyGrade, newLearningVerse, promoteLearned } from './scheduling';
 import { SURAHS, ayahId, fromAyahId, surahMeta } from './quran';
 import { learnUnits } from './units';
@@ -12,6 +13,9 @@ export interface PlanContext {
   rotation: RotationState;
   settings: Settings;
 }
+
+/** Contexte de construction du programme : l'historique sert à répartir les objectifs par semaine. */
+export type PlanBuildContext = PlanContext & { history?: HistoryEntry[] };
 
 export interface Core extends PlanContext {
   plan: DailyPlan | null;
@@ -73,7 +77,7 @@ export function dueReinforcement(verses: Record<number, VerseState>, date: strin
  *  - Renforcement : versets fragiles dus, plafonnés.
  * Les éléments déjà terminés ou ignorés sont conservés ; seuls les éléments « à faire » sont recalculés. Aucune dette.
  */
-export function buildPlan(ctx: PlanContext, date: string, prev: DailyPlan | null): DailyPlan {
+export function buildPlan(ctx: PlanBuildContext, date: string, prev: DailyPlan | null): DailyPlan {
   const kept = prev && prev.date === date ? prev.items.filter((i) => i.status === 'done' || i.status === 'skipped') : [];
   const items: PlanItem[] = [...kept];
 
@@ -106,13 +110,17 @@ export function buildPlan(ctx: PlanContext, date: string, prev: DailyPlan | null
   const seen = new Set<number>(keptRot.flatMap(itemIds));
   const rotExclude = new Set<number>([...coveredReinforce, ...picked, ...seen]);
   let guard = memorized.length + 2;
-  while (pagesUsed.size < ctx.settings.reviewPagesPerDay && guard-- > 0) {
+  // Objectif par semaine (pages / Hizb / Juz) : répartition sur la semaine, sans dette (voir weekQuota).
+  const weeklyReview = ctx.settings.reviewWeekly ? weeklyReviewPages(ctx.settings) : null;
+  let weeklyToAdd = weeklyReview !== null ? weekQuota(weeklyReview, date) - weekDone(ctx.history, date, 'review', (h) => rangePages(h.surah, h.from, h.to)) : 0;
+  while ((weeklyReview !== null ? weeklyToAdd > 0.04 : pagesUsed.size < ctx.settings.reviewPagesPerDay) && guard-- > 0) {
     const c = nextChunk(memorized, cursor, rotExclude, ENGINE.chunkSize, true);
     if (!c) break;
     // un tour complet de la rotation a été proposé : on ne répète pas les mêmes versets le même jour
     if (c.ids.some((id) => seen.has(id))) break;
     c.ids.forEach((id) => seen.add(id));
     pagesUsed.add(pageOf(c.ids[0]));
+    weeklyToAdd -= idsPages(c.ids);
     items.push({ id: mkId(date, 'review', c.surah, c.from, c.to), kind: 'review', surah: c.surah, from: c.from, to: c.to, status: 'pending', endCursor: c.endCursor, wraps: c.wraps });
     cursor = c.endCursor;
     if (c.wraps && seen.size >= memorized.length) break;
@@ -120,6 +128,35 @@ export function buildPlan(ctx: PlanContext, date: string, prev: DailyPlan | null
 
   // 3. Nouvel apprentissage : objectifs en cours, jusqu'à l'objectif en pages
   const keptLearn = kept.filter((i) => i.kind === 'learn').reduce((a, i) => a + itemPages(i), 0);
+  const lw = ctx.settings.learnWeekly;
+  if (lw && ctx.settings.learnMode !== 'off') {
+    // Objectif par semaine (versets ou pages) : cumul visé à la fin de la journée − déjà appris cette semaine.
+    const week = (ctx.history ?? []).filter((h) => h.kind === 'learn');
+    let verseBudget = Math.ceil(weekQuota(lw.amount, date)) - (lw.unit === 'verses' ? weekDone(week, date, 'learn', (h) => h.to - h.from + 1) : 0);
+    let pageBudget = weekQuota(lw.amount, date) - (lw.unit === 'pages' ? weekDone(week, date, 'learn', (h) => rangePages(h.surah, h.from, h.to)) : 0);
+    for (const g of ctx.goals) {
+      if (g.paused || g.completedAt) continue;
+      const keptG = kept.filter((i) => i.kind === 'learn' && i.goalId === g.id);
+      let at = Math.max(g.cursor, ...keptG.map((i) => i.to + 1));
+      while (lw.unit === 'verses' ? verseBudget >= 1 : pageBudget > 0.03) {
+        let seg = learningSegment(ctx, g, at);
+        if (!seg) break;
+        if (lw.unit === 'verses') seg = { from: seg.from, to: Math.min(seg.to, seg.from + verseBudget - 1) };
+        else {
+          let e = seg.from;
+          while (e < seg.to && rangePages(g.surah, seg.from, e + 1) <= pageBudget) e++;
+          seg = { from: seg.from, to: e };
+        }
+        items.push({ id: mkId(date, 'learn', g.surah, seg.from, seg.to), kind: 'learn', surah: g.surah, from: seg.from, to: seg.to, status: 'pending', goalId: g.id });
+        verseBudget -= seg.to - seg.from + 1;
+        pageBudget -= rangePages(g.surah, seg.from, seg.to);
+        at = seg.to + 1;
+      }
+      break; // un seul objectif à la fois reçoit le budget du jour
+    }
+    items.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
+    return { date, items };
+  }
   let learnBudget = 0;
   let budgeted = false;
   // au moins un passage par jour tant qu'il reste quelque chose à apprendre, même si la sourate est très courte (budget < 0,05 page)
@@ -143,6 +180,30 @@ export function buildPlan(ctx: PlanContext, date: string, prev: DailyPlan | null
 
   items.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
   return { date, items };
+}
+
+/** Pages du Mushaf par unité de révision : un Hizb ≈ 10 pages (604 ÷ 60), un Juz ≈ 20 pages (604 ÷ 30). */
+export const PAGES_PER_UNIT = { pages: 1, hizb: 10, juz: 20 } as const;
+
+/** Objectif de révision par semaine, en pages (null si le réglage par jour est utilisé). */
+export function weeklyReviewPages(s: Pick<Settings, 'reviewWeekly' | 'reviewPagesPerDay'>): number {
+  return s.reviewWeekly ? s.reviewWeekly.amount * PAGES_PER_UNIT[s.reviewWeekly.unit] : s.reviewPagesPerDay * 7;
+}
+
+/** Pages de révision par jour (moyenne), selon l'objectif par semaine ou par jour. */
+export const reviewPagesPerDay = (s: Pick<Settings, 'reviewWeekly' | 'reviewPagesPerDay'>): number => weeklyReviewPages(s) / 7;
+
+/** Cumul visé à la fin de la journée : le total de la semaine réparti du lundi au dimanche (jamais de dette : un jour manqué se rattrape dans la semaine). */
+export function weekQuota(weekly: number, date: string): number {
+  return (weekly * (diffDays(startOfWeek(date), date) + 1)) / 7;
+}
+
+/** Quantité déjà travaillée depuis lundi (jour courant inclus). */
+export function weekDone(history: HistoryEntry[] | undefined, date: string, kind: WorkKind, measure: (h: HistoryEntry) => number): number {
+  const from = startOfWeek(date);
+  let n = 0;
+  for (const h of history ?? []) if (h.kind === kind && h.date >= from && h.date <= date) n += measure(h);
+  return n;
 }
 
 /**
@@ -345,7 +406,7 @@ export interface UpcomingChunk {
  * révision en pages. Ce n'est PAS un calendrier : rien n'est dû ; c'est une projection indicative.
  */
 export function upcomingRotation(ctx: PlanContext, today: DailyPlan | null, maxItems = 6): UpcomingChunk[] {
-  const pagesPerDay = ctx.settings.reviewPagesPerDay;
+  const pagesPerDay = reviewPagesPerDay(ctx.settings);
   if (pagesPerDay <= 0) return [];
   const memorized = rotationIds(ctx.verses);
   if (!memorized.length) return [];

@@ -161,7 +161,7 @@
   .seg button { @apply flex-1 rounded-full px-1.5 py-2.5 text-[14px] font-semibold text-muted transition; }
   .seg button[aria-selected='true'] { @apply bg-primary text-primary-ink; }
   .sec-head { @apply mb-3 mt-[26px] flex items-center justify-between px-0.5; }
-  .verse-card { @apply relative flex items-center gap-3.5 overflow-hidden rounded-[24px] bg-soft p-[18px]; }
+  .verse-card { @apply relative flex items-center overflow-hidden rounded-[24px] bg-soft px-4 py-3.5; }
   .kpi { @apply relative overflow-hidden rounded-[26px] p-5 text-[#f4f1e8]; background: linear-gradient(150deg, #1f5240, #12352a); }
   .fab { @apply grid h-[62px] w-[62px] place-items-center rounded-full bg-primary text-primary-ink transition active:scale-90; border: 5px solid rgb(var(--bg)); box-shadow: 0 10px 24px -8px rgba(18, 53, 42, 0.7); }
   .glass-opt { @apply flex w-full items-center gap-3.5 rounded-[18px] border border-line bg-surface p-3.5 text-left transition active:scale-[.98]; }
@@ -198,18 +198,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 50% 44%, #e9eee3 0%, #f3f1e6 38%, #faf6ee 72%);
+  /* même vert que le fond du logo WIRD : seul le nom en arabe ressort */
+  background: linear-gradient(180deg, #376c56 0%, #27493b 100%);
   transition: opacity 0.6s ease;
 }
-html[data-theme='dark'] #spl {
-  background: radial-gradient(circle at 50% 44%, #1f3329 0%, #162119 40%, #101713 75%);
-}
 #spl img {
-  width: 132px;
-  height: 132px;
-  filter: drop-shadow(0 12px 26px rgba(31, 77, 58, 0.28));
+  width: 150px;
+  height: auto;
   opacity: 0;
-  transform: scale(0.88);
+  transform: scale(0.9);
   animation: splIn 0.7s 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 #spl.out {
@@ -286,3 +283,9 @@ html.fs-active::-webkit-scrollbar { display: none; }
 
 /* Contenu au-dessus d'un pied de page fixe (bouton + barre) : laisse toujours le dernier élément entièrement visible */
 .pb-footer { padding-bottom: calc(11.5rem + env(safe-area-inset-bottom)); }
+
+/* Écran de félicitations de fin de séance */
+@keyframes cgPop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes cgDraw { to { stroke-dashoffset: 0; } }
+@keyframes cgBurst { from { transform: translate(-50%, -50%) scale(0.2); opacity: 0; } 30% { opacity: 1; } to { transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(1) rotate(var(--r)); opacity: 1; } }
+@keyframes cgRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }

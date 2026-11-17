@@ -11,9 +11,9 @@ export function MemoSwitch() {
     nav(to, { replace: true });
   };
   return (
-    <div className="seg" role="tablist" aria-label="Mémoriser">
+    <div className="seg" role="tablist" aria-label="Mon Wird">
       <button role="tab" aria-selected={!onList} onClick={() => go('/revisions')}>Révisions</button>
-      <button role="tab" aria-selected={onList} onClick={() => go('/wird')}>Sourates</button>
+      <button role="tab" aria-selected={onList} onClick={() => go('/wird')}>Coran</button>
     </div>
   );
 }

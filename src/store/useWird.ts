@@ -79,7 +79,8 @@ interface Actions {
   completeGoal(id: string): void;
   deleteGoal(id: string): void;
 
-  addAdhoc(surah: number, from: number, to: number): string | null;
+  /** Ajoute un passage à la demande (séance supplémentaire) : révision par défaut, ou apprentissage lié à un objectif. */
+  addAdhoc(surah: number, from: number, to: number, opts?: { kind?: 'learn'; goalId?: string }): string | null;
   /** Ouvre la séance (tout le programme restant, ou un seul élément). Retourne false s'il n'y a rien à faire. */
   startSession(only?: string | string[], opts?: { mode?: SessionMode; minutes?: number }): boolean;
   chooseMode(mode: SessionMode): void;
@@ -128,6 +129,8 @@ export interface OnboardingConfig {
   learnUnit: LearnUnit;
   learnEvery: LearnEvery;
   reviewPagesPerDay: number;
+  learnWeekly?: Settings['learnWeekly'];
+  reviewWeekly?: Settings['reviewWeekly'];
   demo?: boolean;
 }
 
@@ -279,6 +282,8 @@ export const useWird = create<WirdStore>((set, get) => {
         learnUnit: cfg.learnUnit,
         learnEvery: cfg.learnEvery,
         reviewPagesPerDay: cfg.reviewPagesPerDay,
+        learnWeekly: cfg.learnWeekly ?? null,
+        reviewWeekly: cfg.reviewWeekly ?? null,
       };
       const profile = { name: cfg.name.trim(), gender: cfg.gender ?? null, createdAt: today, onboarded: true, demo: !!cfg.demo };
       const progressLog = logProgress({ verses, progressLog: [] }, today);
@@ -296,7 +301,7 @@ export const useWird = create<WirdStore>((set, get) => {
     updateSettings(patch) {
       const settings = { ...get().settings, ...patch };
       set({ settings });
-      if (patch.learnDirection || patch.learnMode !== undefined || patch.learnUnit !== undefined || patch.learnEvery !== undefined || patch.reviewPagesPerDay !== undefined || patch.reinforceVersesPerDay) {
+      if (patch.learnDirection || patch.learnMode !== undefined || patch.learnUnit !== undefined || patch.learnEvery !== undefined || patch.reviewPagesPerDay !== undefined || patch.learnWeekly !== undefined || patch.reviewWeekly !== undefined || patch.reinforceVersesPerDay) {
         // Le sens change le point de reprise : on repart du curseur existant dans le nouveau sens.
         rebuild({ settings });
       }
@@ -368,11 +373,11 @@ export const useWird = create<WirdStore>((set, get) => {
       });
     },
 
-    addAdhoc(surah, from, to) {
+    addAdhoc(surah, from, to, opts) {
       const s = get();
       if (!s.plan) return null;
       const n = s.plan.items.filter((i) => i.adhoc).length;
-      const item: PlanItem = { id: `${s.plan.date}:adhoc:${n}:${surah}:${from}-${to}`, kind: 'review', surah, from, to, status: 'pending', adhoc: true };
+      const item: PlanItem = { id: `${s.plan.date}:adhoc:${n}:${surah}:${from}-${to}`, kind: opts?.kind ?? 'review', surah, from, to, status: 'pending', adhoc: true, ...(opts?.goalId ? { goalId: opts.goalId } : {}) };
       set({ plan: { ...s.plan, items: [...s.plan.items, item] } });
       return item.id;
     },

@@ -2,13 +2,11 @@ import { ArrowLeft, ArrowRight, Minus, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { KnownPicker } from '@/components/KnownPicker';
 import { Avatar } from '@/components/Avatar';
-import { LearnPicker, type LearnValue } from '@/components/LearnPicker';
+import { DEFAULT_LEARN, DEFAULT_REVIEW, LearnLevels, ReviewLevels, learnPatch, learnSummary, reviewPatch, reviewSummary, type LearnLevelValue, type ReviewValue } from '@/components/LevelPickers';
 import { StickyFooter, cx } from '@/components/ui';
-import { DEFAULT_SETTINGS } from '@/engine/config';
 import { formatPages, rangePages } from '@/engine/pages';
-import { ayahId, surahMeta } from '@/engine/quran';
-import { newMemorizedVerse } from '@/engine/scheduling';
-import type { Direction, Gender, LearnEvery, LearnMode, LearnUnit, VerseState } from '@/engine/types';
+import { surahMeta } from '@/engine/quran';
+import type { Direction, Gender } from '@/engine/types';
 import { loadQuranText } from '@/lib/quranText';
 import { accountAvailable, authenticate } from '@/sync/account';
 import { useWird } from '@/store/useWird';
@@ -33,14 +31,12 @@ export default function Onboarding() {
   const [gender, setGender] = useState<Gender | null>(null);
   const [known, setKnown] = useState<Set<number>>(new Set());
   const [learnDir, setLearnDir] = useState<Direction>('forward');
-  const [learnMode, setLearnMode] = useState<LearnMode>(DEFAULT_SETTINGS.learnMode);
-  const [learnUnit, setLearnUnit] = useState<LearnUnit>(DEFAULT_SETTINGS.learnUnit);
-  const [learnEvery, setLearnEvery] = useState<LearnEvery>(DEFAULT_SETTINGS.learnEvery);
-  const [reviewPages, setReviewPages] = useState(DEFAULT_SETTINGS.reviewPagesPerDay);
+  const [learn, setLearn] = useState<LearnLevelValue>(DEFAULT_LEARN);
+  const [review, setReview] = useState<ReviewValue>(DEFAULT_REVIEW);
 
   const knownPages = useMemo(() => [...known].reduce((a, id) => a + surahPages(id), 0), [known]);
   const go = (n: number) => setStep(Math.max(0, Math.min(RECAP, n)));
-  const finish = () => complete({ name, gender, knownSurahs: [...known], learnDirection: learnDir, learnMode, learnUnit, learnEvery, reviewPagesPerDay: reviewPages });
+  const finish = () => complete({ name, gender, knownSurahs: [...known], learnDirection: learnDir, learnUnit: 'half', learnEvery: 7, ...learnPatch(learn), ...reviewPatch(review) });
   const demo = () => complete({ name, gender, knownSurahs: [], learnDirection: 'forward', learnMode: 'surah', learnUnit: 'half', learnEvery: 7, reviewPagesPerDay: 1, demo: true });
 
   if (step < INTRO) return <Intro i={step} go={go} onDemo={demo} />;
@@ -58,9 +54,9 @@ export default function Onboarding() {
       {step === NAME && <NameStep name={name} setName={setName} onNext={() => go(GENDER)} />}
       {step === GENDER && <GenderStep gender={gender} setGender={setGender} onNext={() => go(KNOWN)} />}
       {step === KNOWN && <KnownStep known={known} setKnown={setKnown} knownPages={knownPages} onNext={() => go(LEARN)} />}
-      {step === LEARN && <LearnStep value={{ mode: learnMode, unit: learnUnit, every: learnEvery }} setValue={(v) => { setLearnMode(v.mode); setLearnUnit(v.unit); setLearnEvery(v.every); }} dir={learnDir} setDir={setLearnDir} known={known} onNext={() => go(REVIEW)} />}
-      {step === REVIEW && <ReviewStep pages={reviewPages} setPages={setReviewPages} known={known} knownPages={knownPages} onNext={() => go(RECAP)} />}
-      {step === RECAP && <Recap known={known} knownPages={knownPages} learnDir={learnDir} learn={{ mode: learnMode, unit: learnUnit, every: learnEvery }} reviewPages={reviewPages} goTo={go} onFinish={finish} />}
+      {step === LEARN && <LearnStep value={learn} setValue={setLearn} dir={learnDir} setDir={setLearnDir} onNext={() => go(REVIEW)} />}
+      {step === REVIEW && <ReviewStep value={review} setValue={setReview} known={known} knownPages={knownPages} onNext={() => go(RECAP)} />}
+      {step === RECAP && <Recap known={known} knownPages={knownPages} learnDir={learnDir} learn={learn} review={review} goTo={go} onFinish={finish} />}
     </div>
   );
 }
@@ -253,29 +249,25 @@ function KnownStep({ known, setKnown, knownPages, onNext }: { known: Set<number>
 }
 
 // ------------------------------------------------------------------ Apprentissage
-function LearnStep({ value, setValue, dir, setDir, known, onNext }: { value: LearnValue; setValue: (v: LearnValue) => void; dir: Direction; setDir: (d: Direction) => void; known: Set<number>; onNext: () => void }) {
-  const verses = useMemo(() => {
-    const out: Record<number, VerseState> = {};
-    for (const id of known) for (let a = 1; a <= surahMeta(id).n; a++) out[ayahId(id, a)] = newMemorizedVerse(ayahId(id, a), '2000-01-01');
-    return out;
-  }, [known]);
+function LearnStep({ value, setValue, dir, setDir, onNext }: { value: LearnLevelValue; setValue: (v: LearnLevelValue) => void; dir: Direction; setDir: (d: Direction) => void; onNext: () => void }) {
   const dirs: { v: Direction; label: string }[] = [{ v: 'forward', label: 'Du début du Coran' }, { v: 'backward', label: 'De la fin du Coran' }];
   return (
     <>
       <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-footer pt-5">
         <p className="text-xs font-bold uppercase tracking-[.14em] text-primary">Ton apprentissage</p>
-        <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Comment veux-tu apprendre ?</h1>
+        <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Quel est ton niveau ?</h1>
+        <p className="mt-2 text-[14.5px] leading-snug text-muted">Choisis le rythme d’apprentissage de nouveaux versets. Tu pourras le changer à tout moment dans Profil.</p>
         <div className="mt-6">
-          <LearnPicker value={value} onChange={setValue} verses={verses} direction={dir} />
+          <LearnLevels value={value} onChange={setValue} />
         </div>
-        {value.mode !== 'off' && (
+        {value.level !== 'off' && (
           <>
             <p className="mb-2 mt-6 text-sm text-muted">Sens d’apprentissage des nouveaux passages</p>
             <div className="grid grid-cols-2 gap-2" role="radiogroup">{dirs.map((d) => <button key={d.v} role="radio" aria-checked={dir === d.v} onClick={() => setDir(d.v)} className="chip justify-center">{d.label}</button>)}</div>
           </>
         )}
       </div>
-      <StickyFooter><button className="btn-primary w-full" onClick={onNext}>Continuer</button></StickyFooter>
+      <StickyFooter><button className="btn-primary w-full" disabled={!value.level} onClick={onNext}>Continuer</button></StickyFooter>
     </>
   );
 }
@@ -296,20 +288,17 @@ export function PagesStepper({ value, onChange, min, max, label, step = 1 }: { v
 }
 
 // ------------------------------------------------------------------ Révision
-function ReviewStep({ pages, setPages, known, knownPages, onNext }: { pages: number; setPages: (n: number) => void; known: Set<number>; knownPages: number; onNext: () => void }) {
+function ReviewStep({ value, setValue, known, knownPages, onNext }: { value: ReviewValue; setValue: (v: ReviewValue) => void; known: Set<number>; knownPages: number; onNext: () => void }) {
   return (
     <>
       <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-footer pt-5">
-        <p className="text-xs font-bold uppercase tracking-[.14em] text-primary">Ton rythme</p>
-        <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Combien de pages réviser par jour ?</h1>
-        <p className="mt-2 text-[14.5px] leading-snug text-muted">La régularité compte plus que la quantité. Tu pourras changer cela à tout moment dans Profil.</p>
-        <section className="card mt-6 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div><p className="font-display text-lg font-semibold">À réviser</p><p className="text-xs text-muted">Par jour, page du Mushaf par page</p></div>
-            <PagesStepper value={pages} onChange={setPages} min={1} max={20} label="à réviser par jour" />
-          </div>
-          <p className="mt-3 text-xs leading-relaxed text-muted">{known.size === 0 ? 'Aucune sourate apprise pour l’instant : la révision démarrera dès que tu auras du contenu à réviser.' : `Tu connais environ ${formatPages(knownPages)} : un tour complet prendra environ ${Math.max(1, Math.ceil(knownPages / pages))} jour(s).`}</p>
-        </section>
+        <p className="text-xs font-bold uppercase tracking-[.14em] text-primary">Ton rythme de révision</p>
+        <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Combien veux-tu réviser par semaine ?</h1>
+        <p className="mt-2 text-[14.5px] leading-snug text-muted">La régularité compte plus que la quantité. Que tu choisisses des pages, des Hizb ou des Juz, la révision suit le Coran du début vers la fin.</p>
+        <div className="mt-6">
+          <ReviewLevels value={value} onChange={setValue} />
+        </div>
+        <p className="mt-4 text-center text-xs leading-relaxed text-muted">{known.size === 0 ? 'Aucune sourate apprise pour l’instant : la révision démarrera dès que tu auras du contenu à réviser.' : `Tu connais environ ${formatPages(knownPages)}.`}</p>
       </div>
       <StickyFooter><button className="btn-primary w-full" onClick={onNext}>Continuer</button></StickyFooter>
     </>
@@ -317,11 +306,11 @@ function ReviewStep({ pages, setPages, known, knownPages, onNext }: { pages: num
 }
 
 // ------------------------------------------------------------------ Récapitulatif
-function Recap({ known, knownPages, learnDir, learn, reviewPages, goTo, onFinish }: { known: Set<number>; knownPages: number; learnDir: Direction; learn: LearnValue; reviewPages: number; goTo: (s: number) => void; onFinish: () => void }) {
+function Recap({ known, knownPages, learnDir, learn, review, goTo, onFinish }: { known: Set<number>; knownPages: number; learnDir: Direction; learn: LearnLevelValue; review: ReviewValue; goTo: (s: number) => void; onFinish: () => void }) {
   const rows: { label: string; value: string; step: number }[] = [
     { label: 'Sourates déjà apprises', value: known.size ? `${known.size} sourate${known.size > 1 ? 's' : ''} · ≈ ${formatPages(knownPages)}` : 'Aucune pour l’instant', step: KNOWN },
-    { label: 'Apprentissage', value: learn.mode === 'off' ? 'Pas de nouvel apprentissage' : `${learn.mode === 'surah' ? 'Une sourate par semaine' : `${learn.unit === 'half' ? 'Un demi-Hizb' : 'Un Hizb'} ${learn.every === 1 ? 'par jour' : learn.every === 2 ? 'tous les 2 jours' : 'par semaine'}`} · ${learnDir === 'forward' ? 'du début du Coran' : 'de la fin du Coran'}`, step: LEARN },
-    { label: 'Révision', value: `${formatPages(reviewPages)} par jour`, step: REVIEW },
+    { label: 'Apprentissage', value: learn.level === 'off' ? learnSummary(learn) : `${learnSummary(learn)} · ${learnDir === 'forward' ? 'du début du Coran' : 'de la fin du Coran'}`, step: LEARN },
+    { label: 'Révision', value: `${reviewSummary(review)} · du début à la fin du Coran`, step: REVIEW },
   ];
   return (
     <>

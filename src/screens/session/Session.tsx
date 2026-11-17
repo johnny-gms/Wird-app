@@ -1,5 +1,4 @@
-import { ArrowLeft, BookOpen, Check, ChevronDown, X } from 'lucide-react';
-import { createPortal } from 'react-dom';
+import { ArrowLeft, Check, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GradeChip, Sheet, KindBadge, SurahNumber, cx, toast, GRADE_STYLE } from '@/components/ui';
@@ -8,11 +7,7 @@ import { formatPages } from '@/engine/pages';
 import { itemPages, itemSig } from '@/engine/plan';
 import { rangeLabel, surahMeta } from '@/engine/quran';
 import type { DraftGrade, PlanItem } from '@/engine/types';
-import { basmalaFor, loadQuranText, type QuranData } from '@/lib/quranText';
 import { haptic } from '@/lib/haptics';
-import { Reader } from '@/components/Reader';
-import { pageOf } from '@/engine/pages';
-import { ayahId } from '@/engine/quran';
 import { useWird } from '@/store/useWird';
 import { ChooseMode, PhoneProgram, PhoneWork, mushafRef } from './Phone';
 
@@ -51,7 +46,6 @@ export default function Session() {
   const nav = useNavigate();
   const { session, plan, startSession, openEvaluation, backToProgram, setDraft, validateSession, chooseMode, setPhone, setCurrent } = useWird();
   const flush = useActiveTimer();
-  const [reader, setReader] = useState<PlanItem | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   // Garde l'écran allumé pendant la séance (si l'appareil le permet) : aucune interruption pendant le travail.
@@ -157,23 +151,12 @@ export default function Session() {
           mode === 'phone' ? (
             current ? <PhoneWork item={current} progress={phone[itemSig(current)] ?? { shown: 1, hidden: false, done: false }} onChange={(patch) => setPhone(itemSig(current), patch)} onClose={() => setCurrent(null)} /> : <PhoneProgram items={items} phone={phone} onOpen={(it) => setCurrent(itemSig(it))} />
           ) : (
-            <Program items={items} onReader={setReader} />
+            <Program items={items} />
           )
         ) : (
           <Evaluate items={evalItems} draft={session.draft} onSet={setDraft} remaining={remaining} />
         )}
       </main>
-
-      {reader && createPortal(
-        <div className="fixed inset-0 z-[55] animate-slide-in overflow-y-auto bg-bg" role="dialog" aria-label="Coran numérique">
-          <div className="pt-safe mx-auto w-full max-w-[520px] px-4 pb-16">
-            <button onClick={() => setReader(null)} className="-ml-1 mt-3 flex min-h-[40px] items-center gap-1 pr-3 font-semibold text-primary"><ArrowLeft size={18} /> Retour à la séance</button>
-            <h2 className="mb-3 mt-1 font-display text-[24px] font-semibold">{surahMeta(reader.surah).tr} · {rangeLabel(reader.surah, reader.from, reader.to).replace(/^Sourate \d+ — /, '')}</h2>
-            <SessionReader item={reader} />
-          </div>
-        </div>,
-        document.body,
-      )}
 
       <Sheet open={confirmEnd} onClose={() => setConfirmEnd(false)} title="Terminer ma séance ?">
         <p className="mb-5 text-[15px] leading-relaxed text-muted">{`Il te reste encore ${remaining.length} passage${remaining.length > 1 ? 's' : ''} à travailler. Tu peux terminer maintenant. Les passages restants pourront être reportés à ta prochaine séance.`}</p>
@@ -205,54 +188,24 @@ export default function Session() {
 }
 
 // ------------------------------------------------------------------ Étape 1 : programme
-function Program({ items, onReader }: { items: PlanItem[]; onReader: (it: PlanItem) => void }) {
-  const [open, setOpen] = useState<string | null>(null);
-  const [data, setData] = useState<QuranData | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    if (!open || data) return;
-    void loadQuranText().then((t) => (t ? setData(t) : setFailed(true)));
-  }, [open, data]);
-  const nf = new Intl.NumberFormat('ar-EG');
-
+/** Mode Mushaf : seulement les références (sourate, versets, page, Juz). Le texte n'est pas affiché, l'utilisateur travaille sur son Mushaf. */
+function Program({ items }: { items: PlanItem[] }) {
   return (
     <>
-      <p className="mb-4 text-sm leading-relaxed text-muted">Voici ta feuille de route : tout ce qui est prévu, avec les références de ton Mushaf. Travaille à ton rythme sur ton Coran papier : rien ne t’interrompt, et WIRD n’écoute ni n’enregistre rien. Touche un passage pour voir le texte.</p>
+      <p className="mb-4 text-sm leading-relaxed text-muted">Voici ta feuille de route : tout ce qui est prévu, avec les références de ton Mushaf. Travaille à ton rythme sur ton Coran papier : rien ne t’interrompt, et WIRD n’écoute ni n’enregistre rien.</p>
       <ol className="space-y-2.5">
         {items.map((it, idx) => {
           const meta = surahMeta(it.surah);
-          const isOpen = open === it.id;
-          const verses = isOpen && data ? data.s[it.surah - 1].slice(it.from - 1, it.to) : null;
-          const bas = isOpen && data && it.from === 1 ? basmalaFor(data, it.surah) : null;
           return (
-            <li key={it.id} className="card overflow-hidden">
-              <button className="flex w-full items-center gap-3 px-3.5 py-3.5 text-left" onClick={() => setOpen(isOpen ? null : it.id)} aria-expanded={isOpen}>
-                <span className="w-5 text-center font-display text-lg font-semibold tabular-nums text-muted">{idx + 1}</span>
-                <SurahNumber n={it.surah} size={40} />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2"><span className="truncate text-[15px] font-semibold">{meta.tr}</span></span>
-                  <span className="mt-0.5 block text-[13px] text-muted">{rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')} · {mushafRef(it)} · {formatPages(itemPages(it))}</span>
-                  <span className="mt-1.5 block"><KindBadge kind={it.kind} /></span>
-                </span>
-                <span className="ar text-[26px] leading-none" lang="ar">{meta.ar}</span>
-                <ChevronDown size={18} className={cx('shrink-0 text-muted transition', isOpen && 'rotate-180')} />
-              </button>
-              {isOpen && (
-                <div className="animate-fade border-t border-line px-4 py-4" aria-label="Texte de référence">
-                  {failed && <p className="text-sm text-muted">Le texte de référence n’a pas pu être chargé. Utilise ton Mushaf.</p>}
-                  {!failed && !verses && <p className="text-sm text-muted">Chargement…</p>}
-                  {bas && <p className="ar mb-2 text-center text-[24px] leading-[2] text-primary" lang="ar">{bas}</p>}
-                  {verses && (
-                    <p className="ar text-[28px] leading-[2.3]" lang="ar">
-                      {verses.map((v, i) => (
-                        <span key={i}>{v} <span className="text-primary">﴿{nf.format(it.from + i)}﴾</span>{' '}</span>
-                      ))}
-                    </p>
-                  )}
-                  <button className="btn-soft mt-3 !min-h-[40px] text-sm" onClick={() => onReader(it)}><BookOpen size={16} /> Ouvrir dans le Coran WIRD</button>
-                  <p className="mt-3 text-[11px] leading-relaxed text-muted">Texte Tanzil (Uthmani Minimal 1.1, CC BY 3.0). Pour une récitation exacte, réfère-toi toujours à ton Mushaf.</p>
-                </div>
-              )}
+            <li key={it.id} className="card flex items-center gap-3 px-3.5 py-3.5">
+              <span className="w-5 text-center text-lg font-bold tabular-nums text-muted">{idx + 1}</span>
+              <SurahNumber n={it.surah} size={40} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-semibold">{meta.tr}</span>
+                <span className="mt-0.5 block text-[13px] text-muted">{rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')} · {mushafRef(it)} · {formatPages(itemPages(it))}</span>
+                <span className="mt-1.5 block"><KindBadge kind={it.kind} /></span>
+              </span>
+              <span className="ar text-[26px] leading-none" lang="ar">{meta.ar}</span>
             </li>
           );
         })}
@@ -313,11 +266,4 @@ function Evaluate({ items, draft, onSet, remaining = [] }: { items: PlanItem[]; 
     )}
     </>
   );
-}
-
-function SessionReader({ item }: { item: PlanItem }) {
-  const [page, setPage] = useState(pageOf(ayahId(item.surah, item.from)));
-  const [mode, setMode] = useState<'page' | 'list'>('page');
-  const [surah, setSurah] = useState<number | null>(item.surah);
-  return <Reader page={page} onPage={setPage} onSurah={(n) => { setSurah(n); setMode('list'); }} surah={surah} mode={mode} onMode={(m) => { setMode(m); if (m === 'list') setSurah(item.surah); }} highlight={{ surah: item.surah, from: item.from, to: item.to }} />;
 }
