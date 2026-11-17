@@ -2,6 +2,7 @@ import { Check, Pause, Play, Undo2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AddLearningSheet } from '@/components/AddLearningSheet';
+import { MemoSwitch } from '@/components/MemoSwitch';
 import { ConfirmSheet, GradeChip, ProgressBar, Screen, cx, toast } from '@/components/ui';
 import { addDays } from '@/engine/dates';
 import { formatPages, pageOf } from '@/engine/pages';
@@ -54,7 +55,7 @@ export default function Revisions() {
   const finished = goals.filter((g) => g.completedAt);
 
   return (
-    <Screen title="Mes révisions" sub="Révisions">
+    <Screen title="Mémoriser" sub="Tes révisions du jour et tes 114 sourates" tabs={<MemoSwitch />}>
       <p className="-mt-1 text-sm text-muted">Les versets que tu as déjà appris : on les garde au chaud. Rien n’est jamais dû : ce qui n’est pas fait aujourd’hui n’est pas reporté.</p>
 
       {/* Activités inachevées */}

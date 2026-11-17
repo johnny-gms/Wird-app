@@ -1,12 +1,12 @@
-import { BookOpen, Check, ChevronRight, Leaf } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { BookOpen, Check, ChevronRight, Clock, Flame, Leaf, RefreshCw, Star } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ProfileAvatar } from '@/components/Avatar';
-import { ProgressBar, Screen, Sheet, cx } from '@/components/ui';
+import { ProgressBar, Sheet, cx } from '@/components/ui';
 import { addDays, diffDays, startOfWeek } from '@/engine/dates';
 import { formatPages, pageOf } from '@/engine/pages';
-import { itemPages, upcomingRotation } from '@/engine/plan';
-import { activeDaySet, activeDaysIn, allSurahStats, cellState, overall, pagesByDay } from '@/engine/progress';
+import { goalProgress, itemPages, learningSegment, upcomingRotation } from '@/engine/plan';
+import { activeDaySet, activeDaysIn, allSurahStats, cellState, currentStreak, overall, pagesByDay } from '@/engine/progress';
 import { ayahId, fromAyahId, rangeLabel, surahMeta } from '@/engine/quran';
 import type { PlanItem, WorkKind } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
@@ -16,14 +16,25 @@ import { useWird } from '@/store/useWird';
 import { CELL_BG } from './wird/SurahGrid';
 
 const LABEL: Record<WorkKind, string> = { learn: 'Nouvel apprentissage', review: 'Révision', reinforce: 'Renforcement' };
+const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
-/** Accueil : où reprendre, programme du jour, progression, objectifs du jour, régularité. */
+/** Première lettre arabe du nom de la sourate (sans « Al- »), pour le médaillon de la carte d'apprentissage. */
+function surahLetter(n: number): string {
+  const bare = surahMeta(n).ar.replace(/[ً-ٰٟۖ-ۭ]/g, '').replace(/^[اٱأ]ل/, '');
+  return Array.from(bare)[0] ?? String(n);
+}
+
+const rnd = (x: number) => Math.round(x * 10) / 10;
+
+/** Accueil : où reprendre, tuiles du jour, révisions du jour (menu déroulant), progression, repères, régularité. */
 export default function Home() {
   const nav = useNavigate();
   const today = useToday();
   const store = useWird();
   const { profile, plan, verses, goals, history, session, settings, rotation } = store;
   const [awayHidden, setAwayHidden] = useState(false);
+  const [dueOpen, setDueOpen] = useState(false);
+  const [flame, setFlame] = useState(false);
   const [motivation, setMotivation] = useState<string | null>(null);
   useEffect(() => {
     void loadQuranText().then((d) => d && setMotivation(d.s[72][3].split(' ').slice(-3).join(' ')));
@@ -40,6 +51,8 @@ export default function Home() {
     return c;
   }, [stats]);
   const days = useMemo(() => activeDaySet(history), [history]);
+  const streak = currentStreak(days, today);
+  const doneToday = days.has(today);
   const wk = startOfWeek(today);
   const weekDays = activeDaysIn(days, wk, addDays(wk, 6));
   const weekPages = pagesByDay(history, today, 7).reduce((a, d) => a + d.pages, 0);
@@ -68,37 +81,41 @@ export default function Home() {
   const lastPage = lastEntry ? pageOf(ayahId(lastEntry.surah, lastEntry.from)) : 1;
   const hasAny = o.memorizedVerses + o.learningVerses > 0;
 
-  // Carte verte adaptative : l'action la plus pertinente selon l'état réel
-  const next = pending[0];
-  const hero = session ? (
-    <>
-      <p className="text-sm text-white/75">Séance en cours</p>
-      <div className="title-section my-1.5 !text-[26px]">Reprenons là où tu en étais</div>
-      <p className="text-white/80">{pending.length ? `${pending.length} élément${pending.length > 1 ? 's' : ''} encore au programme.` : 'Il ne reste que l’évaluation.'} Tout ce que tu as saisi est conservé.</p>
-      <button className="btn mt-3.5 w-full bg-white text-primary" onClick={() => go()}>Reprendre la séance</button>
-    </>
-  ) : next ? (
-    <>
-      <p className="text-sm text-white/75">Aujourd’hui</p>
-      <div className="title-section my-1.5 !text-[26px]">Continuons ensemble</div>
-      <p className="text-white/80">{surahMeta(next.surah).tr} · {rangeLabel(next.surah, next.from, next.to).replace(/^Sourate \d+ — /, '')}{pending.length > 1 ? ` et ${pending.length - 1} autre${pending.length > 2 ? 's' : ''}` : ''}.</p>
-      <button className="btn mt-3.5 w-full bg-white text-primary" onClick={() => go()}>Commencer les révisions</button>
-    </>
-  ) : (
-    <>
-      <p className="text-sm text-white/75">Ta mémorisation</p>
-      <div className="title-section my-1.5 !text-[26px]">Commençons doucement</div>
-      <p className="text-white/80">{done.length ? 'Le programme du jour est terminé. Tu peux choisir une sourate à explorer.' : 'Choisis la sourate que tu veux travailler.'}</p>
-      <Link className="btn mt-3.5 w-full bg-white text-primary" to="/wird">Choisir une sourate</Link>
-    </>
-  );
+  // Apprentissage en cours : l'objectif actif qui a encore des versets à travailler
+  const goal = goals.find((g) => !g.completedAt && !g.paused && learningSegment({ verses }, g));
+  const seg = goal ? learningSegment({ verses }, goal) : null;
+  const gp = goal ? goalProgress(goal) : null;
+  const learnItem = goal ? pending.find((i) => i.kind === 'learn' && i.goalId === goal.id) : undefined;
+
+  const dueTitle = session
+    ? 'Séance en cours'
+    : pending.length
+      ? `${pending.length} élément${pending.length > 1 ? 's' : ''} à travailler aujourd’hui.`
+      : items.length
+        ? 'Programme du jour terminé.'
+        : 'Rien de prévu aujourd’hui.';
+  const dueSub = session
+    ? 'Reprends là où tu t’es arrêté.'
+    : pending.length
+      ? `≈ ${formatPages(pagesOf(pending))} · Continue ta révision.`
+      : items.length
+        ? 'Qu’Allah te facilite, à demain 🌿'
+        : hasAny
+          ? 'Profite de ta journée.'
+          : 'Choisis une sourate à apprendre depuis Mémoriser.';
 
   return (
-    <Screen
-      title={<>{greeting()}{profile.name ? `, ${profile.name}` : ''}</>}
-      sub={formatDateLong()}
-      right={<Link to="/profil" aria-label="Profil" className="mt-1"><ProfileAvatar name={profile.name} gender={profile.gender} size={42} /></Link>}
-    >
+    <div className="mx-auto w-full max-w-[520px] animate-fade px-[18px] pb-10 pt-safe">
+      <header className="flex items-center justify-between pb-4 pt-[14px]">
+        <div className="flex items-center gap-2 text-[18px] font-extrabold tracking-[.5px] text-primary">
+          <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-deep">
+            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden><path d="M12 3c3 3 5 6 5 9.5A5 5 0 0 1 12 18a5 5 0 0 1-5-5.5C7 9 9 6 12 3z" fill="#A9C4AE" /><path d="M12 8v13" stroke="#F4F3ED" strokeWidth="1.6" strokeLinecap="round" /></svg>
+          </span>
+          WIRD
+        </div>
+        <Link to="/profil" aria-label="Profil"><ProfileAvatar name={profile.name} gender={profile.gender} size={42} /></Link>
+      </header>
+
       <Sheet open={!!stale} onClose={() => undefined} title="Ta dernière séance n’a pas été terminée">
         <p className="mb-5 text-[15px] leading-relaxed text-muted">Que souhaites-tu faire ? Les passages non terminés sont intégrés à ton programme du jour, sans surcharge.</p>
         <div className="flex flex-col gap-2">
@@ -106,7 +123,7 @@ export default function Home() {
           <button className="btn-soft" onClick={() => { store.discardStaleSession(); haptic('tap'); }}>Commencer la séance du jour</button>
         </div>
       </Sheet>
-      {profile.demo && <Link to="/profil" className="mb-3 block rounded-xl bg-warn-soft px-4 py-2.5 text-xs font-medium text-warn">Données de démonstration — tu peux les effacer depuis Profil.</Link>}
+      {profile.demo && <Link to="/profil" className="mb-3 block rounded-2xl bg-warn-soft px-4 py-2.5 text-xs font-medium text-warn">Données de démonstration — tu peux les effacer depuis Profil.</Link>}
       {away && (
         <div className="card mb-3 p-4">
           <b>Content de te revoir.</b>
@@ -115,71 +132,139 @@ export default function Home() {
         </div>
       )}
 
-      <div className="hero px-[18px] py-5">{hero}</div>
+      <div>
+        <p className="text-[13px] text-muted">{formatDateLong()}</p>
+        <h1 className="mt-0.5 text-[21px] font-bold leading-tight tracking-[-0.3px]">{greeting()}{profile.name ? `, ${profile.name}` : ''}</h1>
+      </div>
 
-      <h2 className="label mb-2.5 mt-[30px]">Aujourd’hui</h2>
-      <div className="card p-4">
-        {items.length ? (
-          <>
-            <div className="flex items-center justify-between"><b>{done.length} / {items.length} fait{done.length > 1 ? 's' : ''}</b><span className="text-sm text-muted">≈ {formatPages(pagesOf(items))} au programme</span></div>
-            <div className="my-2.5"><ProgressBar value={items.length ? done.length / items.length : 0} /></div>
-            {items.map((it) => {
-              const isDone = it.status === 'done';
-              return (
-                <div key={it.id} className="flex items-center justify-between gap-2 border-t border-line py-2.5">
-                  <Link to={`/wird/${it.surah}`} className="min-w-0 flex-1">
-                    <b className="block">{surahMeta(it.surah).tr} · {rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')}</b>
-                    <span className="text-sm text-muted">{LABEL[it.kind]} · {it.kind === 'review' ? `page ${pageOf(ayahId(it.surah, it.from))}` : `≈ ${formatPages(itemPages(it))}`}{it.status === 'skipped' ? ' · ignoré' : ''}</span>
-                  </Link>
-                  {isDone ? <span className="whitespace-nowrap rounded-full bg-good px-2.5 py-0.5 text-xs text-white">Fait ✓</span> : it.status === 'pending' ? (
-                    <span className="flex items-center gap-1.5">
-                      <button className="btn-soft !min-h-[36px] !px-3 text-sm" onClick={() => go(it.id)}>Commencer</button>
-                      <button className="flex h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-surface2" aria-label="Passer cet élément" onClick={() => { store.skipItem(it.id); haptic('tap'); }}>⋯</button>
-                    </span>
-                  ) : null}
-                </div>
-              );
-            })}
-            {pending.length > 0 ? <button className="btn-primary mt-3 w-full" onClick={() => go()}>{session ? 'Reprendre ma séance' : 'Commencer ma séance'}</button> : <p className="mt-3 flex items-center gap-1.5"><Check size={16} className="text-good" /> Programme du jour terminé, bravo 🌿</p>}
-          </>
-        ) : (
-          <>
-            <p><b>Rien de prévu aujourd’hui.</b></p>
-            <p className="text-sm text-muted">{hasAny ? 'Profite de ta journée, ou ajuste tes objectifs en pages.' : 'Choisis une sourate à apprendre depuis Mon Wird.'}</p>
-            <div className="mt-2.5 flex gap-2">
-              <Link to="/wird" className="btn-soft !min-h-[36px] !px-3 text-sm">Mes sourates</Link>
-              <Link to="/revisions" className="btn-soft !min-h-[36px] !px-3 text-sm">Mes révisions</Link>
+      {/* Apprentissage en cours */}
+      {goal && gp && seg ? (
+        <article className="learn-card mt-[18px]">
+          <div className="relative z-[1] flex items-center gap-3.5">
+            <div className="ar grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[14px] border border-white/10 bg-white/10 text-[24px] font-bold" lang="ar">{surahLetter(goal.surah)}</div>
+            <div className="min-w-0">
+              <p className="text-[10.5px] font-bold uppercase tracking-[1.4px] opacity-60">En apprentissage</p>
+              <h2 className="mt-0.5 truncate text-[17px] font-bold">Sourate {surahMeta(goal.surah).tr}</h2>
+              <p className="mt-0.5 text-[13px] opacity-70">{gp.done} / {gp.total} versets · prochain : {seg.from === seg.to ? `verset ${seg.from}` : `versets ${seg.from} à ${seg.to}`}</p>
             </div>
-          </>
-        )}
-        <div className="mt-2 flex justify-center gap-5 text-sm font-semibold text-primary">
-          <button onClick={() => { store.refreshPlan(); haptic('tap'); }}>Recalculer</button>
-          <Link to="/wird">Ajouter des versets</Link>
+          </div>
+          <div className="relative z-[1] mt-[18px] flex items-center gap-3">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/15"><i className="block h-full rounded-full bg-gradient-to-r from-[#2F9E66] to-[#5CCB8C] transition-[width] duration-700" style={{ width: `${gp.total ? (gp.done / gp.total) * 100 : 0}%` }} /></div>
+            <span className="min-w-[38px] text-[15px] font-bold tabular-nums">{gp.total ? Math.round((gp.done / gp.total) * 100) : 0}%</span>
+            {learnItem ? <button className="btn-orange" onClick={() => go(learnItem.id)}>Continuer</button> : <Link to="/revisions" className="btn-orange">Voir</Link>}
+          </div>
+        </article>
+      ) : (
+        <article className="learn-card mt-[18px]">
+          <div className="relative z-[1] flex items-center gap-3.5">
+            <div className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[14px] border border-white/10 bg-white/10"><BookOpen size={24} /></div>
+            <div className="min-w-0">
+              <p className="text-[10.5px] font-bold uppercase tracking-[1.4px] opacity-60">Ta mémorisation</p>
+              <h2 className="mt-0.5 text-[17px] font-bold">Commençons doucement</h2>
+              <p className="mt-0.5 text-[13px] opacity-70">{done.length ? 'Le programme du jour est terminé.' : 'Choisis la sourate que tu veux travailler.'}</p>
+            </div>
+          </div>
+          <div className="relative z-[1] mt-[18px] flex justify-end"><Link to="/wird" className="btn-orange">Choisir une sourate</Link></div>
+        </article>
+      )}
+
+      {/* Tuiles */}
+      <div className="mt-3.5 grid grid-cols-3 gap-2.5">
+        <button className="tile" onClick={() => { haptic('tap'); setFlame(true); }} aria-label="Voir ma série">
+          <span className={cx('chip-ic !h-[34px] !w-[34px] !rounded-[11px]', doneToday ? 'ic-a' : 'bg-surface2 text-muted/70')}><Flame size={17} /></span>
+          <small className="mt-2.5 block text-[12px] font-medium text-muted">{doneToday ? 'Série 🔥' : streak ? 'À entretenir' : 'Série'}</small>
+          <b className="text-[19px] font-extrabold tracking-[-0.3px]">{streak}<span className="ml-0.5 text-[12.5px] font-semibold text-muted">jour{streak > 1 ? 's' : ''}</span></b>
+        </button>
+        <Link to="/progression" className="tile">
+          <span className="chip-ic ic-g !h-[34px] !w-[34px] !rounded-[11px]"><Star size={17} /></span>
+          <small className="mt-2.5 block text-[12px] font-medium text-muted">Sourates</small>
+          <b className="text-[19px] font-extrabold tracking-[-0.3px]">{cnt.learned}<span className="ml-0.5 text-[12.5px] font-semibold text-muted">/ 114</span></b>
+        </Link>
+        <div className="tile">
+          <span className="chip-ic ic-b !h-[34px] !w-[34px] !rounded-[11px]"><Clock size={17} /></span>
+          <small className="mt-2.5 block text-[12px] font-medium text-muted">Aujourd’hui</small>
+          <b className="text-[19px] font-extrabold tracking-[-0.3px]">{rnd(learnDone + reviewDone)}<span className="ml-0.5 text-[12.5px] font-semibold text-muted">/ {rnd(learnTarget + reviewTarget)} p.</span></b>
         </div>
       </div>
 
-      <div className="mb-2.5 mt-[30px] flex items-baseline justify-between">
-        <h2 className="font-display text-[22px] font-semibold tracking-[-0.2px]">Ma progression</h2>
-        <Link to="/progression" className="flex items-center text-sm text-muted">Voir le détail <ChevronRight size={16} /></Link>
+      {/* Programme du jour (menu déroulant) */}
+      <div className="mt-3.5">
+        <button className="flex w-full items-center gap-3.5 rounded-[22px] border border-line bg-surface p-[18px] text-left shadow-card transition active:scale-[.99]" onClick={() => { haptic('tap'); setDueOpen((v) => !v); }} aria-expanded={dueOpen}>
+          <span className="chip-ic ic-g"><RefreshCw size={21} /></span>
+          <span className="min-w-0 flex-1"><b className="block text-base font-bold tracking-[-0.2px]">{dueTitle}</b><small className="mt-0.5 block text-[13.5px] text-muted">{dueSub}</small></span>
+          <ChevronRight size={20} className={cx('shrink-0 text-muted/70 transition-transform duration-300', dueOpen ? '-rotate-90' : 'rotate-90')} />
+        </button>
+        <div className={cx('grid transition-[grid-template-rows] duration-300', dueOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+          <div className="overflow-hidden">
+            <div className="card mt-2.5 px-4 py-2">
+              {items.length ? (
+                <>
+                  <div className="flex items-center justify-between pt-2 text-sm"><b>{done.length} / {items.length} fait{done.length > 1 ? 's' : ''}</b><span className="text-muted">≈ {formatPages(pagesOf(items))} au programme</span></div>
+                  <div className="my-2.5"><ProgressBar value={items.length ? done.length / items.length : 0} /></div>
+                  {items.map((it) => {
+                    const isDone = it.status === 'done';
+                    const s = surahMeta(it.surah);
+                    return (
+                      <div key={it.id} className="flex items-center justify-between gap-2 border-t border-line py-3">
+                        <Link to={`/wird/${it.surah}`} className="min-w-0 flex-1">
+                          <b className="block truncate text-[15px]">{s.tr} · {rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')}</b>
+                          <span className="text-[12.5px] text-muted">{LABEL[it.kind]} · {it.kind === 'review' ? `page ${pageOf(ayahId(it.surah, it.from))}` : `≈ ${formatPages(itemPages(it))}`}{it.status === 'skipped' ? ' · ignoré' : ''}</span>
+                        </Link>
+                        {isDone ? (
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-good text-white"><Check size={14} strokeWidth={3} /></span>
+                        ) : it.status === 'pending' ? (
+                          <span className="flex items-center gap-1">
+                            <button className="rounded-full bg-surface2 px-3.5 py-2 text-[13.5px] font-bold text-primary" onClick={() => go(it.id)}>Commencer</button>
+                            <button className="flex h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-surface2" aria-label="Passer cet élément" onClick={() => { store.skipItem(it.id); haptic('tap'); }}>⋯</button>
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </>
+              ) : (
+                <div className="py-3">
+                  <p><b>Rien de prévu aujourd’hui.</b></p>
+                  <p className="text-sm text-muted">{hasAny ? 'Profite de ta journée, ou ajuste tes objectifs en pages.' : 'Choisis une sourate à apprendre depuis Mémoriser.'}</p>
+                </div>
+              )}
+              <div className="flex justify-center gap-5 border-t border-line py-3 text-sm font-semibold text-primary">
+                <button onClick={() => { store.refreshPlan(); haptic('tap'); }}>Recalculer</button>
+                <Link to="/wird">Ajouter des versets</Link>
+              </div>
+            </div>
+            {pending.length > 0 ? (
+              <button className="btn-primary mt-3 w-full" onClick={() => go()}>{session ? 'Reprendre ma séance' : 'Commencer ma séance'}</button>
+            ) : items.length > 0 ? (
+              <p className="mt-3 flex items-center justify-center gap-1.5 text-sm"><Check size={16} className="text-good" /> Programme du jour terminé, bravo 🌿</p>
+            ) : null}
+          </div>
+        </div>
       </div>
-      <div className="card p-4">
-        <div className="flex items-center gap-5">
+
+      {/* Progression */}
+      <div className="sec-head">
+        <h2 className="title-section">Ma progression</h2>
+        <Link to="/progression" className="flex items-center gap-1 text-[13.5px] font-semibold text-muted">Voir le détail <ChevronRight size={16} /></Link>
+      </div>
+      <div className="card p-[18px]">
+        <div className="flex items-center gap-[18px]">
           <Donut learned={cnt.learned} learning={cnt.learning} reinforce={cnt.reinforce} />
-          <ul className="min-w-0 flex-1 space-y-2.5 text-[15px]">
+          <ul className="min-w-0 flex-1 space-y-[9px] text-[13.5px]">
             {([['learned', 'Mémorisées'], ['learning', 'En cours'], ['reinforce', 'À renforcer'], ['none', 'Non commencées']] as const).map(([k, l]) => (
-              <li key={k} className="flex items-center gap-2.5"><i className={cx('h-3 w-3 shrink-0 rounded-full', CELL_BG[k])} /><span className="flex-1 truncate">{l}</span><b className="tabular-nums">{cnt[k]}</b></li>
+              <li key={k} className="flex items-center gap-2"><i className={cx('h-[9px] w-[9px] shrink-0 rounded-full', CELL_BG[k])} /><span className="flex-1 truncate">{l}</span><b className="tabular-nums">{cnt[k]}</b></li>
             ))}
           </ul>
         </div>
-        <Link to="/progression" aria-label="Voir le tableau des 114 sourates" className="mt-5 grid grid-cols-[repeat(19,1fr)] gap-[5px]">
-          {stats.map((st) => <i key={st.surah} title={`${st.surah}. ${surahMeta(st.surah).tr}`} className={cx('block aspect-square rounded-[5px]', CELL_BG[cellState(st)])} />)}
+        <Link to="/progression" aria-label="Voir le tableau des 114 sourates" className="mt-[18px] grid grid-cols-[repeat(19,1fr)] gap-1">
+          {stats.map((st) => <i key={st.surah} title={`${st.surah}. ${surahMeta(st.surah).tr}`} className={cx('block aspect-square rounded-[4px]', CELL_BG[cellState(st)])} />)}
         </Link>
       </div>
 
       {(learnTarget > 0 || reviewTarget > 0) && (
         <>
-          <h2 className="label mb-2.5 mt-[30px]">Tes repères du jour</h2>
-          <div className="card space-y-3 p-4">
+          <div className="sec-head"><h2 className="title-section">Tes repères du jour</h2></div>
+          <div className="card space-y-3 p-[18px]">
             {learnTarget > 0 && <Goal label="À apprendre" done={learnDone} total={learnTarget} />}
             {reviewTarget > 0 && <Goal label="À réviser" done={reviewDone} total={reviewTarget} />}
             <p className="text-xs text-muted">Des repères, jamais une obligation : ce qui n’est pas fait n’est pas reporté.</p>
@@ -187,26 +272,74 @@ export default function Home() {
         </>
       )}
 
-      <h2 className="label mb-2.5 mt-[30px]">Régularité</h2>
+      <div className="sec-head"><h2 className="title-section">Régularité</h2></div>
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="card p-4"><span className="font-display text-[30px] font-semibold leading-none">{weekDays}<small className="text-[15px]">/7</small></span><p className="text-sm text-muted">jours actifs cette semaine</p></div>
-        <div className="card p-4"><span className="font-display text-[30px] font-semibold leading-none">{Math.round(weekPages * 10) / 10}<small className="text-[15px]"> p.</small></span><p className="text-sm text-muted">pages travaillées</p></div>
+        <Stat big={<>{weekDays}<small className="text-[15px]">/7</small></>} label="jours actifs cette semaine" />
+        <Stat big={<>{rnd(weekPages)}<small className="text-[15px]"> p.</small></>} label="pages travaillées" />
       </div>
       <div className="card mt-2.5 p-4">
-        <p className="text-sm text-muted">Prochaine révision importante</p>
-        <p><b>{reinforceNext ? NextRein(reinforceNext.id, reinforceNext.date, today) : upcoming ? `${surahMeta(upcoming.surah).tr} · ${rangeLabel(upcoming.surah, upcoming.from, upcoming.to).replace(/^Sourate \d+ — /, '')} (≈ dans ${upcoming.inDays} j)` : 'Rien de prévu'}</b></p>
+        <p className="text-[13px] text-muted">Prochaine révision importante</p>
+        <p className="mt-0.5"><b>{reinforceNext ? NextRein(reinforceNext.id, reinforceNext.date, today) : upcoming ? `${surahMeta(upcoming.surah).tr} · ${rangeLabel(upcoming.surah, upcoming.from, upcoming.to).replace(/^Sourate \d+ — /, '')} (≈ dans ${upcoming.inDays} j)` : 'Rien de prévu'}</b></p>
       </div>
-      <div className="card mt-2.5 flex items-center justify-between gap-3 p-4">
-        <div><b>Le Coran numérique</b><p className="text-sm text-muted">Lecture page par page, sans distraction.</p></div>
-        <Link to={`/coran?p=${lastPage}`} className="btn-soft !min-h-[36px] !px-3 text-sm"><BookOpen size={16} /> Ouvrir</Link>
+      <Link to={`/coran?p=${lastPage}`} className="mt-2.5 flex items-center gap-3.5 rounded-[22px] border border-line bg-surface p-[18px] shadow-card transition active:scale-[.99]">
+        <span className="chip-ic ic-b"><BookOpen size={21} /></span>
+        <span className="min-w-0 flex-1"><b className="block text-base font-bold">Le Coran numérique</b><small className="text-[13.5px] text-muted">Lecture page par page, sans distraction.</small></span>
+        <ChevronRight size={20} className="text-muted/70" />
+      </Link>
+
+      {/* Verset du jour */}
+      <div className="verse-card mt-3.5">
+        <span className="chip-ic bg-surface text-good"><Leaf size={21} /></span>
+        <div className="min-w-0">
+          <p className="ar text-[24px] leading-[1.6] text-primary" lang="ar" dir="rtl">{motivation ?? ' '}</p>
+          <em className="serif mt-0.5 block text-[14.5px] not-italic italic">« Et récite le Coran lentement et clairement. »</em>
+          <small className="mt-1.5 block text-xs text-muted">Al-Muzzammil · verset 4</small>
+        </div>
       </div>
-      <div className="mt-5 rounded-[28px] bg-primary/10 px-5 py-5">
-        <p className="ar text-center text-[30px] leading-[1.7] text-primary" lang="ar" dir="rtl">{motivation ?? '\u00A0'}</p>
-        <p className="mt-1 text-center font-display text-[15.5px] font-semibold italic leading-snug">« Et récite le Coran lentement et clairement. »</p>
-        <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-muted"><Leaf size={15} className="text-primary" /> Al-Muzzammil · verset 4</p>
-      </div>
-    </Screen>
+
+      {/* Série */}
+      <Sheet open={flame} onClose={() => setFlame(false)} title="Ma série">
+        <FlameSheet streak={streak} doneToday={doneToday} days={days} today={today} total={days.size} onStart={() => { setFlame(false); go(); }} hasWork={pending.length > 0} />
+      </Sheet>
+    </div>
   );
+}
+
+function FlameSheet({ streak, doneToday, days, today, total, onStart, hasWork }: { streak: number; doneToday: boolean; days: Set<string>; today: string; total: number; onStart: () => void; hasWork: boolean }) {
+  const wk = startOfWeek(today);
+  const msg = doneToday ? 'Ta flamme est allumée pour aujourd’hui. À demain, in cha Allah !' : streak ? 'Travaille au moins un passage aujourd’hui pour garder ta flamme allumée.' : 'Termine une séance aujourd’hui pour rallumer ta flamme.';
+  return (
+    <div className="pb-2">
+      <div className="mx-auto mt-1 grid h-[110px] w-[96px] place-items-center">
+        <div className={cx('relative grid place-items-center', streak ? '' : 'opacity-40 grayscale')}>
+          <Flame size={96} className="text-hard" fill="currentColor" strokeWidth={1} />
+          <b className="absolute bottom-3 text-[30px] font-extrabold text-white">{streak}</b>
+        </div>
+      </div>
+      <h3 className="text-center text-[20px] font-bold">{streak} jour{streak > 1 ? 's' : ''} d’affilée</h3>
+      <p className="mx-auto mt-1.5 max-w-xs text-center text-sm leading-relaxed text-muted">{msg}</p>
+      <div className="mt-[18px] grid grid-cols-7 gap-1.5">
+        {DAYS.map((d, i) => {
+          const k = addDays(wk, i);
+          const on = days.has(k);
+          return (
+            <div key={i} className="text-center">
+              <small className="mb-1.5 block text-xs font-semibold text-muted">{d}</small>
+              <i className={cx('mx-auto grid h-[38px] w-[38px] place-items-center rounded-full', on ? 'bg-hard-soft text-hard' : 'bg-surface2 text-muted/50', k === today && 'ring-2 ring-hard')}><Flame size={17} fill={on ? 'currentColor' : 'none'} /></i>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-[18px] grid grid-cols-1 gap-2.5">
+        <div className="card rounded-2xl p-3.5"><b className="block text-xl font-extrabold">{total} j</b><small className="text-[12.5px] text-muted">Jours de travail au total</small></div>
+      </div>
+      {!doneToday && hasWork && <button className="btn-primary mt-4 w-full" onClick={onStart}>Commencer ma séance</button>}
+    </div>
+  );
+}
+
+function Stat({ big, label }: { big: ReactNode; label: string }) {
+  return <div className="card p-4"><span className="text-[30px] font-extrabold leading-none tracking-[-0.5px]">{big}</span><p className="mt-1 text-[13px] text-muted">{label}</p></div>;
 }
 
 function NextRein(id: number, date: string, today: string): string {
@@ -235,7 +368,7 @@ function Donut({ learned, learning, reinforce }: { learned: number; learning: nu
     return el;
   };
   return (
-    <div className="relative h-[112px] w-[112px] shrink-0">
+    <div className="relative h-[120px] w-[120px] shrink-0">
       <svg viewBox="0 0 128 128" className="-rotate-90" aria-hidden>
         <circle r={R} cx="64" cy="64" fill="none" strokeWidth="14" className="stroke-neutral" />
         {seg(learned, 'stroke-good')}
@@ -243,8 +376,8 @@ function Donut({ learned, learning, reinforce }: { learned: number; learning: nu
         {seg(reinforce, 'stroke-hard')}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <b className="font-display text-[34px] font-semibold leading-none">{learned}</b>
-        <span className="mt-1 text-xs text-muted">mémorisées</span>
+        <b className="text-[22px] font-extrabold leading-none">{learned}</b>
+        <span className="mt-1 text-[11.5px] text-muted">mémorisées</span>
       </div>
     </div>
   );

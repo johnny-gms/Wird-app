@@ -1,63 +1,66 @@
 @import '@fontsource/amiri-quran/arabic-400.css';
+@import '@fontsource-variable/plus-jakarta-sans/wght.css';
+@import '@fontsource-variable/fraunces/wght.css';
+@import '@fontsource-variable/fraunces/wght-italic.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Palette et système de design de la maquette « index » (crème, vert forêt, ambre, bleu, rose) */
 :root,
 :root[data-theme='light'] {
-  /* Palette de la référence visuelle (johnny-gms.github.io/Wird) */
-  --bg: 249 245 236; /* #f9f5ec */
-  --surface: 255 253 248; /* #fffdf8 — cartes */
-  --surface2: 240 233 218; /* #f0e9da — pastilles, tuiles */
-  --ink: 34 44 38; /* #222c26 */
-  --muted: 123 133 128; /* #7b8580 */
-  --line: 230 223 206; /* #e6dfce */
-  --primary: 31 77 58; /* #1f4d3a */
+  --bg: 244 243 237; /* #F4F3ED */
+  --surface: 251 250 246; /* #FBFAF6 — cartes */
+  --surface2: 238 234 224; /* #EEEAE0 */
+  --ink: 21 34 27; /* #15221B */
+  --muted: 123 128 120; /* #7B8078 */
+  --line: 230 225 212; /* #E6E1D4 */
+  --primary: 29 74 55; /* #1D4A37 */
   --primary-ink: 255 255 255;
-  --deep: 31 77 58;
+  --deep: 18 53 42; /* #12352A */
   --ivory: 255 255 255;
-  --gold: 143 168 150; /* sauge #8fa896 (ex-accent) */
-  --soft: 240 233 218;
-  --good: 47 138 87; /* #2f8a57 */
-  --good-soft: 222 239 228;
-  --blue: 63 127 209; /* #3f7fd1 */
-  --blue-soft: 224 236 250;
+  --gold: 169 196 174; /* sauge #A9C4AE */
+  --soft: 226 236 225; /* #E2ECE1 sauge claire */
+  --good: 47 122 85; /* #2F7A55 */
+  --good-soft: 226 236 225;
+  --blue: 91 134 197; /* #5B86C5 */
+  --blue-soft: 227 235 246; /* #E3EBF6 */
   --warn: 176 135 20;
   --warn-soft: 248 240 212;
-  --hard: 217 138 27; /* #d98a1b — à renforcer */
-  --hard-soft: 250 235 211;
-  --alert: 184 67 63;
-  --alert-soft: 246 222 220;
-  --neutral: 220 223 218; /* #dcdfda — non commencée */
-  --neutral-ink: 61 72 67;
-  --shadow: 31 45 36;
+  --hard: 223 150 56; /* #DF9638 — à renforcer */
+  --hard-soft: 250 235 212; /* #FAEBD4 */
+  --alert: 212 106 90; /* #D46A5A */
+  --alert-soft: 248 226 221; /* #F8E2DD */
+  --neutral: 231 227 217; /* #E7E3D9 — non commencée */
+  --neutral-ink: 90 98 92;
+  --shadow: 21 34 27;
   color-scheme: light;
 }
 :root[data-theme='dark'] {
-  --bg: 15 21 18; /* #0f1512 */
-  --surface: 23 32 25; /* #172019 */
-  --surface2: 26 36 30; /* #1a241e */
-  --ink: 236 232 220; /* #ece8dc */
-  --muted: 152 163 156; /* #98a39c */
-  --line: 42 54 46; /* #2a362e */
+  --bg: 14 24 19; /* #0E1813 */
+  --surface: 22 35 28; /* #16231C */
+  --surface2: 30 46 37; /* #1E2E25 */
+  --ink: 237 241 236; /* #EDF1EC */
+  --muted: 147 160 152; /* #93A098 */
+  --line: 36 54 44; /* #24362C */
   --primary: 111 191 147; /* #6fbf93 */
   --primary-ink: 12 22 16;
-  --deep: 31 77 58;
+  --deep: 23 58 44;
   --ivory: 255 255 255;
-  --gold: 79 110 92;
-  --soft: 26 36 30;
+  --gold: 94 138 108;
+  --soft: 31 53 41;
   --good: 111 191 147;
-  --good-soft: 28 48 38;
-  --blue: 120 170 230;
-  --blue-soft: 28 42 62;
+  --good-soft: 31 53 41;
+  --blue: 130 170 225;
+  --blue-soft: 27 42 61;
   --warn: 214 176 70;
   --warn-soft: 54 46 24;
   --hard: 232 160 60;
-  --hard-soft: 58 42 22;
-  --alert: 226 130 126;
-  --alert-soft: 58 34 34;
-  --neutral: 42 52 47; /* #2a342f */
+  --hard-soft: 58 44 23;
+  --alert: 226 130 120;
+  --alert-soft: 58 32 28;
+  --neutral: 36 51 43;
   --neutral-ink: 170 181 174;
   --shadow: 0 0 0;
   color-scheme: dark;
@@ -91,11 +94,11 @@
 
 @layer components {
   .card {
-    @apply rounded-[14px] border border-line bg-surface;
-    box-shadow: 0 1px 2px rgb(var(--shadow) / 0.05), 0 6px 18px rgb(var(--shadow) / 0.04);
+    @apply rounded-[24px] border border-line bg-surface;
+    box-shadow: 0 1px 2px rgb(var(--shadow) / 0.04), 0 8px 24px -12px rgb(var(--shadow) / 0.12);
   }
   .btn {
-    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-[13px] text-base font-semibold transition active:scale-[.98] disabled:opacity-40;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl px-4 py-[14px] text-[15.5px] font-bold transition active:scale-[.97] disabled:opacity-40;
   }
   .btn-primary {
     @apply btn bg-primary text-primary-ink hover:opacity-95;
@@ -114,22 +117,22 @@
   }
   /* libellé de section : petites capitales grises (comme la référence) */
   .label {
-    @apply text-[13px] font-bold uppercase tracking-[.3px] text-muted;
+    @apply text-[12px] font-bold uppercase tracking-[1.2px] text-muted;
   }
   .input {
-    @apply min-h-[44px] w-full rounded-xl border border-line bg-surface px-3 text-ink placeholder:text-muted/70 focus:border-primary focus:outline-none;
+    @apply min-h-[44px] w-full rounded-2xl border border-line bg-surface px-3.5 text-ink placeholder:text-muted/70 focus:border-primary focus:outline-none;
   }
   .chip {
-    @apply inline-flex min-h-[36px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-transparent bg-surface2 px-3.5 text-[13px] font-medium text-ink transition;
+    @apply inline-flex min-h-[36px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-surface px-4 text-[13.5px] font-semibold text-muted transition;
   }
   .chip[aria-pressed='true'],
   .chip[aria-checked='true'],
   .chip[aria-selected='true'] {
-    @apply bg-primary text-primary-ink;
+    @apply border-primary bg-primary text-primary-ink;
   }
   .hero {
-    background: linear-gradient(160deg, #1f4d3a, #2d6a50);
-    @apply rounded-[14px] text-white;
+    background: linear-gradient(150deg, #1f5240, #12352a);
+    @apply rounded-[26px] text-[#f4f1e8];
     box-shadow: 0 1px 2px rgb(var(--shadow) / 0.05), 0 6px 18px rgb(var(--shadow) / 0.08);
   }
   /* repère de fin de verset, comme l'artefact */
@@ -147,9 +150,26 @@
     margin: 0 0.25em;
     background: radial-gradient(circle, transparent 62%, rgba(143, 168, 150, 0.18) 64%);
   }
+  /* ===== Composants de la maquette index ===== */
+  .learn-card { @apply relative overflow-hidden rounded-[24px] p-[18px] text-[#FBF4E8]; background: linear-gradient(115deg, #2a1d15 0%, #43291a 45%, #875226 100%); box-shadow: 0 16px 34px -16px rgba(74, 46, 28, 0.6); }
+  .learn-card::after { content: ''; position: absolute; right: -50px; top: -60px; width: 220px; height: 220px; border-radius: 9999px; background: radial-gradient(circle, rgba(231, 154, 46, 0.32), transparent 70%); pointer-events: none; }
+  .btn-orange { @apply rounded-xl px-4 py-2.5 text-[14.5px] font-bold text-white transition active:scale-95; background: #e36a48; box-shadow: 0 6px 16px -6px rgba(227, 106, 72, 0.75); }
+  .tile { @apply rounded-[20px] border border-line bg-surface px-3 py-3.5 text-left; }
+  .chip-ic { @apply grid shrink-0 place-items-center; border-radius: 14px; width: 44px; height: 44px; }
+  .ic-g { @apply bg-good-soft text-good; } .ic-a { @apply bg-hard-soft text-hard; } .ic-b { @apply bg-blue-soft text-blue; } .ic-r { @apply bg-alert-soft text-alert; }
+  .seg { @apply flex rounded-full bg-surface2 p-1; }
+  .seg button { @apply flex-1 rounded-full px-1.5 py-2.5 text-[14px] font-semibold text-muted transition; }
+  .seg button[aria-selected='true'] { @apply bg-primary text-primary-ink; }
+  .sec-head { @apply mb-3 mt-[26px] flex items-center justify-between px-0.5; }
+  .verse-card { @apply relative flex items-center gap-3.5 overflow-hidden rounded-[24px] bg-soft p-[18px]; }
+  .kpi { @apply relative overflow-hidden rounded-[26px] p-5 text-[#f4f1e8]; background: linear-gradient(150deg, #1f5240, #12352a); }
+  .fab { @apply grid h-[62px] w-[62px] place-items-center rounded-full bg-primary text-primary-ink transition active:scale-90; border: 5px solid rgb(var(--bg)); box-shadow: 0 10px 24px -8px rgba(18, 53, 42, 0.7); }
+  .glass-opt { @apply flex w-full items-center gap-3.5 rounded-[18px] border border-line bg-surface p-3.5 text-left transition active:scale-[.98]; }
+
   /* Hiérarchie typographique centralisée */
-  .title-page { @apply font-display text-[27px] font-semibold leading-[1.15] tracking-[-0.2px]; }
-  .title-section { @apply font-display text-[21px] font-semibold leading-tight tracking-[-0.1px]; }
+  .title-page { @apply font-display text-[26px] font-extrabold leading-[1.15] tracking-[-0.5px]; }
+  .title-section { @apply font-display text-[18px] font-bold leading-tight tracking-[-0.2px]; }
+  .serif { font-family: 'Fraunces Variable', 'Fraunces', Georgia, serif; }
   .chip-sm { @apply !min-h-[32px] !px-3 !text-[12.5px]; }
   .ar {
     font-family: 'Amiri Quran', 'Geeza Pro', 'Traditional Arabic', 'Noto Naskh Arabic', serif;

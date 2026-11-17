@@ -143,11 +143,11 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 animate-fade bg-ink/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="pb-safe relative max-h-[88dvh] w-full max-w-[520px] animate-sheet-up overflow-y-auto rounded-t-[22px] bg-bg px-4 pb-6 shadow-[0_-6px_30px_rgba(0,0,0,.2)] outline-none sm:rounded-[22px]">
+      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="pb-safe relative max-h-[88dvh] w-full max-w-[520px] animate-sheet-up overflow-y-auto rounded-t-[28px] bg-bg px-4 pb-6 shadow-[0_-6px_30px_rgba(0,0,0,.2)] outline-none sm:rounded-[28px]">
         <div className="sticky top-0 z-10 -mx-4 touch-none bg-bg px-4 pb-2 pt-2.5" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
           <i className="mx-auto mb-2 block h-[5px] w-11 rounded-full bg-line" />
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-[22px] font-semibold">{title}</h2>
+            <h2 className="font-display text-[19px] font-bold tracking-[-0.2px]">{title}</h2>
             <button onClick={onClose} onPointerDown={(e) => e.stopPropagation()} aria-label="Fermer" className="flex h-10 w-10 items-center justify-center rounded-full bg-surface2 text-muted">
               <X size={18} />
             </button>
@@ -229,18 +229,19 @@ export function Page({ children, className }: { children: ReactNode; className?:
 }
 
 /** Écran principal : titre serif sur fond crème, onglets en pastilles, contenu en cartes. */
-export function Screen({ title, sub, right, tabs, children }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; tabs?: ReactNode; children: ReactNode }) {
+export function Screen({ title, sub, eyebrow, right, tabs, children }: { title: ReactNode; sub?: ReactNode; eyebrow?: ReactNode; right?: ReactNode; tabs?: ReactNode; children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[520px] animate-fade px-4 pb-10 pt-safe">
+    <div className="mx-auto w-full max-w-[520px] animate-fade px-[18px] pb-10 pt-safe">
       <header className="pt-[18px]">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            {sub && <p className="text-sm text-muted">{sub}</p>}
+            {eyebrow && <p className="text-[13px] text-muted">{eyebrow}</p>}
             <h1 className="title-page mb-1 mt-1">{title}</h1>
+            {sub && <p className="mt-1 text-[13.5px] text-muted">{sub}</p>}
           </div>
           {right}
         </div>
-        {tabs && <div className="mt-3">{tabs}</div>}
+        {tabs && <div className="mt-4">{tabs}</div>}
       </header>
       <div className="mt-4">{children}</div>
     </div>

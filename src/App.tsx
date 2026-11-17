@@ -92,7 +92,7 @@ export default function App() {
   const isRoot = ROOTS.has(pathname);
   const routeKey = pathname;
   return (
-    <div className={cx(!focus && 'pb-24 lg:pb-0 lg:pl-60')}>
+    <div className={cx(!focus && 'pb-28 lg:pb-0 lg:pl-60')}>
       {!online && !focus && (
         <div className="pt-safe bg-warn-soft px-4 py-2 text-center text-xs font-semibold text-warn" role="status">
           Hors connexion — tes données restent enregistrées sur l’appareil.
