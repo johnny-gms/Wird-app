@@ -2,7 +2,6 @@ import { BookOpen, Search } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { JuzHizbList } from './JuzHizb';
-import { MemoSwitch } from '@/components/MemoSwitch';
 import { FastScroll } from '@/components/FastScroll';
 import { matchSurah } from '@/components/SurahPickerList';
 import { Screen, cx } from '@/components/ui';
@@ -59,7 +58,7 @@ export default function MonWird() {
   );
 
   return (
-    <Screen title="Coran" sub="Les 114 sourates, le Coran numérique et les Juz" tabs={<MemoSwitch />}>
+    <Screen title="Mon Wird" sub="Les 114 sourates, le Coran numérique et les Juz">
       {view === 'juz' ? (
         <>
           <Link to="/coran" className="btn-soft w-full !min-h-[36px] !py-1.5 text-sm" aria-label="Ouvrir le Coran numérique"><BookOpen size={16} /> Coran numérique</Link>

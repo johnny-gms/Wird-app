@@ -11,35 +11,39 @@ export interface LearnLevelValue {
   /** null = ancien réglage (rythme par sourate / Hizb) : aucun niveau sélectionné. */
   level: LearnLevel | null;
   verses: number;
-  pages: number;
+  /** Pages par semaine proposées au niveau Intermédiaire (suggestion : 1,5) et Avancé (suggestion : 3), modifiables par pas de 0,5. */
+  interPages: number;
+  advPages: number;
 }
 
-export const DEFAULT_LEARN: LearnLevelValue = { level: 'beginner', verses: 7, pages: 3 };
+export const DEFAULT_LEARN: LearnLevelValue = { level: 'beginner', verses: 7, interPages: 1.5, advPages: 3 };
 
 export function learnValueFromSettings(s: Pick<Settings, 'learnMode' | 'learnWeekly'>): LearnLevelValue {
   if (s.learnMode === 'off') return { ...DEFAULT_LEARN, level: 'off' };
   const w = s.learnWeekly;
   if (!w) return { ...DEFAULT_LEARN, level: null };
   if (w.unit === 'verses') return { ...DEFAULT_LEARN, level: 'beginner', verses: w.amount };
-  if (w.amount <= 1) return { ...DEFAULT_LEARN, level: 'intermediate' };
-  return { ...DEFAULT_LEARN, level: 'advanced', pages: w.amount };
+  const level = w.level ?? (w.amount <= 1.5 ? 'intermediate' : 'advanced');
+  return level === 'intermediate' ? { ...DEFAULT_LEARN, level, interPages: w.amount } : { ...DEFAULT_LEARN, level, advPages: w.amount };
 }
 
 export function learnPatch(v: LearnLevelValue): Pick<Settings, 'learnMode' | 'learnWeekly'> {
   switch (v.level) {
     case 'beginner': return { learnMode: 'surah', learnWeekly: { unit: 'verses', amount: v.verses } };
-    case 'intermediate': return { learnMode: 'surah', learnWeekly: { unit: 'pages', amount: 1 } };
-    case 'advanced': return { learnMode: 'surah', learnWeekly: { unit: 'pages', amount: v.pages } };
+    case 'intermediate': return { learnMode: 'surah', learnWeekly: { unit: 'pages', amount: v.interPages, level: 'intermediate' } };
+    case 'advanced': return { learnMode: 'surah', learnWeekly: { unit: 'pages', amount: v.advPages, level: 'advanced' } };
     case 'off': return { learnMode: 'off', learnWeekly: null };
     default: return { learnMode: 'surah', learnWeekly: null };
   }
 }
 
+const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(n);
+
 export function learnSummary(v: LearnLevelValue): string {
   switch (v.level) {
     case 'beginner': return `${v.verses} verset${v.verses > 1 ? 's' : ''} par semaine`;
-    case 'intermediate': return '1 page par semaine';
-    case 'advanced': return `${v.pages} pages par semaine`;
+    case 'intermediate': return `${fmt(v.interPages)} page${v.interPages > 1 ? 's' : ''} par semaine`;
+    case 'advanced': return `${fmt(v.advPages)} page${v.advPages > 1 ? 's' : ''} par semaine`;
     case 'off': return 'Pas de nouvel apprentissage';
     default: return 'Rythme personnalisé';
   }
@@ -71,16 +75,16 @@ export function reviewSummary(v: ReviewValue): string {
 
 // ------------------------------------------------------------------ Éléments communs
 
-export function NumStepper({ value, onChange, min, max, one, many, label }: { value: number; onChange: (n: number) => void; min: number; max: number; one: string; many: string; label: string }) {
-  const set = (n: number) => onChange(Math.max(min, Math.min(max, n)));
+export function NumStepper({ value, onChange, min, max, one, many, label, step = 1 }: { value: number; onChange: (n: number) => void; min: number; max: number; one: string; many: string; label: string; step?: number }) {
+  const set = (n: number) => onChange(Math.max(min, Math.min(max, Math.round(n / step) * step)));
   return (
     <div className="flex items-center justify-center gap-3">
-      <button type="button" aria-label={`Moins de ${many} ${label}`} className="flex h-11 w-11 items-center justify-center rounded-full bg-surface2 disabled:opacity-35" disabled={value <= min} onClick={() => set(value - 1)}><Minus size={18} /></button>
+      <button type="button" aria-label={`Moins de ${many} ${label}`} className="flex h-11 w-11 items-center justify-center rounded-full bg-surface2 disabled:opacity-35" disabled={value <= min} onClick={() => set(value - step)}><Minus size={18} /></button>
       <div className="w-[104px] text-center">
-        <p className="text-[30px] font-extrabold leading-none tabular-nums">{new Intl.NumberFormat('fr-FR').format(value)}</p>
+        <p className="text-[30px] font-extrabold leading-none tabular-nums">{fmt(value)}</p>
         <p className="mt-1 text-[11px] font-bold uppercase tracking-[.12em] text-muted">{value > 1 ? many : one}</p>
       </div>
-      <button type="button" aria-label={`Plus de ${many} ${label}`} className="flex h-11 w-11 items-center justify-center rounded-full bg-surface2 disabled:opacity-35" disabled={value >= max} onClick={() => set(value + 1)}><Plus size={18} /></button>
+      <button type="button" aria-label={`Plus de ${many} ${label}`} className="flex h-11 w-11 items-center justify-center rounded-full bg-surface2 disabled:opacity-35" disabled={value >= max} onClick={() => set(value + step)}><Plus size={18} /></button>
     </div>
   );
 }
@@ -107,12 +111,13 @@ export function LearnLevels({ value, onChange }: { value: LearnLevelValue; onCha
           <p className="mb-2.5 text-center text-sm text-muted">Combien de versets veux-tu apprendre par semaine ?</p>
           <NumStepper value={value.verses} onChange={(verses) => onChange({ ...value, level: 'beginner', verses })} min={1} max={100} one="verset" many="versets" label="par semaine" />
         </LevelCard>
-        <LevelCard on={value.level === 'intermediate'} title="Intermédiaire" sub="1 page par semaine" onSelect={() => set('intermediate')}>
-          <p className="text-center text-sm text-muted">Environ une page du Mushaf apprise chaque semaine.</p>
+        <LevelCard on={value.level === 'intermediate'} title="Intermédiaire" sub="Environ 1,5 page par semaine (suggéré)" onSelect={() => set('intermediate')}>
+          <p className="mb-2.5 text-center text-sm text-muted">Suggestion : 1,5 page par semaine. Tu peux ajuster par pas de 0,5.</p>
+          <NumStepper value={value.interPages} onChange={(interPages) => onChange({ ...value, level: 'intermediate', interPages })} min={0.5} max={30} step={0.5} one="page" many="pages" label="par semaine" />
         </LevelCard>
-        <LevelCard on={value.level === 'advanced'} title="Avancé" sub="Plus d’une page par semaine" onSelect={() => set('advanced')}>
-          <p className="mb-2.5 text-center text-sm text-muted">Combien de pages veux-tu apprendre par semaine ?</p>
-          <NumStepper value={value.pages} onChange={(pages) => onChange({ ...value, level: 'advanced', pages })} min={2} max={30} one="page" many="pages" label="par semaine" />
+        <LevelCard on={value.level === 'advanced'} title="Avancé" sub="Environ 3 pages par semaine (suggéré)" onSelect={() => set('advanced')}>
+          <p className="mb-2.5 text-center text-sm text-muted">Suggestion : 3 pages par semaine. Tu peux ajuster par pas de 0,5.</p>
+          <NumStepper value={value.advPages} onChange={(advPages) => onChange({ ...value, level: 'advanced', advPages })} min={0.5} max={30} step={0.5} one="page" many="pages" label="par semaine" />
         </LevelCard>
       </div>
       <button type="button" role="radio" aria-checked={value.level === 'off'} onClick={() => set('off')} className={cx('mt-3 w-full text-center text-sm font-semibold underline-offset-4', value.level === 'off' ? 'text-primary underline' : 'text-muted hover:underline')}>

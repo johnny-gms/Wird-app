@@ -178,7 +178,7 @@ export interface Settings {
   /** Objectif quotidien de révision, en pages entières du Mushaf. */
   reviewPagesPerDay: number;
   /** Objectif d'apprentissage par semaine (niveaux Débutant / Intermédiaire / Avancé) : en versets ou en pages. null = ancien réglage (rythme par sourate / Hizb). */
-  learnWeekly: { unit: 'verses' | 'pages'; amount: number } | null;
+  learnWeekly: { unit: 'verses' | 'pages'; amount: number; level?: 'intermediate' | 'advanced' } | null;
   /** Objectif de révision par semaine : en pages, en Hizb ou en Juz (toujours du début à la fin du Coran). null = pages par jour. */
   reviewWeekly: { unit: 'pages' | 'hizb' | 'juz'; amount: number } | null;
   /** Plafond de versets de renforcement proposés par jour. */

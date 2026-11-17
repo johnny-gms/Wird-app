@@ -37,7 +37,7 @@ const H2 = ({ children, right }: { children: React.ReactNode; right?: React.Reac
  */
 export default function ProgressPage() {
   const today = useToday();
-  const { verses, history, progressLog, summaries } = useWird();
+  const { verses, history, progressLog, summaries, personalGoals } = useWird();
   const [range, setRange] = useState<Range>(30);
 
   const o = useMemo(() => overall(verses, today), [verses, today]);
@@ -102,9 +102,13 @@ export default function ProgressPage() {
       <H2>Suivi des hizb</H2>
       <HizbSection />
 
-      {/* ---------- Objectif et régularité ---------- */}
-      <H2>Objectif et régularité</H2>
-      <WeekGoal today={today} days={days} summaries={summaries} />
+      {/* ---------- Objectif et régularité : uniquement une fois un objectif inscrit ---------- */}
+      {personalGoals.length > 0 && (
+        <>
+          <H2>Objectif et régularité</H2>
+          <WeekGoal today={today} days={days} summaries={summaries} />
+        </>
+      )}
 
       {/* ---------- Objectifs personnels ---------- */}
       <H2>Mes objectifs</H2>

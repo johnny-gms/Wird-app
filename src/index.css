@@ -151,8 +151,8 @@
     background: radial-gradient(circle, transparent 62%, rgba(143, 168, 150, 0.18) 64%);
   }
   /* ===== Composants de la maquette index ===== */
-  .learn-card { @apply relative overflow-hidden rounded-[24px] p-[18px] text-[#FBF4E8]; background: linear-gradient(115deg, #2a1d15 0%, #43291a 45%, #875226 100%); box-shadow: 0 16px 34px -16px rgba(74, 46, 28, 0.6); }
-  .learn-card::after { content: ''; position: absolute; right: -50px; top: -60px; width: 220px; height: 220px; border-radius: 9999px; background: radial-gradient(circle, rgba(231, 154, 46, 0.32), transparent 70%); pointer-events: none; }
+  .mem-card { @apply relative overflow-hidden rounded-[24px] p-[18px] text-[#F4F1E8]; background: linear-gradient(150deg, #1f5240, #12352a); box-shadow: 0 16px 34px -16px rgba(18, 53, 42, 0.6); }
+  .mem-card::after { content: ''; position: absolute; right: -50px; top: -60px; width: 220px; height: 220px; border-radius: 9999px; background: radial-gradient(circle, rgba(169, 196, 174, 0.22), transparent 70%); pointer-events: none; }
   .btn-orange { @apply rounded-xl px-4 py-2.5 text-[14.5px] font-bold text-white transition active:scale-95; background: #e36a48; box-shadow: 0 6px 16px -6px rgba(227, 106, 72, 0.75); }
   .tile { @apply rounded-[20px] border border-line bg-surface px-3 py-3.5 text-left; }
   .chip-ic { @apply grid shrink-0 place-items-center; border-radius: 14px; width: 44px; height: 44px; }
