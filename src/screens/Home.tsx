@@ -1,4 +1,4 @@
-import { ChevronRight, Clock, Flame, RefreshCw, Star } from 'lucide-react';
+import { ChevronRight, Flame } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ProfileAvatar } from '@/components/Avatar';
@@ -6,7 +6,7 @@ import { Sheet, cx } from '@/components/ui';
 import { addDays, diffDays, startOfWeek } from '@/engine/dates';
 import { formatPages } from '@/engine/pages';
 import { goalProgress, itemPages, learningEnabled, learningSegment } from '@/engine/plan';
-import { activeDaySet, allSurahStats, cellState, currentStreak, overall } from '@/engine/progress';
+import { activeDaySet, allSurahStats, cellState, currentStreak, overall, pagesByDay } from '@/engine/progress';
 import { rangeLabel, surahMeta } from '@/engine/quran';
 import type { PlanItem } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
@@ -17,7 +17,6 @@ import { CELL_BG } from './wird/SurahGrid';
 
 const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
-const rnd = (x: number) => Math.round(x * 10) / 10;
 
 /** Accueil : mémorisation (révisions du jour), sourate à apprendre, progression, verset. */
 export default function Home() {
@@ -33,7 +32,6 @@ export default function Home() {
   }, []);
   const stale = !!session && !!plan && session.date !== plan.date;
   const items = plan?.items ?? [];
-  const done = items.filter((i) => i.status === 'done');
   const o = useMemo(() => overall(verses, today), [verses, today]);
   const stats = useMemo(() => allSurahStats(verses, today), [verses, today]);
   const cnt = useMemo(() => {
@@ -43,14 +41,17 @@ export default function Home() {
   }, [stats]);
   const days = useMemo(() => activeDaySet(history), [history]);
   const streak = currentStreak(days, today);
+  const wk0 = startOfWeek(today);
+  const weekDots = Array.from({ length: 7 }, (_, i) => days.has(addDays(wk0, i)));
+  const weekCount = weekDots.filter(Boolean).length;
+  const todayIdx = diffDays(wk0, today);
+  const pagesWeek = pagesByDay(history, today, 7).map((d) => d.pages);
+  const maxPages = Math.max(0.01, ...pagesWeek);
+  const weekBars = pagesWeek.map((p) => p / maxPages);
   const doneToday = days.has(today);
   const lastDay = [...days].sort().pop();
   const away = !!lastDay && diffDays(lastDay, today) >= 7 && !awayHidden;
   const pagesOf = (list: PlanItem[]) => list.reduce((a, i) => a + itemPages(i), 0);
-  const learnDone = pagesOf(done.filter((i) => i.kind === 'learn'));
-  const reviewDone = pagesOf(done.filter((i) => i.kind !== 'learn'));
-  const learnTarget = pagesOf(items.filter((i) => i.kind === 'learn'));
-  const reviewTarget = pagesOf(items.filter((i) => i.kind !== 'learn'));
   const hasAny = o.memorizedVerses + o.learningVerses > 0;
 
   // Mémorisation : uniquement les révisions et renforcements du jour (jamais l'apprentissage)
@@ -106,41 +107,41 @@ export default function Home() {
 
       {/* Mémorisation : les révisions du jour (jamais l'apprentissage) */}
       <article className="mem-card mt-[18px]">
-        <div className="relative z-[1] flex items-center gap-3.5">
-          <div className="grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[14px] border border-white/10 bg-white/10"><RefreshCw size={23} /></div>
-          <div className="min-w-0">
+        <div className="relative z-[1] flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <p className="eyebrow text-[10.5px] font-bold uppercase tracking-[1.4px] opacity-70">Mémorisation</p>
-            <h2 className="mt-0.5 truncate text-[17px] font-bold">
+            <h2 className="mt-2 text-[21px] font-extrabold leading-tight tracking-[-0.3px]">
               {session ? 'Séance en cours' : nextReview ? `${surahMeta(nextReview.surah).tr} · ${rangeLabel(nextReview.surah, nextReview.from, nextReview.to).replace(/^Sourate \d+ — /, '')}` : reviewItems.length ? 'Révisions terminées' : 'Rien à réviser pour le moment'}
             </h2>
-            <p className="mt-0.5 text-[13px] opacity-70">
+            <p className="mt-1 text-[13.5px] opacity-75">
               {session ? 'Reprends là où tu t’es arrêté.' : nextReview ? `${reviewPending.length > 1 ? `et ${reviewPending.length - 1} autre${reviewPending.length > 2 ? 's' : ''} passage${reviewPending.length > 2 ? 's' : ''} · ` : ''}≈ ${formatPages(pagesOf(reviewPending))}` : reviewItems.length ? 'Qu’Allah te facilite, à demain 🌿' : hasAny ? 'Profite de ta journée.' : 'Tes révisions apparaîtront ici.'}
             </p>
+            {streak > 0 && <p className="mt-2 font-mono text-[12.5px] font-semibold text-[#E3C277]">🔥 {streak} jour{streak > 1 ? 's' : ''} d’affilée</p>}
           </div>
+          <FocusRing value={reviewRatio} />
         </div>
-        <div className="relative z-[1] mt-[18px] flex items-center gap-3">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/15"><i className="bar-fill block h-full rounded-full transition-[width] duration-700" style={{ width: `${reviewRatio * 100}%` }} /></div>
-          <span className="min-w-[56px] text-right text-[13.5px] font-bold tabular-nums" aria-label="Révisions faites aujourd’hui">{reviewDoneCount} / {reviewItems.length}</span>
-          {(session || reviewPending.length > 0) && <button className="rounded-xl bg-[#F6F1E4] px-4 py-2.5 text-[14.5px] font-bold text-[#12352A] transition active:scale-95" onClick={startReview}>{session ? 'Reprendre' : 'Commencer'}</button>}
+        <div className="relative z-[1] mt-4 flex items-center gap-3">
+          {(session || reviewPending.length > 0) && <button className="mem-btn rounded-full px-5 py-3 text-[14.5px] font-bold transition active:scale-95" onClick={startReview}>{session ? 'Reprendre' : 'Commencer'}</button>}
+          <span className="text-[13px] opacity-70 tabular-nums" aria-label="Révisions faites aujourd’hui">{reviewDoneCount} / {reviewItems.length} passages</span>
         </div>
       </article>
 
-      {/* Tuiles */}
-      <div className="mt-3.5 grid grid-cols-3 gap-2.5">
+      {/* Série et semaine */}
+      <div className="mt-3.5 grid grid-cols-2 gap-2.5">
         <button className="tile" onClick={() => { haptic('tap'); setFlame(true); }} aria-label="Voir ma série">
-          <span className={cx('chip-ic !h-[34px] !w-[34px] !rounded-[11px]', doneToday ? 'ic-a' : 'bg-surface2 text-muted/70')}><Flame size={17} /></span>
-          <small className="mt-2.5 block text-[12px] font-medium text-muted">{doneToday ? 'Série 🔥' : streak ? 'À entretenir' : 'Série'}</small>
-          <b className="text-[19px] font-extrabold tracking-[-0.3px]">{streak}<span className="ml-0.5 text-[12.5px] font-semibold text-muted">jour{streak > 1 ? 's' : ''}</span></b>
+          <p className="eyebrow text-[10.5px] font-bold uppercase tracking-[1.2px] text-muted">Série</p>
+          <p className="mt-2 text-[34px] font-extrabold leading-none tracking-[-1px] tabular-nums">{streak}<span className="ml-1.5 text-[14px] font-semibold text-muted">jour{streak > 1 ? 's' : ''}</span></p>
+          <div className="mt-3 flex h-8 items-end gap-1" aria-hidden>
+            {weekBars.map((h, i) => <i key={i} className={cx('block w-full rounded-sm', i === weekBars.length - 1 ? 'bg-accent' : 'bg-accent/35')} style={{ height: `${Math.max(14, h * 100)}%` }} />)}
+          </div>
         </button>
-        <Link to="/progression" className="tile">
-          <span className="chip-ic ic-g !h-[34px] !w-[34px] !rounded-[11px]"><Star size={17} /></span>
-          <small className="mt-2.5 block text-[12px] font-medium text-muted">Sourates</small>
-          <b className="text-[19px] font-extrabold tracking-[-0.3px]">{cnt.learned}<span className="ml-0.5 text-[12.5px] font-semibold text-muted">/ 114</span></b>
-        </Link>
         <div className="tile">
-          <span className="chip-ic ic-b !h-[34px] !w-[34px] !rounded-[11px]"><Clock size={17} /></span>
-          <small className="mt-2.5 block text-[12px] font-medium text-muted">Aujourd’hui</small>
-          <b className="text-[19px] font-extrabold tracking-[-0.3px]">{rnd(learnDone + reviewDone)}<span className="ml-0.5 text-[12.5px] font-semibold text-muted">/ {rnd(learnTarget + reviewTarget)} p.</span></b>
+          <p className="eyebrow text-[10.5px] font-bold uppercase tracking-[1.2px] text-muted">Cette semaine</p>
+          <div className="mt-3 grid grid-cols-7 gap-1" aria-hidden>
+            {weekDots.map((on, i) => <i key={i} className={cx('mx-auto block h-3.5 w-3.5 rounded-full', on ? 'bg-accent' : 'bg-surface2', i === todayIdx && !on && 'ring-2 ring-accent/70')} />)}
+          </div>
+          <div className="mt-1.5 grid grid-cols-7 gap-1 text-center font-mono text-[9.5px] text-muted" aria-hidden>{['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => <span key={i}>{d}</span>)}</div>
+          <p className="mt-2.5 font-mono text-[12px] font-semibold">{weekCount} sur 7 jours</p>
         </div>
       </div>
 
@@ -263,6 +264,25 @@ function Donut({ learned, learning, reinforce }: { learned: number; learning: nu
         <b className="text-[22px] font-extrabold leading-none">{learned}</b>
         <span className="mt-1 text-[11.5px] text-muted">mémorisées</span>
       </div>
+    </div>
+  );
+}
+
+
+/** Anneau d'avancement du jour (comme la maquette « focus ») : pourcentage au centre. */
+function FocusRing({ value }: { value: number }) {
+  const size = 88;
+  const stroke = 9;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={`${pct} % des révisions faites`}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} stroke="rgba(255,255,255,.14)" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round" stroke="rgb(var(--ring))" strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} className="transition-[stroke-dashoffset] duration-700" />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center text-[19px] font-extrabold tabular-nums">{pct}<small className="text-[11px] opacity-70">%</small></div>
     </div>
   );
 }

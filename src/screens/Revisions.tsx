@@ -105,8 +105,8 @@ export default function Revisions() {
         <div className="mt-4">
           {pending.length > 0 ? (
             <ul className="space-y-2.5" aria-label="À faire aujourd’hui">
-              {pending.map((it) => (
-                <Row key={it.id} it={it} onGo={() => begin(it.id)} onSkip={() => { store.skipItem(it.id); toast('Mis de côté pour aujourd’hui'); }} />
+              {pending.map((it, i) => (
+                <Row key={it.id} index={i + 1} it={it} onGo={() => begin(it.id)} onSkip={() => { store.skipItem(it.id); toast('Mis de côté pour aujourd’hui'); }} />
               ))}
             </ul>
           ) : (
@@ -253,13 +253,13 @@ export default function Revisions() {
 }
 
 /** Une ligne du programme : sourate et versets en haut, type de travail et action principale en bas. */
-function Row({ it, onGo, onSkip }: { it: PlanItem; onGo: () => void; onSkip: () => void }) {
+function Row({ it, index, onGo, onSkip }: { it: PlanItem; index: number; onGo: () => void; onSkip: () => void }) {
   const k = KIND[it.kind];
   const s = surahMeta(it.surah);
   return (
     <li className="card p-3.5">
       <div className="flex items-start gap-3">
-        <span className={cx('chip-ic !h-11 !w-11 !rounded-[14px]', k.chip)} aria-hidden>{k.icon}</span>
+        <span className="num-tile" aria-hidden>{String(index).padStart(2, '0')}</span>
         <Link to={`/wird/${it.surah}`} className="min-w-0 flex-1">
           <b className="block text-[16px] leading-snug">{s.id}. {s.tr}</b>
           <span className="block text-[13px] leading-snug text-muted">{verses(it)} · {it.kind === 'review' ? `page ${pageOf(ayahId(it.surah, it.from))}` : formatPages(itemPages(it))}</span>
@@ -267,7 +267,7 @@ function Row({ it, onGo, onSkip }: { it: PlanItem; onGo: () => void; onSkip: () 
         <button className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface2" aria-label="Mettre de côté pour aujourd’hui" onClick={onSkip}>⋯</button>
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
-        <span className={cx('rounded-full px-3 py-1 text-[12px] font-bold', k.chip)}>{k.label}</span>
+        <span className={cx('inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-bold', k.chip)}><span className="[&>svg]:h-3.5 [&>svg]:w-3.5">{k.icon}</span>{k.label}</span>
         <button className="rounded-full bg-primary px-5 py-2.5 text-[14px] font-bold text-primary-ink transition active:scale-95" onClick={onGo}>Commencer</button>
       </div>
     </li>

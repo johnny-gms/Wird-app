@@ -479,8 +479,26 @@ function Insights({ today }: { today: string }) {
   const remainingVerses = gp ? gp.total - gp.done : 0;
   const etaWeeks = goal && lw ? Math.max(1, Math.ceil(lw.unit === 'pages' ? remainingPages / Math.max(0.25, weeklyPages) : remainingVerses / Math.max(1, lw.amount))) : null;
 
+  // régularité du mois : jours travaillés sur les 30 derniers jours, comparés aux 30 précédents
+  const last30 = Array.from({ length: 30 }, (_, i) => addDays(today, i - 29));
+  const prev30 = Array.from({ length: 30 }, (_, i) => addDays(today, i - 59));
+  const kept = last30.filter((d) => days.has(d)).length;
+  const keptPrev = prev30.filter((d) => days.has(d)).length;
+  const monthPct = Math.round((kept / 30) * 100);
+  const delta = Math.round(((kept - keptPrev) / 30) * 100);
+
   return (
     <div className="space-y-3">
+      <section className="card p-4" aria-label="Régularité du mois">
+        <p className="eyebrow text-[11px] font-bold uppercase tracking-[1.2px] text-muted">Régularité · 30 jours</p>
+        <p className="mt-2 text-[42px] font-extrabold leading-none tracking-[-1.2px] tabular-nums">{monthPct}<span className="text-[20px] text-muted"> %</span></p>
+        <p className="mt-1 text-[13.5px] text-muted">des jours travaillés ({kept} sur 30)</p>
+        {history.length > 0 && <span className={cx('mt-2.5 inline-flex rounded-full px-2.5 py-1 font-mono text-[12px] font-semibold', delta >= 0 ? 'bg-good-soft text-good' : 'bg-hard-soft text-hard')}>{delta >= 0 ? '▲' : '▼'} {Math.abs(delta)} % vs 30 jours avant</span>}
+        <div className="mt-4 grid grid-cols-[repeat(30,1fr)] gap-[3px]" aria-label="Carte des 30 derniers jours">
+          {last30.map((d) => <i key={d} title={d} className={cx('block aspect-[1/1.6] rounded-[3px]', days.has(d) ? 'bg-accent' : 'bg-surface2', d === today && 'ring-1 ring-accent')} />)}
+        </div>
+      </section>
+
       <section className="card p-4" aria-label="Ta semaine">
         <div className="flex items-baseline justify-between"><Title>Ta semaine</Title><span className="text-xs text-muted">{streak > 0 ? `🔥 ${streak} jour${streak > 1 ? 's' : ''} d’affilée` : 'du lundi à aujourd’hui'}</span></div>
         <div className="mt-3 grid grid-cols-7 gap-1.5">
