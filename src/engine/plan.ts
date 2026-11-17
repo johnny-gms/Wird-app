@@ -134,11 +134,14 @@ export function buildPlan(ctx: PlanBuildContext, date: string, prev: DailyPlan |
     const week = (ctx.history ?? []).filter((h) => h.kind === 'learn');
     let verseBudget = Math.ceil(weekQuota(lw.amount, date)) - (lw.unit === 'verses' ? weekDone(week, date, 'learn', (h) => h.to - h.from + 1) : 0);
     let pageBudget = weekQuota(lw.amount, date) - (lw.unit === 'pages' ? weekDone(week, date, 'learn', (h) => rangePages(h.surah, h.from, h.to)) : 0);
+    // Le budget de la semaine se répartit sur les objectifs ouverts, l'un après l'autre : une petite sourate terminée ne vide pas la semaine.
+    const left = () => (lw.unit === 'verses' ? verseBudget >= 1 : pageBudget > 0.03);
     for (const g of ctx.goals) {
+      if (!left()) break;
       if (g.paused || g.completedAt) continue;
       const keptG = kept.filter((i) => i.kind === 'learn' && i.goalId === g.id);
       let at = Math.max(g.cursor, ...keptG.map((i) => i.to + 1));
-      while (lw.unit === 'verses' ? verseBudget >= 1 : pageBudget > 0.03) {
+      while (left()) {
         let seg = learningSegment(ctx, g, at);
         if (!seg) break;
         if (lw.unit === 'verses') seg = { from: seg.from, to: Math.min(seg.to, seg.from + verseBudget - 1) };
@@ -152,10 +155,10 @@ export function buildPlan(ctx: PlanBuildContext, date: string, prev: DailyPlan |
         pageBudget -= rangePages(g.surah, seg.from, seg.to);
         at = seg.to + 1;
       }
-      break; // un seul objectif à la fois reçoit le budget du jour
     }
     items.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
-    return { date, items };
+    // budget restant alors que tous les objectifs ouverts sont parcourus : la suite doit s'ouvrir (voir le store)
+    return { date, items, ...(left() ? { moreLearn: true } : {}) };
   }
   let learnBudget = 0;
   let budgeted = false;

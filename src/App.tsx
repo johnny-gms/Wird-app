@@ -22,10 +22,12 @@ import { ProfileNotifications, ProfileAbout } from './screens/profile/SubScreens
 import Session from './screens/session/Session';
 import Bilan from './screens/session/Bilan';
 import Congrats from './screens/session/Congrats';
+import LearnChoose from './screens/wird/LearnChoose';
 
 /** Écran parent d'une sous-page (null = pas de retour par balayage : onglets principaux, séance, écrans à geste propre). */
 function parentRoute(pathname: string): string | null {
   if (/^\/wird\/\d+$/.test(pathname) || pathname === '/coran') return '/wird';
+  if (pathname === '/apprendre') return '/revisions';
   if (pathname === '/connues') return '/profil/parametres';
   if (['/profil/profil', '/profil/parametres', '/profil/apropos'].includes(pathname)) return '/profil';
   if (['/profil/notifications', '/profil/corbeille'].includes(pathname)) return '/profil/parametres';
@@ -124,6 +126,7 @@ export default function App() {
           <Route path="/wird/sourates/:id" element={<RedirectSurah />} />
           <Route path="/wird/:id" element={<SurahDetail />} />
           <Route path="/coran" element={<Coran />} />
+          <Route path="/apprendre" element={<LearnChoose />} />
           <Route path="/connues" element={<KnownScreen />} />
           <Route path="/revisions" element={<Revisions />} />
           <Route path="/progression" element={<ProgressTab />} />

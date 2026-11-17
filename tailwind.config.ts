@@ -15,6 +15,7 @@ export default {
         muted: v('muted'),
         line: v('line'),
         primary: v('primary'),
+        accent: v('accent'),
         deep: v('deep'),
         ivory: v('ivory'),
         gold: v('gold'),

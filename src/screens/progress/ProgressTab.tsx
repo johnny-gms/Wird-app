@@ -3,9 +3,11 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Ring, ProgressBar, Screen, Sheet, cx } from '@/components/ui';
 import { ENGINE, GRADE_LABEL } from '@/engine/config';
+import { goalProgress, learningSegment, weeklyReviewPages } from '@/engine/plan';
+import { rangePages } from '@/engine/pages';
 import { addDays, diffDays, endOfMonth, parseKey, startOfMonth, startOfWeek } from '@/engine/dates';
 import { dueReinforcement } from '@/engine/plan';
-import { activeDaySet, activeDaysIn, allHizbStats, allSurahStats, currentStreak, memorizedPages, overall } from '@/engine/progress';
+import { activeDaySet, activeDaysIn, allHizbStats, allSurahStats, currentStreak, overall } from '@/engine/progress';
 import { ayahId, fromAyahId, formatDuration, hizbRange, rangeLabel, surahMeta } from '@/engine/quran';
 import { periodReport } from '@/engine/reports';
 import { groupRuns } from '@/engine/rotation';
@@ -42,11 +44,9 @@ export default function ProgressPage() {
 
   const o = useMemo(() => overall(verses, today), [verses, today]);
   const stats = useMemo(() => allSurahStats(verses, today), [verses, today]);
-  const pagesMem = useMemo(() => memorizedPages(verses), [verses]);
   const days = useMemo(() => activeDaySet(history), [history]);
   const inProgress = stats.filter((s) => s.state === 'partial' || s.state === 'learning').length;
   const reinforceSurahs = stats.filter((s) => s.needsReinforcement).length;
-  const consolidated = stats.filter((s) => s.state === 'complete' && !s.needsReinforcement).length;
   const streakNow = currentStreak(days, today);
 
   return (
@@ -68,15 +68,9 @@ export default function ProgressPage() {
       <H2>Mes 114 sourates</H2>
       <SurahGrid />
 
-      {/* ---------- Vue d'ensemble ---------- */}
-      <H2>Vue d’ensemble</H2>
-      <div className="card grid grid-cols-2 gap-x-4 gap-y-5 p-4">
-        <Big n={o.surahsComplete} l="sourates apprises" />
-        <Big n={inProgress} l="en cours" />
-        <Big n={reinforceSurahs} l="à renforcer" />
-        <Big n={consolidated} l="sourates consolidées" />
-      </div>
-      <p className="mt-2 text-xs text-muted">{o.memorizedVerses === 0 ? '0' : `≈ ${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Math.round(pagesMem * 10) / 10)}`} pages mémorisées sur 604 · {o.hizbCovered} hizb couverts sur 60 · {streakNow > 0 ? `série de ${streakNow} jour${streakNow > 1 ? 's' : ''} · ` : ''}{o.ratio === 0 ? '0' : o.ratio < 0.01 ? '<1' : Math.round(o.ratio * 100)} % du Coran</p>
+      {/* ---------- Ta semaine, ta solidité, ton prochain jalon ---------- */}
+      <H2>Ce qui compte pour toi</H2>
+      <Insights today={today} />
 
       {/* ---------- Évolution ---------- */}
       <H2>Évolution</H2>
@@ -441,4 +435,108 @@ function HizbSection() {
 function rangeStart(id: number): string {
   const { surah, ayah } = fromAyahId(id);
   return rangeLabel(surah, ayah, ayah).replace(' — verset', ', verset');
+}
+
+
+// ------------------------------------------------------------------ Ce qui compte pour toi
+const DAY_L = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+const fmt1 = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Math.round(n * 10) / 10);
+
+/**
+ * Trois repères qui aident vraiment :
+ *  - la semaine en cours : ce qui est fait par rapport au rythme choisi, et les jours travaillés ;
+ *  - la solidité : comment se sont passées les révisions des 30 derniers jours ;
+ *  - le prochain jalon : ce qu'il reste pour finir la sourate en cours, et le temps estimé à ton rythme.
+ */
+function Insights({ today }: { today: string }) {
+  const { history, settings, goals, verses } = useWird();
+  const days = useMemo(() => activeDaySet(history), [history]);
+  const wk = startOfWeek(today);
+  const week = history.filter((h) => h.date >= wk && h.date <= today);
+  const learnPages = week.filter((h) => h.kind === 'learn').reduce((a, h) => a + rangePages(h.surah, h.from, h.to), 0);
+  const learnVerses = week.filter((h) => h.kind === 'learn').reduce((a, h) => a + h.to - h.from + 1, 0);
+  const reviewPages = week.filter((h) => h.kind === 'review').reduce((a, h) => a + rangePages(h.surah, h.from, h.to), 0);
+  const lw = settings.learnWeekly;
+  const learnDone = lw?.unit === 'verses' ? learnVerses : learnPages;
+  const reviewTarget = weeklyReviewPages(settings);
+  const streak = currentStreak(days, today);
+
+  // solidité des révisions (30 jours)
+  const since = addDays(today, -29);
+  const recent = history.filter((h) => (h.kind === 'review' || h.kind === 'reinforce') && h.date >= since);
+  const counts: Record<Grade, number> = { mastered: 0, hesitant: 0, difficult: 0, failed: 0 };
+  for (const h of recent) counts[h.grade] += h.to - h.from + 1;
+  const total = counts.mastered + counts.hesitant + counts.difficult + counts.failed;
+  const masteredPct = total ? Math.round((counts.mastered / total) * 100) : 0;
+  const fragileNow = useMemo(() => Object.values(verses).filter((v) => v.status === 'memorized' && v.fragile).length, [verses]);
+  const SEG: { g: Grade; cls: string }[] = [{ g: 'mastered', cls: 'bg-good' }, { g: 'hesitant', cls: 'bg-warn' }, { g: 'difficult', cls: 'bg-hard' }, { g: 'failed', cls: 'bg-alert' }];
+
+  // prochain jalon
+  const goal = goals.find((g) => !g.completedAt && !g.paused && learningSegment({ verses }, g));
+  const gp = goal ? goalProgress(goal) : null;
+  const weeklyPages = lw ? (lw.unit === 'pages' ? lw.amount : 0) : 0;
+  const remainingPages = goal ? rangePages(goal.surah, Math.max(goal.cursor, goal.from), goal.to) : 0;
+  const remainingVerses = gp ? gp.total - gp.done : 0;
+  const etaWeeks = goal && lw ? Math.max(1, Math.ceil(lw.unit === 'pages' ? remainingPages / Math.max(0.25, weeklyPages) : remainingVerses / Math.max(1, lw.amount))) : null;
+
+  return (
+    <div className="space-y-3">
+      <section className="card p-4" aria-label="Ta semaine">
+        <div className="flex items-baseline justify-between"><Title>Ta semaine</Title><span className="text-xs text-muted">{streak > 0 ? `🔥 ${streak} jour${streak > 1 ? 's' : ''} d’affilée` : 'du lundi à aujourd’hui'}</span></div>
+        <div className="mt-3 grid grid-cols-7 gap-1.5">
+          {DAY_L.map((d, i) => {
+            const k = addDays(wk, i);
+            const on = days.has(k);
+            return (
+              <div key={i} className="text-center">
+                <small className="block text-[11.5px] font-semibold text-muted">{d}</small>
+                <i className={cx('mx-auto mt-1 grid h-9 w-9 place-items-center rounded-full text-[13px] font-bold not-italic', on ? 'bg-accent text-primary-ink' : 'bg-surface2 text-muted/60', k === today && 'ring-2 ring-accent/60 ring-offset-2 ring-offset-surface')}>{on ? '✓' : ''}</i>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 space-y-3.5">
+          <Bar label="Apprentissage" value={learnDone} target={lw ? lw.amount : 0} text={lw ? `${fmt1(learnDone)} / ${fmt1(lw.amount)} ${lw.unit === 'verses' ? 'versets' : 'pages'}` : `${fmt1(learnPages)} page${learnPages > 1 ? 's' : ''}`} />
+          <Bar label="Révision" value={reviewPages} target={reviewTarget} text={`${fmt1(reviewPages)} / ${fmt1(reviewTarget)} pages`} />
+        </div>
+      </section>
+
+      <section className="card p-4" aria-label="Solidité de tes révisions">
+        <div className="flex items-baseline justify-between"><Title>Solidité de tes révisions</Title><span className="text-xs text-muted">30 derniers jours</span></div>
+        {total === 0 ? (
+          <p className="mt-2 text-sm text-muted">Dès tes premières révisions, tu verras ici comment elles se passent.</p>
+        ) : (
+          <>
+            <p className="mt-2 text-[34px] font-extrabold leading-none tracking-[-0.8px] tabular-nums">{masteredPct}<span className="text-[18px] text-muted"> %</span></p>
+            <p className="mt-1 text-[13.5px] text-muted">de tes versets révisés étaient bien maîtrisés.</p>
+            <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-surface2" role="img" aria-label={`Maîtrisés ${masteredPct} %`}>
+              {SEG.map(({ g, cls }) => (counts[g] ? <i key={g} className={cx('block h-full', cls)} style={{ width: `${(counts[g] / total) * 100}%` }} /> : null))}
+            </div>
+            <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12.5px]">
+              {SEG.map(({ g, cls }) => <li key={g} className="flex items-center gap-2"><i className={cx('h-2.5 w-2.5 rounded-full', cls)} /><span className="flex-1 truncate text-muted">{GRADE_LABEL[g]}</span><b className="tabular-nums">{counts[g]}</b></li>)}
+            </ul>
+          </>
+        )}
+        {fragileNow > 0 && <p className="mt-3 rounded-2xl bg-hard-soft px-3.5 py-2.5 text-[13px] text-hard">{fragileNow} verset{fragileNow > 1 ? 's' : ''} à renforcer : {fragileNow > 1 ? 'ils reviennent' : 'il revient'} dans ton programme, au bon moment.</p>}
+      </section>
+
+      {goal && gp && (
+        <section className="card p-4" aria-label="Prochain jalon">
+          <Title>Prochain jalon</Title>
+          <p className="mt-2 text-[16px] leading-snug">Plus que <b className="tabular-nums">{remainingVerses}</b> verset{remainingVerses > 1 ? 's' : ''} pour finir <b>{surahMeta(goal.surah).tr}</b>.</p>
+          <div className="mt-3"><ProgressBar value={gp.total ? gp.done / gp.total : 0} /></div>
+          <p className="mt-2 text-[13px] text-muted">{gp.done} / {gp.total} versets appris{etaWeeks ? ` · ≈ ${etaWeeks} semaine${etaWeeks > 1 ? 's' : ''} à ton rythme` : ''}</p>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function Bar({ label, value, target, text }: { label: string; value: number; target: number; text: string }) {
+  return (
+    <div>
+      <div className="mb-1.5 flex justify-between text-sm"><b>{label}</b><span className="text-muted tabular-nums">{text}</span></div>
+      <ProgressBar value={target > 0 ? value / target : 0} />
+    </div>
+  );
 }

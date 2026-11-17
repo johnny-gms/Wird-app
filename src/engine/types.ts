@@ -65,6 +65,8 @@ export interface PlanItem {
 export interface DailyPlan {
   date: string;
   items: PlanItem[];
+  /** Objectif d'apprentissage par semaine : il reste du budget alors que les objectifs ouverts sont épuisés. */
+  moreLearn?: boolean;
 }
 
 /** Évaluation en cours de saisie pour un élément : une note, ou « skip » (non travaillé). */

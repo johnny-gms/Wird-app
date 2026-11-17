@@ -24,7 +24,7 @@ export function Nav() {
               end={end}
               onClick={() => haptic('tap')}
               className={({ isActive }) =>
-                cx('group relative flex flex-col items-center gap-[5px] rounded-xl py-2.5 text-[11px] font-semibold transition lg:flex-row lg:gap-3 lg:px-3 lg:py-3 lg:text-sm', isActive ? 'text-primary lg:bg-soft' : 'text-muted/80 hover:text-ink')
+                cx('group relative flex flex-col items-center gap-[5px] rounded-xl py-2.5 text-[11px] font-semibold transition lg:flex-row lg:gap-3 lg:px-3 lg:py-3 lg:text-sm', isActive ? 'text-accent lg:bg-soft' : 'text-muted/80 hover:text-ink')
               }
             >
               {({ isActive }) => (

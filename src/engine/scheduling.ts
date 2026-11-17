@@ -38,15 +38,19 @@ export function newLearningVerse(id: number, today: string): VerseState {
   };
 }
 
-/** Un verset en cours d'apprentissage devient mémorisé : confirmation proposée dès le lendemain. */
-export function promoteLearned(v: VerseState, today: string): VerseState {
+/**
+ * Un verset en cours d'apprentissage devient mémorisé et entre dans la rotation de révision.
+ * Il n'est PAS marqué « à renforcer » pour autant : le renforcement ne vient que d'une révision notée
+ * « quelques hésitations » ou moins (voir applyGrade).
+ */
+export function promoteLearned(v: VerseState, _today: string): VerseState {
   return {
     ...v,
     status: 'memorized',
     strength: Math.max(v.strength, ENGINE.strengthInitial),
-    fragile: true,
+    fragile: false,
     stage: 0,
-    reinforceDue: addDays(today, 1),
+    reinforceDue: null,
   };
 }
 

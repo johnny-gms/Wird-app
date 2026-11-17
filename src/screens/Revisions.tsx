@@ -1,7 +1,6 @@
 import { BookOpen, Check, ChevronDown, Flame, Pause, Play, RefreshCw, Undo2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AddLearningSheet } from '@/components/AddLearningSheet';
 import { ConfirmSheet, GradeChip, ProgressBar, Screen, cx, toast } from '@/components/ui';
 import { addDays } from '@/engine/dates';
 import { formatPages, pageOf } from '@/engine/pages';
@@ -36,7 +35,6 @@ export default function Revisions() {
   const store = useWird();
   const { plan, session, verses: vs, goals, settings, rotation } = store;
   const [tab, setTab] = useState<Tab>('today');
-  const [add, setAdd] = useState(false);
   const [confirm, setConfirm] = useState<{ id: string; kind: 'complete' | 'delete' } | null>(null);
   const [showDone, setShowDone] = useState(false);
 
@@ -153,10 +151,10 @@ export default function Revisions() {
             </>
           )}
           <div className="mt-6 flex justify-center gap-5 text-sm font-semibold text-primary">
-            <button onClick={() => { store.refreshPlan(); haptic('tap'); toast('Programme recalculé'); }}>Recalculer mon programme</button>
-            <Link to="/wird">Ajouter des versets</Link>
+            <button onClick={() => { store.refreshPlan(); haptic('tap'); toast('Programme actualisé'); }}>Actualiser mon programme</button>
+            <Link to="/apprendre">Choisir quoi apprendre</Link>
           </div>
-          <p className="mt-3 text-center text-xs leading-relaxed text-muted">Rien n’est jamais dû : ce qui n’est pas fait aujourd’hui n’est pas reporté.</p>
+          <p className="mt-2 text-center text-xs leading-relaxed text-muted">« Actualiser » remet à jour les passages qu’il te reste à faire aujourd’hui. Rien n’est jamais dû : ce qui n’est pas fait n’est pas reporté.</p>
         </div>
       )}
 
@@ -212,6 +210,7 @@ export default function Revisions() {
                   <p className="text-sm text-muted">{rangeLabel(g.surah, g.from, g.to)}</p>
                   <div className="my-2.5"><ProgressBar value={p.total ? p.done / p.total : 0} tone="blue" /></div>
                   <p className="text-sm text-muted">{p.done} / {p.total} versets appris{seg ? ` · prochain : ${seg.from === seg.to ? `verset ${seg.from}` : `versets ${seg.from} à ${seg.to}`}` : ''}</p>
+                  {!g.paused && seg && <button className="btn-primary mt-3 w-full" onClick={() => { haptic('tap'); if (store.startLearnAhead(g.id)) nav('/session'); }}><Play size={16} fill="currentColor" strokeWidth={0} /> Apprendre la suite · {seg.from === seg.to ? `verset ${seg.from}` : `versets ${seg.from} à ${Math.min(seg.to, seg.from + 4)}`}</button>}
                   <div className="mt-3 flex flex-wrap gap-2">
                     {!g.auto && <button className={cx(complete ? 'btn-primary' : 'btn-soft', '!min-h-[40px] flex-1 text-sm')} onClick={() => setConfirm({ id: g.id, kind: 'complete' })}><Check size={16} /> Marquer comme terminé</button>}
                     {g.auto && <p className="flex-1 self-center text-xs leading-relaxed text-muted">Se termine automatiquement quand tous les versets ont été travaillés.</p>}
@@ -222,7 +221,7 @@ export default function Revisions() {
               );
             })}
           </div>
-          <button className="btn-outline mt-3 w-full" onClick={() => setAdd(true)}>+ Choisir moi-même une sourate ou des versets</button>
+          <button className="btn-outline mt-3 w-full" onClick={() => nav('/apprendre')}>+ Choisir moi-même une sourate ou des versets</button>
           {finished.length > 0 && (
             <>
               <h2 className="label mb-2.5 mt-7">Apprentissages terminés ({finished.length})</h2>
@@ -236,7 +235,6 @@ export default function Revisions() {
         </div>
       )}
 
-      <AddLearningSheet open={add} onClose={() => setAdd(false)} />
       <ConfirmSheet
         open={!!confirm}
         onClose={() => setConfirm(null)}
@@ -285,7 +283,7 @@ function MiniRing({ value, label }: { value: number; label: string }) {
     <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={`Avancement ${Math.round(value * 100)} %`}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} stroke="rgba(255,255,255,.16)" />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round" stroke="#A9C4AE" strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0, Math.min(1, value)))} className="transition-[stroke-dashoffset] duration-700" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round" stroke="rgb(var(--ring))" strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0, Math.min(1, value)))} className="transition-[stroke-dashoffset] duration-700" />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center text-[15px] font-extrabold tabular-nums">{label}</div>
     </div>

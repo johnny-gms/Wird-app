@@ -1,10 +1,10 @@
 import { Flame } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { GradeChip, ProgressBar, Screen, cx, toast } from '@/components/ui';
+import { GradeChip, Screen, cx, toast } from '@/components/ui';
 import { formatPages } from '@/engine/pages';
-import { goalProgress, itemPages, learningSegment, upcomingRotation } from '@/engine/plan';
-import { activeDaySet, currentStreak, overall } from '@/engine/progress';
+import { itemPages, upcomingRotation } from '@/engine/plan';
+import { activeDaySet, currentStreak } from '@/engine/progress';
 import { formatDuration, rangeLabel, surahMeta } from '@/engine/quran';
 import { haptic } from '@/lib/haptics';
 import { useToday } from '@/lib/hooks';
@@ -73,7 +73,6 @@ export default function Bilan() {
   const { summaries, plan, goals, verses, rotation, settings, history, profile, startSession, addAdhoc, lastValidation, undoValidation, session } = useWird();
   const summary = [...summaries].reverse().find((s) => s.date === today);
   const c = planCounts(plan);
-  const o = useMemo(() => overall(verses, today), [verses, today]);
   const streak = useMemo(() => currentStreak(activeDaySet(history), today), [history, today]);
   // après une annulation de validation, la séance est restaurée : on la rouvre au lieu de retourner à l'accueil
   if (!summary) return session ? <Navigate to="/session" replace /> : <Navigate to="/" replace />;
@@ -94,21 +93,13 @@ export default function Bilan() {
     }
     if (startSession(ids, { mode: lastMode() ?? undefined, minutes })) nav('/session');
   };
-  const learnToday = (plan?.items ?? []).filter((i) => i.kind === 'learn' && i.status === 'done');
   // L'app distingue révision et apprentissage : le bouton « continuer » s'adapte à ce qui vient d'être travaillé.
   const sessionItems = extraState ? extraItems : plan?.items.filter((i) => i.status === 'done') ?? [];
   const hasLearn = sessionItems.some((i) => i.kind === 'learn');
   const hasReview = sessionItems.some((i) => i.kind !== 'learn');
   const startLearnMore = () => {
-    const g = goals.find((x) => !x.completedAt && !x.paused && learningSegment({ verses }, x));
-    const seg = g ? learningSegment({ verses }, g) : null;
-    if (!g || !seg) {
-      toast('Rien de plus à apprendre pour le moment');
-      return;
-    }
-    const waiting = (plan?.items ?? []).find((i) => i.kind === 'learn' && i.status === 'pending' && i.goalId === g.id);
-    const id = waiting?.id ?? addAdhoc(g.surah, seg.from, Math.min(seg.to, seg.from + Math.max(2, Math.round(minutes / 3)) - 1), { kind: 'learn', goalId: g.id });
-    if (id && startSession([id], { mode: lastMode() ?? undefined, minutes })) nav('/session');
+    haptic('tap');
+    nav('/apprendre');
   };
   const done = () => {
     haptic('success');
@@ -176,30 +167,6 @@ export default function Bilan() {
           ))}
         </ul>
         <p className="mt-3 text-xs text-muted">Les versets à renforcer reviendront d’eux-mêmes dans ton programme, au bon moment.</p>
-      </section>
-
-      <section className="card mt-3 p-5" aria-label="Progression réalisée">
-        <p className="label mb-3">Ta progression</p>
-        <div className="mb-1.5 flex justify-between text-sm">
-          <span className="text-muted">Programme du jour</span>
-          <span className="font-semibold tabular-nums">{summary.itemsDone} / {summary.itemsTotal}</span>
-        </div>
-        <ProgressBar value={summary.itemsTotal ? summary.itemsDone / summary.itemsTotal : 0} />
-        {learnToday.map((i) => {
-          const g = goals.find((x) => x.id === i.goalId);
-          if (!g) return null;
-          const p = goalProgress(g);
-          return (
-            <div key={i.id} className="mt-4">
-              <div className="mb-1.5 flex justify-between text-sm">
-                <span className="text-muted">Apprentissage — {surahMeta(g.surah).tr}</span>
-                <span className="font-semibold tabular-nums">{p.done} / {p.total}</span>
-              </div>
-              <ProgressBar value={p.total ? p.done / p.total : 0} tone="good" />
-            </div>
-          );
-        })}
-        {o.memorizedVerses > 0 && <p className="mt-4 text-sm text-muted">Tu entretiens aujourd’hui environ {o.ratio < 0.01 ? 'moins de 1' : Math.round(o.ratio * 100)} % du Coran.</p>}
       </section>
 
       <section className="card mt-3 p-5" aria-label="Séance supplémentaire">

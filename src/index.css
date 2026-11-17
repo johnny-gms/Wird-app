@@ -18,6 +18,8 @@
   --line: 230 225 212; /* #E6E1D4 */
   --primary: 29 74 55; /* #1D4A37 */
   --primary-ink: 255 255 255;
+  --accent: 29 74 55; /* onglet actif et barres de progression : vert en clair, doré en sombre */
+  --ring: 169 196 174;
   --deep: 18 53 42; /* #12352A */
   --ivory: 255 255 255;
   --gold: 169 196 174; /* sauge #A9C4AE */
@@ -47,6 +49,8 @@
   --line: 40 42 46; /* #282A2E */
   --primary: 236 235 228; /* #ECEBE4 : crème, accent neutre (le vert reste dans les cartes) */
   --primary-ink: 11 11 13;
+  --accent: 227 194 119; /* #E3C277 doré */
+  --ring: 227 194 119;
   --deep: 20 52 40;
   --ivory: 255 255 255;
   --gold: 94 138 108;
@@ -70,6 +74,7 @@
 :root[data-theme='dark'] .tile { border-color: rgb(255 255 255 / 0.06); box-shadow: none; }
 :root[data-theme='dark'] .mem-card,
 :root[data-theme='dark'] .kpi { background: linear-gradient(150deg, #1c3f33 0%, #0f2720 100%); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07); }
+:root[data-theme='dark'] .bar-fill { background: linear-gradient(90deg, #c9a24d, #e3c277); }
 :root[data-theme='dark'] .fab { border-color: rgb(var(--bg)); }
 :root[data-theme='dark'] .chip { border-color: rgb(255 255 255 / 0.07); }
 :root[data-theme='dark'] .chip[aria-pressed='true'],
@@ -164,6 +169,7 @@
     background: radial-gradient(circle, transparent 62%, rgba(143, 168, 150, 0.18) 64%);
   }
   /* ===== Composants de la maquette index ===== */
+  .bar-fill { background: linear-gradient(90deg, #2f9e66, #5ccb8c); }
   .mem-card { @apply relative overflow-hidden rounded-[24px] p-[18px] text-[#F4F1E8]; background: linear-gradient(150deg, #1f5240, #12352a); box-shadow: 0 16px 34px -16px rgba(18, 53, 42, 0.6); }
   .mem-card::after { content: ''; position: absolute; right: -50px; top: -60px; width: 220px; height: 220px; border-radius: 9999px; background: radial-gradient(circle, rgba(169, 196, 174, 0.22), transparent 70%); pointer-events: none; }
   .btn-orange { @apply rounded-xl px-4 py-2.5 text-[14.5px] font-bold text-white transition active:scale-95; background: #e36a48; box-shadow: 0 6px 16px -6px rgba(227, 106, 72, 0.75); }

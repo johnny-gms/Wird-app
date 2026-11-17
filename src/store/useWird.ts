@@ -8,6 +8,7 @@ import {
   hasOpenGoal,
   itemSig,
   learningEnabled,
+  learningSegment,
   memorizedIds,
   nextLearnTargets,
   reopenItem,
@@ -79,6 +80,8 @@ interface Actions {
   completeGoal(id: string): void;
   deleteGoal(id: string): void;
 
+  /** Continue (ou prend de l'avance sur) l'apprentissage : prochain passage de l'objectif, séance ouverte. Retourne false s'il n'y a rien à apprendre. */
+  startLearnAhead(goalId?: string, opts?: { mode?: SessionMode; minutes?: number; verses?: number }): boolean;
   /** Ajoute un passage à la demande (séance supplémentaire) : révision par défaut, ou apprentissage lié à un objectif. */
   addAdhoc(surah: number, from: number, to: number, opts?: { kind?: 'learn'; goalId?: string }): string | null;
   /** Ouvre la séance (tout le programme restant, ou un seul élément). Retourne false s'il n'y a rien à faire. */
@@ -153,28 +156,43 @@ export const useWird = create<WirdStore>((set, get) => {
    * Si aucun objectif d'apprentissage n'est ouvert et que l'utilisateur vise des pages à apprendre, WIRD ouvre
    * automatiquement la prochaine sourate dans le sens d'apprentissage choisi.
    */
+  /** Ouvre l'objectif automatique suivant (prochaine sourate dans le sens d'apprentissage), ou null s'il n'y en a plus. */
+  const openNextGoal = (s: PersistedState, today: string): Pick<PersistedState, 'verses' | 'goals'> | null => {
+    const t = nextLearnTargets(s.verses, s.goals, s.settings);
+    if (!t) return null;
+    const verses = { ...s.verses };
+    const created: LearningGoal[] = [];
+    for (const seg of t.segments) {
+      for (let a = seg.from; a <= seg.to; a++) {
+        const id = ayahId(seg.surah, a);
+        if (!verses[id]) verses[id] = newLearningVerse(id, today);
+      }
+      created.push({ id: uid(), surah: seg.surah, from: seg.from, to: seg.to, cursor: seg.from, paused: false, createdAt: today, completedAt: null, auto: true, ...(t.unitKey ? { unitKey: t.unitKey } : {}) });
+    }
+    return { verses, goals: [...s.goals, ...created] };
+  };
+
   const rebuild = (patch: Partial<PersistedState> = {}) => {
     let s = { ...get(), ...patch };
     const today = dateKey();
     if (s.profile.onboarded && learningEnabled(s.settings) && !hasOpenGoal(s)) {
-      const t = nextLearnTargets(s.verses, s.goals, s.settings);
-      if (t) {
-        const verses = { ...s.verses };
-        const created: LearningGoal[] = [];
-        for (const seg of t.segments) {
-          for (let a = seg.from; a <= seg.to; a++) {
-            const id = ayahId(seg.surah, a);
-            if (!verses[id]) verses[id] = newLearningVerse(id, today);
-          }
-          created.push({ id: uid(), surah: seg.surah, from: seg.from, to: seg.to, cursor: seg.from, paused: false, createdAt: today, completedAt: null, auto: true, ...(t.unitKey ? { unitKey: t.unitKey } : {}) });
-        }
-        patch = { ...patch, verses, goals: [...s.goals, ...created] };
+      const next = openNextGoal(s, today);
+      if (next) {
+        patch = { ...patch, ...next };
         s = { ...s, ...patch };
       }
     }
     // Séance ouverte : on ne garde que les éléments encore présents et à faire.
     let session = s.session;
-    const nextPlan = buildPlan(s, today, s.plan);
+    let nextPlan = buildPlan(s, today, s.plan);
+    // Objectif par semaine : si une petite sourate ne suffit pas à remplir le budget, on ouvre la suivante (quelques fois au plus).
+    for (let i = 0; i < 6 && nextPlan.moreLearn && s.profile.onboarded && learningEnabled(s.settings); i++) {
+      const next = openNextGoal(s, today);
+      if (!next) break;
+      patch = { ...patch, ...next };
+      s = { ...s, ...patch };
+      nextPlan = buildPlan(s, today, s.plan);
+    }
     if (session && session.date === nextPlan.date) {
       const open = new Set(nextPlan.items.filter((i) => i.status === 'pending').map((i) => i.id));
       if (session.scope !== 'all') {
@@ -380,6 +398,22 @@ export const useWird = create<WirdStore>((set, get) => {
       const item: PlanItem = { id: `${s.plan.date}:adhoc:${n}:${surah}:${from}-${to}`, kind: opts?.kind ?? 'review', surah, from, to, status: 'pending', adhoc: true, ...(opts?.goalId ? { goalId: opts.goalId } : {}) };
       set({ plan: { ...s.plan, items: [...s.plan.items, item] } });
       return item.id;
+    },
+
+    startLearnAhead(goalId, opts) {
+      const find = () => get().goals.find((x) => (goalId ? x.id === goalId : !x.completedAt && !x.paused) && !x.completedAt && learningSegment(get(), x));
+      let g = find();
+      if (!g && learningEnabled(get().settings)) {
+        rebuild(); // ouvre la sourate suivante si la précédente est terminée
+        g = find();
+      }
+      if (!g) return false;
+      const seg = learningSegment(get(), g);
+      if (!seg) return false;
+      const waiting = get().plan?.items.find((i) => i.kind === 'learn' && i.status === 'pending' && i.goalId === g!.id);
+      const id = waiting?.id ?? get().addAdhoc(g.surah, seg.from, Math.min(seg.to, seg.from + (opts?.verses ?? 5) - 1), { kind: 'learn', goalId: g.id });
+      if (!id) return false;
+      return get().startSession([id], { mode: opts?.mode, minutes: opts?.minutes });
     },
 
     startSession(only, opts) {

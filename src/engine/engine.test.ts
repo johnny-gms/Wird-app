@@ -304,7 +304,9 @@ describe('nouvel apprentissage', () => {
     expect(memorizedIds(c.verses)).toHaveLength(0); // objectif manuel : marquage manuel
     c = completeGoal(c, 'g1', '2026-03-12');
     expect(memorizedIds(c.verses)).toHaveLength(25);
-    expect(c.verses[ayahId(78, 1)].reinforceDue).toBe('2026-03-13'); // confirmation dès le lendemain
+    // pas de renforcement automatique : il ne vient que d'une révision notée « quelques hésitations » ou moins
+    expect(c.verses[ayahId(78, 1)].fragile).toBe(false);
+    expect(c.verses[ayahId(78, 1)].reinforceDue).toBeNull();
   });
 
   it('un élément difficile ne fait pas « sauter » les suivants (rythme d’un demi-Hizb par jour → plusieurs segments)', () => {
@@ -496,5 +498,20 @@ describe('objectifs par semaine (niveaux)', () => {
     expect(pages).toBeGreaterThan(0.9);
     expect(pages).toBeLessThan(2.6);
     expect(mon[0].surah).toBe(2);
+  });
+});
+
+describe('objectif par semaine : plusieurs petites sourates', () => {
+  it('signale le budget restant quand les objectifs ouverts sont épuisés (la suite s’ouvre)', () => {
+    const goal = { id: 'g', surah: 114, from: 1, to: 6, cursor: 1, paused: false, createdAt: '2026-05-04', completedAt: null };
+    const settings = { ...DEFAULT_SETTINGS, reviewPagesPerDay: 0, learnMode: 'surah' as const, learnWeekly: { unit: 'pages' as const, amount: 3 } };
+    const plan = buildPlan(mkCore({}, { goals: [goal], settings }), '2026-05-10', null); // dimanche : cumul visé = 3 pages
+    expect(plan.items.filter((i) => i.kind === 'learn').reduce((a, i) => a + itemPages(i), 0)).toBeLessThan(1);
+    expect(plan.moreLearn).toBe(true);
+  });
+  it('la fin d’un apprentissage n’impose aucun renforcement', () => {
+    const goal = { id: 'g', surah: 114, from: 1, to: 6, cursor: 1, paused: false, createdAt: '2026-05-04', completedAt: null };
+    const c = completeGoal(mkCore({}, { goals: [goal] }), 'g', '2026-05-05');
+    expect(Object.values(c.verses).every((v) => !v.fragile && v.reinforceDue === null)).toBe(true);
   });
 });

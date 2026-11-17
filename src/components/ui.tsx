@@ -32,7 +32,7 @@ export function KindBadge({ kind }: { kind: WorkKind }) {
 
 export function ProgressBar({ value, tone = 'primary', className }: { value: number; tone?: 'primary' | 'good' | 'warn' | 'blue' | 'gold'; className?: string }) {
   const pct = Math.max(0, Math.min(1, value)) * 100;
-  const fill = { primary: 'bg-primary', good: 'bg-good', warn: 'bg-warn', blue: 'bg-blue', gold: 'bg-primary' }[tone];
+  const fill = { primary: 'bg-accent', good: 'bg-accent', warn: 'bg-warn', blue: 'bg-accent', gold: 'bg-accent' }[tone];
   return (
     <div className={cx('h-1.5 w-full overflow-hidden rounded-full bg-surface2', className)} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
       <div className={cx('h-full rounded-full transition-[width] duration-500', fill)} style={{ width: `${pct}%` }} />

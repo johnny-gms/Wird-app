@@ -105,7 +105,7 @@ function SurahCard({ st, declared }: { st: SurahStats; declared: boolean }) {
         <b className="text-base">{s.id}. {s.tr} <span className="ar ml-1 text-[19px] font-normal" lang="ar">{s.ar}</span></b>
         {tag.label ? <span className={cx('shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs', tag.cls)}>{cs === 'learned' && declared ? 'Déjà apprise' : tag.label}</span> : <span className="shrink-0 text-sm text-muted">{s.n} versets</span>}
       </div>
-      <div className="my-2.5 h-1.5 overflow-hidden rounded-full bg-surface2"><i className="block h-full rounded-full bg-primary" style={{ width: `${(st.memorized / st.total) * 100}%` }} /></div>
+      <div className="my-2.5 h-1.5 overflow-hidden rounded-full bg-surface2"><i className="block h-full rounded-full bg-accent" style={{ width: `${(st.memorized / st.total) * 100}%` }} /></div>
       <p className="text-sm text-muted">
         {st.memorized}/{st.total} appris{st.learning ? ` · ${st.learning} en apprentissage` : ''}{st.fragile ? ` · ${st.fragile} à renforcer` : ''} · {st.last ? `dernière activité ${formatDateShort(st.last).replace(/^\w+\.? /, '')}` : 'jamais travaillée'}
       </p>

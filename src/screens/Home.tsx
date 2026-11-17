@@ -33,7 +33,6 @@ export default function Home() {
   }, []);
   const stale = !!session && !!plan && session.date !== plan.date;
   const items = plan?.items ?? [];
-  const pending = items.filter((i) => i.status === 'pending');
   const done = items.filter((i) => i.status === 'done');
   const o = useMemo(() => overall(verses, today), [verses, today]);
   const stats = useMemo(() => allSurahStats(verses, today), [verses, today]);
@@ -75,10 +74,8 @@ export default function Home() {
   const gp = goal ? goalProgress(goal) : null;
   const startLearn = () => {
     haptic('tap');
-    if (!goal || !seg) return;
-    const waiting = pending.find((i) => i.kind === 'learn' && i.goalId === goal.id);
-    const id = waiting?.id ?? store.addAdhoc(goal.surah, seg.from, Math.min(seg.to, seg.from + 4), { kind: 'learn', goalId: goal.id });
-    if (id && store.startSession([id])) nav('/session');
+    if (store.startLearnAhead(goal?.id)) nav('/session');
+    else nav('/apprendre');
   };
 
   return (
@@ -122,7 +119,7 @@ export default function Home() {
           </div>
         </div>
         <div className="relative z-[1] mt-[18px] flex items-center gap-3">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/15"><i className="block h-full rounded-full bg-gradient-to-r from-[#2F9E66] to-[#5CCB8C] transition-[width] duration-700" style={{ width: `${reviewRatio * 100}%` }} /></div>
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/15"><i className="bar-fill block h-full rounded-full transition-[width] duration-700" style={{ width: `${reviewRatio * 100}%` }} /></div>
           <span className="min-w-[56px] text-right text-[13.5px] font-bold tabular-nums" aria-label="Révisions faites aujourd’hui">{reviewDoneCount} / {reviewItems.length}</span>
           {(session || reviewPending.length > 0) && <button className="rounded-xl bg-[#F6F1E4] px-4 py-2.5 text-[14.5px] font-bold text-[#12352A] transition active:scale-95" onClick={startReview}>{session ? 'Reprendre' : 'Commencer'}</button>}
         </div>
@@ -157,7 +154,7 @@ export default function Home() {
                 <h2 className="truncate text-[19px] font-bold tracking-[-0.2px]">{surahMeta(goal.surah).tr}</h2>
                 <span className="ar shrink-0 text-[24px] leading-none text-primary" lang="ar">{surahMeta(goal.surah).ar}</span>
               </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface2" role="progressbar" aria-valuenow={Math.round((gp.done / gp.total) * 100)} aria-valuemin={0} aria-valuemax={100}><i className="block h-full rounded-full bg-primary transition-[width] duration-700" style={{ width: `${gp.total ? (gp.done / gp.total) * 100 : 0}%` }} /></div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface2" role="progressbar" aria-valuenow={Math.round((gp.done / gp.total) * 100)} aria-valuemin={0} aria-valuemax={100}><i className="block h-full rounded-full bg-accent transition-[width] duration-700" style={{ width: `${gp.total ? (gp.done / gp.total) * 100 : 0}%` }} /></div>
               <p className="mt-2 text-[13.5px] text-muted"><b className="text-ink tabular-nums">{gp.done}</b> / {gp.total} versets appris</p>
               <button className="btn-primary mt-3.5 w-full" onClick={startLearn}>Continuer</button>
             </>
