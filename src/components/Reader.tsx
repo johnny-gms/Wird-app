@@ -8,6 +8,7 @@ import { basmalaFor, loadQuranText, type QuranData } from '@/lib/quranText';
 import { loadTranslation, type TranslationData } from '@/lib/translation';
 import { TAJWEED_LEGEND, loadTajweed, tajweedParts, type TajweedData } from '@/lib/tajweed';
 import { useWird } from '@/store/useWird';
+import { PageReader } from './PageReader';
 import { VerseSheet } from './VerseSheet';
 import { cx } from './ui';
 
@@ -20,7 +21,12 @@ const BORDER: Record<string, string> = { n: 'border-neutral', l: 'border-blue', 
  * Coran numérique : lecture par pages du Mushaf de Médine (604) ou par sourate, texte Tanzil Uthmani Minimal, sans
  * distraction (ni notification, ni évaluation). Toucher un verset ouvre sa fiche. Aucun audio, tajwid ni traduction.
  */
-export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }: { page: number; onPage: (p: number) => void; onSurah: (s: number) => void; surah: number | null; mode: 'page' | 'list'; onMode: (m: 'page' | 'list') => void; highlight?: { surah: number; from: number; to: number } | null }) {
+export function Reader(props: { page: number; onPage: (p: number) => void; onSurah: (s: number) => void; surah: number | null; mode: 'page' | 'list'; onMode: (m: 'page' | 'list') => void; highlight?: { surah: number; from: number; to: number } | null; onClose?: () => void }) {
+  if (props.mode === 'page') return <PageReader page={props.page} onPage={props.onPage} onMode={props.onMode} onClose={props.onClose ?? (() => history.back())} highlight={props.highlight} />;
+  return <ListReader {...props} />;
+}
+
+function ListReader({ page, onPage, onSurah, surah, mode, onMode, highlight }: { page: number; onPage: (p: number) => void; onSurah: (s: number) => void; surah: number | null; mode: 'page' | 'list'; onMode: (m: 'page' | 'list') => void; highlight?: { surah: number; from: number; to: number } | null }) {
   const verses = useWird((s) => s.verses);
   const [data, setData] = useState<QuranData | null>(null);
   const [failed, setFailed] = useState(false);

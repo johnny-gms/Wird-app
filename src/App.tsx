@@ -27,7 +27,7 @@ import LearnChoose from './screens/wird/LearnChoose';
 
 /** Écran parent d'une sous-page (null = pas de retour par balayage : onglets principaux, séance, écrans à geste propre). */
 function parentRoute(pathname: string): string | null {
-  if (/^\/wird\/\d+$/.test(pathname) || pathname === '/coran') return '/wird';
+  if (/^\/wird\/\d+$/.test(pathname)) return '/wird';
   if (pathname === '/apprendre') return '/revisions';
   if (pathname === '/connues') return '/profil/parametres/memorisation';
   if (pathname === '/profil/parametres/memorisation') return '/profil/parametres';
