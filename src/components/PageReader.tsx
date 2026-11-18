@@ -112,10 +112,10 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
   const [sel, setSel] = useState<{ surah: number; ayah: number } | null>(null);
   const [settings, setSettings] = useState(false);
   const [goto, setGoto] = useState('');
-  const [theme, setTheme] = useState<'normal' | 'dark' | 'white'>(() => {
-    try { const v = localStorage.getItem('wird-reader-theme'); return v === 'dark' || v === 'white' ? v : 'normal'; } catch { return 'normal'; }
+  const [theme, setTheme] = useState<'normal' | 'dark'>(() => {
+    try { return localStorage.getItem('wird-reader-theme') === 'dark' ? 'dark' : 'normal'; } catch { return 'normal'; }
   });
-  const pickTheme = (t: 'normal' | 'dark' | 'white') => {
+  const pickTheme = (t: 'normal' | 'dark') => {
     setTheme(t);
     try { localStorage.setItem('wird-reader-theme', t); } catch { /* ignore */ }
   };
@@ -153,7 +153,7 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
   const toggleZoomAt = (px: number, py: number) => {
     const st = zoomState.current;
     if (st.s > 1) { resetZoom(); return; }
-    const s = 2.4;
+    const s = 1.6;
     zoomState.current = { s, x: px - s * px, y: py - s * py };
     setZoomed(true);
     applyZoom(true);
@@ -251,7 +251,7 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
     p >= 1 && p <= TOTAL_PAGES && data ? <Slide page={p} data={data} tj={tj} tjOn={tjOn} size={size} highlight={highlight} onVerse={(s, a) => { if (dbl.current) return; if (verseTimer.current) clearTimeout(verseTimer.current); verseTimer.current = setTimeout(() => { haptic('tap'); setSel({ surah: s, ayah: a }); }, 280); }} /> : null;
 
   return createPortal(
-    <div className={cx('pt-safe pb-safe fixed inset-0 z-[45] flex flex-col bg-bg text-ink', theme === 'dark' && 'reader-dark', theme === 'white' && 'reader-white')} role="dialog" aria-label="Coran numérique, pages">
+    <div className={cx('pt-safe pb-safe fixed inset-0 z-[45] flex flex-col bg-bg text-ink', theme === 'dark' && 'reader-dark')} role="dialog" aria-label="Coran numérique, pages">
       {/* barre du haut */}
       <div className="flex items-center justify-between gap-3 px-3.5 pb-2.5 pt-3">
         <button className={circle} onClick={onClose} aria-label="Retour"><ChevronLeft size={22} /></button>
@@ -299,7 +299,7 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
           <div>
             <b className="block">Fond de lecture</b>
             <span className="mb-2 block text-sm text-muted">Normal suit le thème de l’app.</span>
-            <Segmented<'normal' | 'dark' | 'white'> value={theme} onChange={pickTheme} options={[{ value: 'normal', label: 'Normal' }, { value: 'dark', label: 'Sombre' }, { value: 'white', label: 'Fond blanc' }]} />
+            <Segmented<'normal' | 'dark'> value={theme} onChange={pickTheme} options={[{ value: 'normal', label: 'Normal' }, { value: 'dark', label: 'Sombre' }]} />
           </div>
           <div className="flex items-center justify-between gap-3">
             <div><b className="block">Tajwid</b><span className="text-sm text-muted">Couleurs des règles de récitation</span></div>

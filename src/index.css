@@ -126,7 +126,7 @@
 .vm::before { inset: 0; background: rgb(var(--vm-ring)); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'%3E%3Crect x='9.0' y='9.0' width='30' height='30'/%3E%3Crect x='9.0' y='9.0' width='30' height='30' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'%3E%3Crect x='9.0' y='9.0' width='30' height='30'/%3E%3Crect x='9.0' y='9.0' width='30' height='30' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E"); }
 .vm::after { inset: 15%; background: rgb(var(--vm-fill)); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'%3E%3Crect x='9.0' y='9.0' width='30' height='30'/%3E%3Crect x='9.0' y='9.0' width='30' height='30' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'%3E%3Crect x='9.0' y='9.0' width='30' height='30'/%3E%3Crect x='9.0' y='9.0' width='30' height='30' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E"); }
 
-/* Thèmes de lecture du Coran (indépendants du thème de l'app) : sombre et fond blanc */
+/* Thème de lecture sombre du Coran (indépendant du thème de l'app) */
 .reader-dark {
   --bg: 9 16 29; --surface: 14 24 42; --surface2: 24 39 64; --ink: 235 241 250; --muted: 139 156 182; --line: 36 52 80;
   --primary: 236 235 228; --primary-ink: 11 11 13; --accent: 236 235 228; --ring: 236 235 228; --soft: 22 36 60;
@@ -134,14 +134,6 @@
   --vm-ring: 236 235 228; --vm-fill: 30 48 78;
   --tj-madd-6: #f05aa8; --tj-madd-jaiz: #f0a94a; --tj-madd-2: #d8bd54; --tj-ghunna: #4cc98a; --tj-silent: #8a8f8c; --tj-qalqala: #4cc8e0; --tj-tafkhim: #5aa8e0;
   color-scheme: dark;
-}
-.reader-white {
-  --bg: 255 255 255; --surface: 255 255 255; --surface2: 242 242 240; --ink: 17 17 17; --muted: 105 110 108; --line: 224 224 220;
-  --primary: 29 74 55; --primary-ink: 255 255 255; --accent: 29 74 55; --ring: 29 74 55; --soft: 232 240 232;
-  --good: 47 122 85; --blue: 91 134 197; --hard: 223 150 56; --alert: 212 106 90; --neutral: 231 227 217;
-  --vm-ring: 29 74 55; --vm-fill: 226 236 225;
-  --tj-madd-6: #e0218a; --tj-madd-jaiz: #d98a1e; --tj-madd-2: #b89b2c; --tj-ghunna: #1fa05a; --tj-silent: #9a9a9a; --tj-qalqala: #1ba8c7; --tj-tafkhim: #1e6fa5;
-  color-scheme: light;
 }
 
 @layer base {
