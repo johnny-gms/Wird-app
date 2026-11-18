@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui';
 import { haptic } from '@/lib/haptics';
 
-const COLORS = ['#2F7A55', '#5CCB8C', '#DF9638', '#E36A48', '#C9A24D', '#5B86C5'];
+const COLORS = ['#2F7A55', '#5CCB8C', '#DF9638', '#E36A48', 'rgb(var(--glory))', '#5B86C5'];
 
 /** Pastille de confettis autour du badge : cercles, anneaux, carrés, traits (formes simples, couleurs de l'app). */
 function Confetti() {
@@ -53,7 +53,7 @@ export default function Congrats() {
     <div role="button" tabIndex={0} aria-label="Retour à l’accueil" onClick={() => nav('/', { replace: true })} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && nav('/', { replace: true })} className="pt-safe pb-safe fixed inset-0 z-[70] flex flex-col items-center justify-center bg-bg px-8 text-center">
       <div className="relative grid h-[220px] w-[240px] place-items-center">
         <Confetti />
-        <div className="grid h-[104px] w-[104px] place-items-center rounded-full" style={{ background: 'linear-gradient(140deg,#1D4A37 0%,#2F7A55 55%,#C9A24D 125%)', boxShadow: '0 18px 36px -14px rgba(29,74,55,.6)', animation: 'cgPop .6s cubic-bezier(.2,1.6,.4,1) both' }}>
+        <div className="grid h-[104px] w-[104px] place-items-center rounded-full" style={{ background: 'linear-gradient(140deg,#1D4A37 0%,#2F7A55 55%,rgb(var(--glory)) 125%)', boxShadow: '0 18px 36px -14px rgba(29,74,55,.6)', animation: 'cgPop .6s cubic-bezier(.2,1.6,.4,1) both' }}>
           <svg viewBox="0 0 24 24" className="h-[46px] w-[46px]" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="m6 12.5 4 4L18 8" style={{ strokeDasharray: 30, strokeDashoffset: 30, animation: 'cgDraw .5s .45s ease forwards' }} />
           </svg>

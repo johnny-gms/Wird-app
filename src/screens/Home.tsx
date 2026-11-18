@@ -116,7 +116,7 @@ export default function Home() {
             <p className="mt-1 text-[13.5px] opacity-75">
               {session ? 'Reprends là où tu t’es arrêté.' : nextReview ? `${reviewPending.length > 1 ? `et ${reviewPending.length - 1} autre${reviewPending.length > 2 ? 's' : ''} passage${reviewPending.length > 2 ? 's' : ''} · ` : ''}≈ ${formatPages(pagesOf(reviewPending))}` : reviewItems.length ? 'Qu’Allah te facilite, à demain 🌿' : hasAny ? 'Profite de ta journée.' : 'Tes révisions apparaîtront ici.'}
             </p>
-            {streak > 0 && <p className="mt-2 font-mono text-[12.5px] font-semibold text-[#E3C277]">🔥 {streak} jour{streak > 1 ? 's' : ''} d’affilée</p>}
+            {streak > 0 && <p className="streak-line mt-2 font-mono text-[12.5px] font-semibold">🔥 {streak} jour{streak > 1 ? 's' : ''} d’affilée</p>}
           </div>
           <FocusRing value={reviewRatio} />
         </div>

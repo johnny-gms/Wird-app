@@ -12,7 +12,7 @@ import { planCounts } from '@/lib/plan';
 import { useWird } from '@/store/useWird';
 import { lastMode } from './Phone';
 
-const GOLD = '#E3C277';
+const GOLD = 'rgb(var(--glory))';
 
 /** Nombre qui se compte jusqu'à sa valeur (sauf si l'utilisateur préfère moins d'animations). */
 function CountUp({ to }: { to: number }) {
@@ -41,11 +41,11 @@ function Hero({ title, lead, stats, foot, onDone }: { title: string; lead: strin
     <section className="glory-card px-5 pb-5 pt-7 text-center" aria-label="Bilan de la séance">
       {/* étoiles discrètes */}
       {[[8, 10, 8], [86, 14, 6], [14, 46, 5], [90, 52, 7], [50, 4, 4]].map(([x, y, r], i) => (
-        <svg key={i} aria-hidden viewBox="0 0 24 24" className="absolute opacity-40" style={{ left: `${x}%`, top: `${y}%`, width: r * 2, height: r * 2 }}><path d="M12 1l2.6 7.6L22 11l-7.4 2.4L12 21l-2.6-7.6L2 11l7.4-2.4z" fill={GOLD} /></svg>
+        <svg key={i} aria-hidden viewBox="0 0 24 24" className="absolute opacity-40" style={{ left: `${x}%`, top: `${y}%`, width: r * 2, height: r * 2 }}><path d="M12 1l2.6 7.6L22 11l-7.4 2.4L12 21l-2.6-7.6L2 11l7.4-2.4z" style={{ fill: GOLD }} /></svg>
       ))}
-      <div className="relative mx-auto grid h-[92px] w-[92px] place-items-center rounded-full" style={{ background: 'linear-gradient(140deg,#2F7A55 0%,#1D4A37 100%)', boxShadow: `0 0 0 4px ${GOLD}, 0 0 0 10px rgba(227,194,119,.25), 0 18px 36px -12px rgba(0,0,0,.5)`, animation: 'cgPop .6s cubic-bezier(.2,1.6,.4,1) both' }}>
-        <svg viewBox="0 0 24 24" className="h-[42px] w-[42px]" fill="none" stroke={GOLD} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="m6 12.5 4 4L18 8" style={{ strokeDasharray: 30, strokeDashoffset: 30, animation: 'cgDraw .5s .45s ease forwards' }} />
+      <div className="relative mx-auto grid h-[92px] w-[92px] place-items-center rounded-full" style={{ background: 'linear-gradient(140deg,#2F7A55 0%,#1D4A37 100%)', boxShadow: `0 0 0 4px ${GOLD}, 0 0 0 10px rgb(var(--glory) / .25), 0 18px 36px -12px rgba(0,0,0,.5)`, animation: 'cgPop .6s cubic-bezier(.2,1.6,.4,1) both' }}>
+        <svg viewBox="0 0 24 24" className="h-[42px] w-[42px]" fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="m6 12.5 4 4L18 8" style={{ stroke: GOLD, strokeDasharray: 30, strokeDashoffset: 30, animation: 'cgDraw .5s .45s ease forwards' }} />
         </svg>
       </div>
       <h1 className="mt-6 text-[27px] font-extrabold leading-tight tracking-[-0.5px]" style={{ animation: 'cgRise .5s .4s ease both' }}>{title}</h1>
