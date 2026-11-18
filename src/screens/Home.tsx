@@ -60,6 +60,8 @@ export default function Home() {
   const reviewDoneCount = reviewItems.filter((i) => i.status === 'done').length;
   const reviewRatio = reviewItems.length ? reviewDoneCount / reviewItems.length : 0;
   const nextReview = reviewPending[0];
+  // la séance ouverte contient-elle des révisions ? (sinon c'est une séance d'apprentissage : on le dit)
+  const sessionHasReview = !!session && (session.scope === 'all' ? reviewPending.length > 0 : session.scope.some((id) => items.some((i) => i.id === id && i.kind !== 'learn')));
   const startReview = () => {
     haptic('tap');
     if (session) {
@@ -114,7 +116,7 @@ export default function Home() {
               {session ? 'Séance en cours' : nextReview ? `${surahMeta(nextReview.surah).tr} · ${rangeLabel(nextReview.surah, nextReview.from, nextReview.to).replace(/^Sourate \d+ — /, '')}` : reviewItems.length ? 'Révisions terminées' : 'Rien à réviser pour le moment'}
             </h2>
             <p className="mt-1 text-[13.5px] opacity-75">
-              {session ? 'Reprends là où tu t’es arrêté.' : nextReview ? `${reviewPending.length > 1 ? `et ${reviewPending.length - 1} autre${reviewPending.length > 2 ? 's' : ''} passage${reviewPending.length > 2 ? 's' : ''} · ` : ''}≈ ${formatPages(pagesOf(reviewPending))}` : reviewItems.length ? 'Qu’Allah te facilite, à demain 🌿' : hasAny ? 'Profite de ta journée.' : 'Tes révisions apparaîtront ici.'}
+              {session ? (sessionHasReview ? 'Reprends là où tu t’es arrêté.' : 'Une séance d’apprentissage est ouverte : reprends-la quand tu veux.') : nextReview ? `${reviewPending.length > 1 ? `et ${reviewPending.length - 1} autre${reviewPending.length > 2 ? 's' : ''} passage${reviewPending.length > 2 ? 's' : ''} · ` : ''}≈ ${formatPages(pagesOf(reviewPending))}` : reviewItems.length ? 'Qu’Allah te facilite, à demain 🌿' : hasAny ? 'Profite de ta journée.' : 'Tes révisions apparaîtront ici.'}
             </p>
             {streak > 0 && <p className="streak-line mt-2 font-mono text-[12.5px] font-semibold">🔥 {streak} jour{streak > 1 ? 's' : ''} d’affilée</p>}
           </div>

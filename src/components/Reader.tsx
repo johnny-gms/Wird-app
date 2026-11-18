@@ -1,95 +1,55 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { TOTAL_PAGES, pageRange } from '@/engine/pages';
+import { useState } from 'react';
+import { pageRange } from '@/engine/pages';
 import { verseKind } from '@/engine/progress';
-import { ayahId, fromAyahId, hizbOf, surahMeta } from '@/engine/quran';
+import { ayahId, fromAyahId, surahMeta } from '@/engine/quran';
 import { haptic } from '@/lib/haptics';
-import { basmalaFor, loadQuranText, type QuranData } from '@/lib/quranText';
-import { loadTranslation, type TranslationData } from '@/lib/translation';
-import { TAJWEED_LEGEND, loadTajweed, tajweedParts, type TajweedData } from '@/lib/tajweed';
+import { basmalaFor } from '@/lib/quranText';
+import { tajweedParts } from '@/lib/tajweed';
+import { useReaderData } from '@/lib/useReaderData';
 import { useWird } from '@/store/useWird';
 import { PageReader } from './PageReader';
 import { VerseSheet } from './VerseSheet';
 import { cx } from './ui';
 
-const SIZE_KEY = 'wird-reader-size';
-const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';
-const arNum = (n: number) => String(n).replace(/\d/g, (d) => AR_DIGITS[+d]);
 const BORDER: Record<string, string> = { n: 'border-neutral', l: 'border-blue', m: 'border-good', r: 'border-hard' };
 
+interface ReaderProps {
+  page: number;
+  onPage: (p: number) => void;
+  onSurah: (s: number) => void;
+  surah: number | null;
+  mode: 'page' | 'list';
+  onMode: (m: 'page' | 'list') => void;
+  highlight?: { surah: number; from: number; to: number } | null;
+  onClose?: () => void;
+}
+
 /**
- * Coran numérique : lecture par pages du Mushaf de Médine (604) ou par sourate, texte Tanzil Uthmani Minimal, sans
- * distraction (ni notification, ni évaluation). Toucher un verset ouvre sa fiche. Aucun audio, tajwid ni traduction.
+ * Coran numérique, sans distraction (ni notification, ni évaluation), texte Tanzil Uthmani Minimal :
+ *  - « Pages » : lecteur plein écran du Mushaf de Médine (604 pages), voir PageReader ;
+ *  - « Liste » : une sourate verset par verset, avec la traduction française.
+ * Toucher un verset ouvre sa fiche.
  */
-export function Reader(props: { page: number; onPage: (p: number) => void; onSurah: (s: number) => void; surah: number | null; mode: 'page' | 'list'; onMode: (m: 'page' | 'list') => void; highlight?: { surah: number; from: number; to: number } | null; onClose?: () => void }) {
+export function Reader(props: ReaderProps) {
   if (props.mode === 'page') return <PageReader page={props.page} onPage={props.onPage} onMode={props.onMode} onClose={props.onClose ?? (() => history.back())} highlight={props.highlight} />;
   return <ListReader {...props} />;
 }
 
-function ListReader({ page, onPage, onSurah, surah, mode, onMode, highlight }: { page: number; onPage: (p: number) => void; onSurah: (s: number) => void; surah: number | null; mode: 'page' | 'list'; onMode: (m: 'page' | 'list') => void; highlight?: { surah: number; from: number; to: number } | null }) {
+function ListReader({ page, onSurah, surah, onMode, highlight }: ReaderProps) {
   const verses = useWird((s) => s.verses);
-  const [data, setData] = useState<QuranData | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [tj, setTj] = useState<TajweedData | null>(null);
-  const [fr, setFr] = useState<TranslationData | null>(null);
-  useEffect(() => {
-    void loadTranslation().then(setFr);
-  }, []);
-  const [tjOn, setTjOn] = useState(() => {
-    try { return localStorage.getItem('wird-tajweed') !== '0'; } catch { return true; }
-  });
-  useEffect(() => {
-    void loadTajweed().then(setTj);
-  }, []);
-  const toggleTj = () => {
-    setTjOn(!tjOn);
-    try { localStorage.setItem('wird-tajweed', tjOn ? '0' : '1'); } catch { /* ignore */ }
-  };
+  const { data, failed, tj, fr, tjOn, toggleTj, size, zoom } = useReaderData();
+  const [sel, setSel] = useState<{ surah: number; ayah: number } | null>(null);
   const colored = (s: number, a: number, text: string) =>
     tj && tjOn ? tajweedParts(text, tj.spans[`${s}:${a}`], tj.families).map(([t, f], i) => (f ? <span key={i} className={`tj-${f}`}>{t}</span> : t)) : text;
-  const [sel, setSel] = useState<{ surah: number; ayah: number } | null>(null);
-  const [size, setSize] = useState(() => {
-    try { return Number(localStorage.getItem(SIZE_KEY)) || 1; } catch { return 1; }
-  });
-  const [goto, setGoto] = useState('');
-  useEffect(() => {
-    void loadQuranText().then((d) => (d ? setData(d) : setFailed(true)));
-  }, []);
-  const zoom = (d: number) => {
-    const n = Math.max(0.8, Math.min(2, Math.round((size + d) * 100) / 100));
-    setSize(n);
-    try { localStorage.setItem(SIZE_KEY, String(n)); } catch { /* ignore */ }
-  };
-
-  const pg = Math.max(1, Math.min(TOTAL_PAGES, page));
-  const groups = useMemo(() => {
-    if (mode !== 'page') return [];
-    const [a, b] = pageRange(pg);
-    const out: { surah: number; ayahs: number[] }[] = [];
-    for (let id = a; id <= b; id++) {
-      const { surah: s, ayah } = fromAyahId(id);
-      const g = out[out.length - 1];
-      if (g && g.surah === s) g.ayahs.push(ayah);
-      else out.push({ surah: s, ayahs: [ayah] });
-    }
-    return out;
-  }, [mode, pg]);
   const inHl = (s: number, a: number) => !!highlight && highlight.surah === s && a >= highlight.from && a <= highlight.to;
-  const style = { fontSize: `${(mode === 'page' ? 21 : 28) * size}px` } as React.CSSProperties;
-
-  const verseSpan = (s: number, a: number) => (
-    <span key={a}>
-      <span onClick={() => { haptic('tap'); setSel({ surah: s, ayah: a }); }} className={cx('cursor-pointer rounded-md', inHl(s, a) && 'bg-primary/15')}>{colored(s, a, data!.s[s - 1][a - 1])}</span>{' '}
-      <span className="vm">{arNum(a)}</span>{' '}
-    </span>
-  );
 
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5" role="tablist">
-          <button role="tab" aria-selected={mode === 'page'} className="chip chip-sm" onClick={() => onMode('page')}>Pages</button>
-          <button role="tab" aria-selected={mode === 'list'} className="chip chip-sm" onClick={() => onMode('list')}>Liste</button>
+          <button role="tab" aria-selected={false} className="chip chip-sm" onClick={() => onMode('page')}>Pages</button>
+          <button role="tab" aria-selected className="chip chip-sm">Liste</button>
         </div>
         <div className="flex items-center gap-1.5">
           <button className="chip chip-sm" aria-pressed={tjOn} onClick={toggleTj}>Tajwid</button>
@@ -101,57 +61,14 @@ function ListReader({ page, onPage, onSurah, surah, mode, onMode, highlight }: {
       {failed && <p className="card mt-4 p-4 text-sm text-muted">Le texte n’a pas pu être chargé. Réessaie une fois connecté.</p>}
       {!data && !failed && <p className="mt-6 text-center text-sm text-muted">Chargement…</p>}
 
-      {data && mode === 'page' && (
-        <>
-          <p className="my-3 text-center text-sm text-muted">Page {pg} / {TOTAL_PAGES}</p>
-          <div className="mb-2 flex items-center justify-between px-1 text-sm text-muted">
-            <span>{surahMeta(groups[0].surah).tr}</span>
-            <span>Juz {Math.ceil(hizbOf(pageRange(pg)[0]) / 2)}</span>
-          </div>
-          <div key={pg}>
-            {groups.map((g) => {
-              const meta = surahMeta(g.surah);
-              const first = g.ayahs[0] === 1;
-              const bas = first ? basmalaFor(data, g.surah) : null;
-              return (
-                <div key={`${g.surah}-${g.ayahs[0]}`}>
-                  {first && (
-                    <div className="my-3 border-y border-line py-2 text-center">
-                      <p className="ar text-[22px] leading-tight" lang="ar">{meta.ar}</p>
-                      <p className="text-xs text-muted">{meta.id}. {meta.tr}</p>
-                    </div>
-                  )}
-                  {bas && <p className="ar mb-2 text-center leading-[2]" style={style} lang="ar">{bas}</p>}
-                  <p className="ar text-justify leading-[2.1] [text-align-last:center]" style={style} lang="ar">{g.ayahs.map((a) => verseSpan(g.surah, a))}</p>
-                </div>
-              );
-            })}
-          </div>
-          {tj && tjOn && (
-            <ul className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
-              {TAJWEED_LEGEND.map((l) => <li key={l.family} className="flex items-center gap-1"><i className={`tj-dot tj-bg-${l.family}`} />{l.label}</li>)}
-            </ul>
-          )}
-          <p className="mt-2 text-center text-[15px] text-muted">{arNum(pg)}</p>
-          <div className="mt-3 flex gap-2.5">
-            <button className="btn-outline flex-1" disabled={pg <= 1} onClick={() => { haptic('select'); onPage(pg - 1); }}><ChevronLeft size={18} /> Précédente</button>
-            <button className="btn-outline flex-1" disabled={pg >= TOTAL_PAGES} onClick={() => { haptic('select'); onPage(pg + 1); }}>Suivante <ChevronRight size={18} /></button>
-          </div>
-          <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); const n = parseInt(goto); if (n >= 1 && n <= TOTAL_PAGES) { onPage(n); setGoto(''); } }}>
-            <input className="input" inputMode="numeric" placeholder="N° de page (1–604)" value={goto} onChange={(e) => setGoto(e.target.value.replace(/\D/g, ''))} aria-label="Aller à la page" />
-            <button className="btn-primary !px-5" type="submit">Aller</button>
-          </form>
-        </>
-      )}
-
-      {data && mode === 'list' && (() => {
-        const s = surah ?? fromAyahId(pageRange(pg)[0]).surah;
+      {data && (() => {
+        const s = surah ?? fromAyahId(pageRange(Math.max(1, page))[0]).surah;
         const meta = surahMeta(s);
         const bas = basmalaFor(data, s);
         return (
           <div className="mt-3">
             <h2 className="font-display text-[22px] font-semibold">{meta.id}. {meta.tr} <span className="ar ml-1 text-[22px] font-normal" lang="ar">{meta.ar}</span></h2>
-            {bas && <p className="ar my-3 border-b border-line pb-3 text-center font-bold leading-[2]" style={style} lang="ar">{bas}</p>}
+            {bas && <p className="ar my-3 border-b border-line pb-3 text-center font-bold leading-[2]" style={{ fontSize: `${28 * size}px` }} lang="ar">{bas}</p>}
             <div className="space-y-2.5">
               {data.s[s - 1].map((t, i) => {
                 const a = i + 1;

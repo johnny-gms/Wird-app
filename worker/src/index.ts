@@ -5,7 +5,7 @@
 import { decideReminders, type SubscriberState } from '../../src/notifications/rules';
 import type { NotificationPrefs } from '../../src/engine/types';
 import { D1Store, type D1Like, type Store, type Subscriber } from './store';
-import { b64uEncode, importVapidKey, sendWebPush } from './webpush';
+import { b64uEncode, importVapidKey, isPushEndpoint, sendWebPush } from './webpush';
 import { D1AuthStore, authenticateBearer, handleAuth, type AuthStore } from './auth';
 import { D1SyncStore, handleSync, type Authenticator, type SyncStore } from './sync';
 
@@ -96,7 +96,7 @@ export async function handleRequest(req: Request, env: Env, store: Store = new D
   if (url.pathname === '/api/subscribe') {
     const s = body.subscription;
     const prefs = cleanPrefs(body.prefs);
-    if (typeof s?.endpoint !== 'string' || !/^https:\/\//.test(s.endpoint) || s.endpoint.length > 1000 || typeof s.keys?.p256dh !== 'string' || typeof s.keys?.auth !== 'string' || !prefs) return json(env, { error: 'invalid' }, 400);
+    if (!isPushEndpoint(s?.endpoint) || typeof s.keys?.p256dh !== 'string' || typeof s.keys?.auth !== 'string' || !prefs) return json(env, { error: 'invalid' }, 400);
     const existing = await store.get(s.endpoint);
     const token = b64uEncode(crypto.getRandomValues(new Uint8Array(32)));
     const sub: Subscriber = { endpoint: s.endpoint, p256dh: s.keys.p256dh, auth: s.keys.auth, tokenHash: await sha256Hex(token), tz: cleanTz(body.tz), prefs, lastActivityDate: existing?.lastActivityDate ?? null, unfinishedDate: existing?.unfinishedDate ?? null, sent: existing?.sent ?? {} };
@@ -129,7 +129,7 @@ export async function handleRequest(req: Request, env: Env, store: Store = new D
     }
     case '/api/resubscribe': {
       const s = body.subscription;
-      if (typeof s?.endpoint !== 'string' || !/^https:\/\//.test(s.endpoint) || typeof s.keys?.p256dh !== 'string' || typeof s.keys?.auth !== 'string') return json(env, { error: 'invalid' }, 400);
+      if (!isPushEndpoint(s?.endpoint) || typeof s.keys?.p256dh !== 'string' || typeof s.keys?.auth !== 'string') return json(env, { error: 'invalid' }, 400);
       await store.delete(endpoint);
       await store.put({ ...sub, endpoint: s.endpoint, p256dh: s.keys.p256dh, auth: s.keys.auth });
       return json(env, { ok: true });
@@ -149,6 +149,11 @@ export async function runCron(env: Env, store: Store, now: Date = new Date(), fe
   const out = { sent: 0, gone: 0, retry: 0 };
   const v = await vapid(env);
   for (const sub of await store.all()) {
+    if (!isPushEndpoint(sub.endpoint)) {
+      await store.delete(sub.endpoint); // adresse non reconnue (ancienne inscription) : jamais contactée
+      out.gone++;
+      continue;
+    }
     const state: SubscriberState = { prefs: sub.prefs, lastActivityDate: sub.lastActivityDate, unfinishedDate: sub.unfinishedDate, sent: sub.sent };
     const { date, time } = localParts(now, sub.tz);
     for (const r of decideReminders(state, date, time)) {

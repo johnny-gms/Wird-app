@@ -89,6 +89,21 @@ export async function vapidAuthorization(endpoint: string, subject: string, publ
   return `vapid t=${head}.${claims}.${b64uEncode(sig)}, k=${publicB64u}`;
 }
 
+/**
+ * Seuls les vrais services Push des navigateurs sont acceptés comme destination (Google/FCM, Mozilla, Apple, Windows/Edge).
+ * Sans cette liste, n'importe qui pourrait inscrire une adresse quelconque et faire envoyer des requêtes par le Worker (SSRF).
+ */
+const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)push\.apple\.com$/, /(^|\.)notify\.windows\.com$/];
+export function isPushEndpoint(endpoint: unknown): endpoint is string {
+  if (typeof endpoint !== 'string' || endpoint.length > 1000) return false;
+  try {
+    const u = new URL(endpoint);
+    return u.protocol === 'https:' && !u.username && !u.password && (u.port === '' || u.port === '443') && PUSH_HOSTS.some((r) => r.test(u.hostname));
+  } catch {
+    return false;
+  }
+}
+
 export type PushResult = 'sent' | 'gone' | 'retry';
 
 /** Envoie une notification. 404/410 = abonnement expiré (à supprimer) ; 429/5xx = à réessayer plus tard. */
