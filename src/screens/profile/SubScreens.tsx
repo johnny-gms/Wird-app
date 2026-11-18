@@ -1,3 +1,4 @@
+import { PRIVACY_CONTACT } from '@/lib/legal';
 import { Bell, BellOff, CheckCircle2, CircleDashed, TriangleAlert, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { SubPage, Toggle, cx, toast } from '@/components/ui';
@@ -230,6 +231,15 @@ export function ProfileAbout() {
         <li><b className="text-ink">Recoupement des Hizb et pages</b> : paquet <i>quran-meta</i> (MIT).</li>
         <li><b className="text-ink">Police du texte coranique</b> : Amiri Quran (SIL OFL). Interface : polices système.</li>
       </ul>
+      <h2 id="confidentialite" className="label mb-2 mt-6">Confidentialité</h2>
+      <div className="card space-y-3 p-5 text-sm leading-relaxed text-muted">
+        <p><b className="text-ink">Sur ton appareil.</b> Ta progression, tes évaluations, tes objectifs et tes réglages sont enregistrés uniquement sur ton appareil. Ils ne sont pas envoyés au serveur, sauf si tu crées un compte pour les synchroniser.</p>
+        <p><b className="text-ink">Rappels.</b> Si tu actives les rappels, le serveur reçoit l’adresse d’abonnement de ton navigateur, tes horaires de rappel, ton fuseau horaire et la date de ta dernière activité. Jamais tes versets ni tes évaluations.</p>
+        <p><b className="text-ink">Compte (facultatif).</b> Si tu crées un compte, le serveur conserve ton adresse e-mail, ton mot de passe (uniquement sous forme chiffrée, jamais en clair) et les données que tu synchronises.</p>
+        <p><b className="text-ink">Aucun suivi.</b> Pas de publicité, pas de statistiques d’usage, pas de cookies de suivi, aucun partage avec des tiers.</p>
+        <p><b className="text-ink">Tes droits.</b> Exporter tes données et tout effacer : Paramètres › Données et sauvegardes. Supprimer ton compte, tes données synchronisées et tes rappels : Paramètres › Compte. {PRIVACY_CONTACT ? <>Pour toute autre demande (accès, rectification, réclamation) : <a className="font-semibold text-primary underline" href={`mailto:${PRIVACY_CONTACT}`}>{PRIVACY_CONTACT}</a>.</> : null}</p>
+        <p>Les rappels reposent sur le service de notifications de ton navigateur (Apple, Google ou Mozilla selon ton appareil), qui voit passer les notifications. Le serveur de WIRD est hébergé chez Cloudflare.</p>
+      </div>
       <p className="mt-4 text-xs leading-relaxed text-muted">Le texte affiché sert d’aide à la mémorisation. Pour une récitation exacte, réfère-toi toujours à un Mushaf imprimé et à un enseignant qualifié.</p>
     </SubPage>
   );

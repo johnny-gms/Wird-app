@@ -11,3 +11,10 @@
 HTTPS fourni par Cloudflare (requis pour l'installation et le Push).
 
 Variables optionnelles (build) : `VITE_PUSH_API_URL`, `VITE_VAPID_PUBLIC_KEY` — voir `docs/NOTIFICATIONS.md`. Aucune n'est requise pour tester la V1.
+
+## Sécurité du Worker et données personnelles
+
+- **Mise à jour du schéma** : le Worker utilise maintenant une table `rate_limits` (limitation de débit). Après chaque mise à jour, relancer `npx wrangler d1 execute wird-push --remote --file=worker/schema.sql` (les commandes sont idempotentes).
+- **Limitation de débit** : connexion et inscription (20 requêtes / 10 min par adresse IP, 8 tentatives / 15 min par adresse e-mail), abonnement aux rappels (30 / heure / IP). Au-delà : réponse 429.
+- **Sessions** : valables 90 jours, purgées chaque jour par le Cron. `POST /api/auth/logout` révoque la session ; `POST /api/auth/delete` supprime le compte, ses sessions et ses données synchronisées.
+- **Avant la diffusion** : renseigner `PRIVACY_CONTACT` dans `src/lib/legal.ts` (adresse de contact pour les demandes RGPD, affichée dans À propos › Confidentialité).

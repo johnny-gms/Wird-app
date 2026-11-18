@@ -13,7 +13,7 @@ npm run build        # vérification des types + build de production (dist/)
 npm run preview      # sert dist/ (service worker actif) : http://localhost:4173
 node tests/e2e/serve.mjs   # sert dist/ AVEC les en-têtes de public/_headers (dont la politique de sécurité CSP), comme Cloudflare Pages
 npm test             # tests unitaires du moteur (rotation, renforcement, progression, rappels)
-npm run test:e2e     # parcours Playwright (nécessite build + preview, voir tests/e2e/)
+npm run test:e2e     # parcours Playwright : lancer d'abord `node tests/e2e/serve.mjs` (voir tests/e2e/smoke.mjs)
 ```
 
 ## Tester sur iPhone

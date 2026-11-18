@@ -8,6 +8,7 @@ import type { ThemeMode } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
 import { isIOS, isStandalone, useInstall } from '@/lib/pwa';
 import { APP_VERSION } from '@/lib/version';
+import { eraseRemote, getAccount, logout } from '@/sync/account';
 import { useWird } from '@/store/useWird';
 
 const Section = ({ children }: { children: React.ReactNode }) => <h2 className="label mb-2 mt-7">{children}</h2>;
@@ -17,6 +18,8 @@ export default function Settings() {
   const { profile, settings, updateSettings, exportData, importData, resetAll } = useWird();
   const install = useInstall((s) => s.event);
   const [reset, setReset] = useState(false);
+  const [account, setAccount] = useState(getAccount());
+  const [delAcc, setDelAcc] = useState(false);
   const [restore, setRestore] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
 
@@ -77,6 +80,20 @@ export default function Settings() {
       </div>
       <p className="mt-2 text-xs leading-relaxed text-muted">Tout est enregistré sur cet appareil. {profile.demo ? 'Tu utilises des données de démonstration. ' : ''}Pense à exporter une sauvegarde : si l’appareil est réinitialisé, les données locales peuvent être perdues.</p>
 
+      {account && (
+        <>
+          <Section>Compte</Section>
+          <div className="card p-4 text-sm">
+            <p>Connecté : <b>{account.email}</b></p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">Ton adresse e-mail et tes données synchronisées sont conservées sur le serveur de WIRD tant que ton compte existe.</p>
+            <div className="mt-3 grid gap-2">
+              <button className="btn-soft" onClick={async () => { await logout(); setAccount(null); toast('Déconnecté'); }}>Me déconnecter</button>
+              <button className="btn-danger" onClick={() => setDelAcc(true)}>Supprimer mon compte…</button>
+            </div>
+          </div>
+        </>
+      )}
+
       <Section>À propos</Section>
       <Link to="/profil/apropos" className="card flex items-center gap-3 p-4"><span className="flex-1"><b className="block">À propos</b><span className="text-sm text-muted">Sources du texte, licences, version {APP_VERSION}</span></span><ChevronRight size={18} className="text-muted" /></Link>
 
@@ -86,7 +103,8 @@ export default function Settings() {
       <p className="mt-2 text-center text-xs text-muted">WIRD {APP_VERSION}</p>
 
       <ConfirmSheet open={restore !== null} onClose={() => setRestore(null)} title="Restaurer cette sauvegarde ?" message="Les données actuelles de cet appareil seront remplacées par celles du fichier. Exporte d’abord une sauvegarde si tu veux pouvoir revenir en arrière." confirmLabel="Restaurer" danger onConfirm={() => { const r = importData(restore ?? ''); toast(r.ok ? 'Sauvegarde restaurée' : r.error); setRestore(null); }} />
-      <ConfirmSheet open={reset} onClose={() => setReset(false)} title="Tout effacer ?" message="Cette action est définitive : ta progression, tes objectifs, ton historique et ta corbeille seront effacés de cet appareil. Pense à exporter une sauvegarde avant. WIRD repartira de l’écran de bienvenue." confirmLabel="Effacer définitivement" danger onConfirm={() => void resetAll()} />
+      <ConfirmSheet open={reset} onClose={() => setReset(false)} title="Tout effacer ?" message="Cette action est définitive : ta progression, tes objectifs, ton historique et ta corbeille seront effacés de cet appareil. Pense à exporter une sauvegarde avant. WIRD repartira de l’écran de bienvenue." confirmLabel="Effacer définitivement" danger onConfirm={async () => { const ok = await eraseRemote({ deleteAccount: false }); if (!ok) toast('Serveur injoignable : tes rappels côté serveur seront supprimés plus tard.'); await logout(); await resetAll(); }} />
+      <ConfirmSheet open={delAcc} onClose={() => setDelAcc(false)} title="Supprimer ton compte ?" message="Ton compte, ton adresse e-mail, tes données synchronisées et tes rappels sont effacés du serveur. Les données de cet appareil restent : utilise « Tout réinitialiser » pour les effacer aussi." confirmLabel="Supprimer le compte" danger onConfirm={async () => { const ok = await eraseRemote({ deleteAccount: true }); setDelAcc(false); if (ok) { setAccount(null); toast('Compte supprimé'); } else toast('Serveur injoignable : réessaie en ligne.'); }} />
     </SubPage>
   );
 }

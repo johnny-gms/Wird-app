@@ -6,7 +6,8 @@ import { decideReminders, type SubscriberState } from '../../src/notifications/r
 import type { NotificationPrefs } from '../../src/engine/types';
 import { D1Store, type D1Like, type Store, type Subscriber } from './store';
 import { b64uEncode, importVapidKey, isPushEndpoint, sendWebPush } from './webpush';
-import { D1AuthStore, authenticateBearer, handleAuth, type AuthStore } from './auth';
+import { D1AuthStore, authenticateBearer, handleAuth, handleSession, sha256Hex as sha256, type AuthStore } from './auth';
+import { D1RateStore, LIMITS, limited, type RateStore } from './ratelimit';
 import { D1SyncStore, handleSync, type Authenticator, type SyncStore } from './sync';
 
 export interface Env {
@@ -67,7 +68,7 @@ async function vapid(env: Env) {
   return { subject: env.VAPID_SUBJECT, publicKey: env.VAPID_PUBLIC_KEY, privateKey: await importVapidKey(env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY) };
 }
 
-export async function handleRequest(req: Request, env: Env, store: Store = new D1Store(env.DB), now: Date = new Date(), fetchImpl?: typeof fetch, auth?: Authenticator, syncStore: SyncStore = new D1SyncStore(env.DB), authStore: AuthStore = new D1AuthStore(env.DB)): Promise<Response> {
+export async function handleRequest(req: Request, env: Env, store: Store = new D1Store(env.DB), now: Date = new Date(), fetchImpl?: typeof fetch, auth?: Authenticator, syncStore: SyncStore = new D1SyncStore(env.DB), authStore: AuthStore = new D1AuthStore(env.DB), rates: RateStore = new D1RateStore(env.DB)): Promise<Response> {
   const authenticate: Authenticator = auth ?? ((r) => authenticateBearer(r, authStore));
   const url = new URL(req.url);
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(env) });
@@ -79,7 +80,16 @@ export async function handleRequest(req: Request, env: Env, store: Store = new D
   if (!body || typeof body !== 'object') return json(env, { error: 'json' }, 400);
 
   // ---- comptes (e-mail + mot de passe)
+  const ip = req.headers.get('cf-connecting-ip') ?? 'unknown';
   if (url.pathname.startsWith('/api/auth/')) {
+    if (await limited(rates, `auth:${ip}`, LIMITS.authIp, now)) return json(env, { error: 'rate', message: 'Trop de tentatives. Réessaie dans quelques minutes.' }, 429);
+    if (url.pathname === '/api/auth/logout' || url.pathname === '/api/auth/delete') {
+      const r = await handleSession(url.pathname, req, authStore);
+      return json(env, r.data, r.status);
+    }
+    if (url.pathname === '/api/auth/login' && typeof body.email === 'string' && (await limited(rates, `login:${(await sha256(body.email.trim().toLowerCase())).slice(0, 32)}`, LIMITS.loginEmail, now))) {
+      return json(env, { error: 'rate', message: 'Trop de tentatives. Réessaie dans quelques minutes.' }, 429);
+    }
     const r = await handleAuth(url.pathname, body, authStore);
     return json(env, r.data, r.status);
   }
@@ -94,6 +104,7 @@ export async function handleRequest(req: Request, env: Env, store: Store = new D
 
   // ---- abonnement : crée l'appareil et remet un jeton secret (jamais stocké en clair)
   if (url.pathname === '/api/subscribe') {
+    if (await limited(rates, `sub:${ip}`, LIMITS.subscribeIp, now)) return json(env, { error: 'rate' }, 429);
     const s = body.subscription;
     const prefs = cleanPrefs(body.prefs);
     if (!isPushEndpoint(s?.endpoint) || typeof s.keys?.p256dh !== 'string' || typeof s.keys?.auth !== 'string' || !prefs) return json(env, { error: 'invalid' }, 400);
@@ -168,6 +179,10 @@ export async function runCron(env: Env, store: Store, now: Date = new Date(), fe
     }
   }
   await store.setMeta('lastCron', now.toISOString());
+  try {
+    await new D1AuthStore(env.DB).purgeSessions(now); // sessions expirées
+    await new D1RateStore(env.DB).purge(now);
+  } catch { /* nettoyage facultatif */ }
   return out;
 }
 
