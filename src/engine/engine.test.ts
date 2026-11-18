@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, ENGINE } from './config';
-import { nextLearnTargets, buildPlan, dailyLearnPages, learningEnabled, itemIds, completeGoal, evaluateItem, goalProgress, memorizedIds, nextLearnTarget, skipItem, itemPages, upcomingRotation, type Core } from './plan';
+import { weekQuota, nextLearnTargets, buildPlan, dailyLearnPages, learningEnabled, itemIds, completeGoal, evaluateItem, goalProgress, memorizedIds, nextLearnTarget, skipItem, itemPages, upcomingRotation, type Core } from './plan';
 import { TOTAL_PAGES, idsPages, pageOf, rangePages } from './pages';
 import { allHizbStats, currentStreak, overall, surahStats } from './progress';
 import { ayahId, fromAyahId, hizbOf, hizbRange, SURAHS, TOTAL_VERSES } from './quran';
@@ -304,7 +304,9 @@ describe('nouvel apprentissage', () => {
     expect(memorizedIds(c.verses)).toHaveLength(0); // objectif manuel : marquage manuel
     c = completeGoal(c, 'g1', '2026-03-12');
     expect(memorizedIds(c.verses)).toHaveLength(25);
-    expect(c.verses[ayahId(78, 1)].reinforceDue).toBe('2026-03-13'); // confirmation dès le lendemain
+    // pas de renforcement automatique : il ne vient que d'une révision notée « quelques hésitations » ou moins
+    expect(c.verses[ayahId(78, 1)].fragile).toBe(false);
+    expect(c.verses[ayahId(78, 1)].reinforceDue).toBeNull();
   });
 
   it('un élément difficile ne fait pas « sauter » les suivants (rythme d’un demi-Hizb par jour → plusieurs segments)', () => {
@@ -462,5 +464,54 @@ describe('Al-Fatiha, Hizb et demi-Hizb', () => {
     for (let a = 1; a <= 4; a++) verses[ayahId(112, a)] = newLearningVerse(ayahId(112, a), D);
     const plan = buildPlan(mkCore(verses, { goals: [goal], settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 0, learnMode: 'surah' } }), D, null);
     expect(plan.items.filter((i) => i.kind === 'learn')).toHaveLength(1);
+  });
+});
+
+describe('objectifs par semaine (niveaux)', () => {
+  const MON = '2026-05-04'; // lundi
+  const SUN = '2026-05-10';
+  it('le cumul visé est réparti du lundi au dimanche', () => {
+    expect(weekQuota(7, MON)).toBeCloseTo(1);
+    expect(weekQuota(7, SUN)).toBeCloseTo(7);
+    expect(weekQuota(3, MON)).toBeCloseTo(3 / 7);
+  });
+  it('débutant : 5 versets par semaine → 1 verset le lundi, tout le reliquat le dimanche (sans dette)', () => {
+    const goal = { id: 'g', surah: 78, from: 1, to: 40, cursor: 1, paused: false, createdAt: MON, completedAt: null };
+    const base = { goals: [goal], settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 0, learnMode: 'surah' as const, learnWeekly: { unit: 'verses' as const, amount: 5 } } };
+    const mon = buildPlan(mkCore({}, base), MON, null).items.filter((i) => i.kind === 'learn');
+    expect(mon.reduce((a, i) => a + i.to - i.from + 1, 0)).toBe(1);
+    const sun = buildPlan(mkCore({}, base), SUN, null).items.filter((i) => i.kind === 'learn');
+    expect(sun.reduce((a, i) => a + i.to - i.from + 1, 0)).toBe(5);
+  });
+  it('intermédiaire : 1 page par semaine → moins d\'une page par jour, jamais plus que la semaine', () => {
+    const goal = { id: 'g', surah: 78, from: 1, to: 40, cursor: 1, paused: false, createdAt: MON, completedAt: null };
+    const base = { goals: [goal], settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 0, learnMode: 'surah' as const, learnWeekly: { unit: 'pages' as const, amount: 1 } } };
+    const mon = buildPlan(mkCore({}, base), MON, null).items.filter((i) => i.kind === 'learn');
+    const pages = mon.reduce((a, i) => a + itemPages(i), 0);
+    expect(pages).toBeGreaterThan(0);
+    expect(pages).toBeLessThan(0.6);
+  });
+  it('révision par semaine : 1 Hizb par semaine ≈ 10 pages réparties, rotation du début vers la fin', () => {
+    const c = mkCore(mem(2, 1, 286), { settings: { ...DEFAULT_SETTINGS, learnMode: 'off' as const, reviewWeekly: { unit: 'hizb' as const, amount: 1 } } });
+    const mon = buildPlan(c, MON, null).items.filter((i) => i.kind === 'review');
+    const pages = mon.reduce((a, i) => a + itemPages(i), 0);
+    expect(pages).toBeGreaterThan(0.9);
+    expect(pages).toBeLessThan(2.6);
+    expect(mon[0].surah).toBe(2);
+  });
+});
+
+describe('objectif par semaine : plusieurs petites sourates', () => {
+  it('signale le budget restant quand les objectifs ouverts sont épuisés (la suite s’ouvre)', () => {
+    const goal = { id: 'g', surah: 114, from: 1, to: 6, cursor: 1, paused: false, createdAt: '2026-05-04', completedAt: null };
+    const settings = { ...DEFAULT_SETTINGS, reviewPagesPerDay: 0, learnMode: 'surah' as const, learnWeekly: { unit: 'pages' as const, amount: 3 } };
+    const plan = buildPlan(mkCore({}, { goals: [goal], settings }), '2026-05-10', null); // dimanche : cumul visé = 3 pages
+    expect(plan.items.filter((i) => i.kind === 'learn').reduce((a, i) => a + itemPages(i), 0)).toBeLessThan(1);
+    expect(plan.moreLearn).toBe(true);
+  });
+  it('la fin d’un apprentissage n’impose aucun renforcement', () => {
+    const goal = { id: 'g', surah: 114, from: 1, to: 6, cursor: 1, paused: false, createdAt: '2026-05-04', completedAt: null };
+    const c = completeGoal(mkCore({}, { goals: [goal] }), 'g', '2026-05-05');
+    expect(Object.values(c.verses).every((v) => !v.fragile && v.reinforceDue === null)).toBe(true);
   });
 });

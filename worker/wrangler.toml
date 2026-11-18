@@ -1,5 +1,5 @@
 # Configuration du Worker WIRD (déployé par Cloudflare depuis GitHub, branche claude/wird-v1-pwa-app-xlgy9s, racine = worker/). Aucune valeur secrète ici :
-# l'ID D1, l'adresse de l'app et l'e-mail de contact ne sont pas des secrets. Remplace les 3 valeurs « REMPLACER_… ».
+# l'ID D1 et l'adresse de l'app ne sont pas des secrets. N'y mets jamais ton e-mail personnel.
 name = "wird-push"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
@@ -16,7 +16,7 @@ crons = ["*/15 * * * *"]
 [vars]
 ALLOWED_ORIGIN = "https://wird-app-u62.pages.dev"   # origine autorisée (CORS), sans / final
 VAPID_PUBLIC_KEY = "BIm_xxz1SXHFiCQgiP8xsJAVtCQh6UUgQUJIMEs0OT4YEOBTmqvQpANch5JdjVsh63nlzyc1qExPsyBOz8C3lrc"   # clé PUBLIQUE (pas un secret) : dans ce fichier pour survivre aux redéploiements
-VAPID_SUBJECT = "mailto:gomesj.pro@gmail.com"        # exigé par les services Push (Apple, Google, Mozilla)
+VAPID_SUBJECT = "https://wird-app-u62.pages.dev"     # exigé par les services Push (Apple, Google, Mozilla) : une adresse https ou mailto: ; ici l'adresse de l'app, pas d'e-mail personnel
 
 # Secret (jamais dans ce fichier) : seule la clé PRIVÉE. Ne pas recréer VAPID_PUBLIC_KEY comme secret (conflit avec la variable ci-dessus).
 #   npx wrangler secret put VAPID_PRIVATE_KEY

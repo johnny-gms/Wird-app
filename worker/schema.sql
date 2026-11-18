@@ -39,3 +39,11 @@ CREATE TABLE IF NOT EXISTS sessions (
   user_id TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- Limitation de débit (anti-force brute) : compteurs par clé et fenêtre, purgés par le Cron
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key    TEXT NOT NULL,
+  window INTEGER NOT NULL,
+  n      INTEGER NOT NULL,
+  expires INTEGER NOT NULL,
+  PRIMARY KEY (key, window)
+);

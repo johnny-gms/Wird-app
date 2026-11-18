@@ -65,6 +65,8 @@ export interface PlanItem {
 export interface DailyPlan {
   date: string;
   items: PlanItem[];
+  /** Objectif d'apprentissage par semaine : il reste du budget alors que les objectifs ouverts sont épuisés. */
+  moreLearn?: boolean;
 }
 
 /** Évaluation en cours de saisie pour un élément : une note, ou « skip » (non travaillé). */
@@ -177,6 +179,10 @@ export interface Settings {
   learnEvery: LearnEvery;
   /** Objectif quotidien de révision, en pages entières du Mushaf. */
   reviewPagesPerDay: number;
+  /** Objectif d'apprentissage par semaine (niveaux Débutant / Intermédiaire / Avancé) : en versets ou en pages. null = ancien réglage (rythme par sourate / Hizb). */
+  learnWeekly: { unit: 'verses' | 'pages'; amount: number; level?: 'intermediate' | 'advanced' } | null;
+  /** Objectif de révision par semaine : en pages, en Hizb ou en Juz (toujours du début à la fin du Coran). null = pages par jour. */
+  reviewWeekly: { unit: 'pages' | 'hizb' | 'juz'; amount: number } | null;
   /** Plafond de versets de renforcement proposés par jour. */
   reinforceVersesPerDay: number;
   theme: ThemeMode;

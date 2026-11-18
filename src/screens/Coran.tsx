@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Reader } from '@/components/Reader';
 import { SubPage } from '@/components/ui';
 import { pageOf } from '@/engine/pages';
@@ -8,6 +8,7 @@ import { ayahId } from '@/engine/quran';
 /** Coran numérique : /coran?p=12 (pages) ou /coran?m=list&s=2 (liste d'une sourate). `h=s:a-b` surligne des versets. */
 export default function Coran() {
   const [sp, setSp] = useSearchParams();
+  const nav = useNavigate();
   const mode = sp.get('m') === 'list' ? 'list' : 'page';
   const s = Number(sp.get('s')) || null;
   const page = Number(sp.get('p')) || (s ? pageOf(ayahId(s, 1)) : 1);
@@ -24,6 +25,7 @@ export default function Coran() {
   return (
     <SubPage title="Coran numérique" back={-1}>
       <Reader
+        onClose={() => nav(-1)}
         page={page}
         surah={s}
         mode={mode}

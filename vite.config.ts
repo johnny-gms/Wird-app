@@ -24,7 +24,7 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#faf6ee',
+        background_color: '#2f5c49',
         theme_color: '#1f4d3a',
         categories: ['education', 'lifestyle'],
         icons: [

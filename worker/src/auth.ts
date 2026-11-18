@@ -8,16 +8,33 @@ export interface AuthStore {
   getUser(email: string): Promise<User | null>;
   createUser(u: User): Promise<boolean>;
   putSession(tokenHash: string, userId: string): Promise<void>;
-  userBySession(tokenHash: string): Promise<string | null>;
+  userBySession(tokenHash: string, now?: Date): Promise<string | null>;
+  deleteSession(tokenHash: string): Promise<void>;
+  /** Supprime le compte, ses sessions et ses données synchronisées (droit à l'effacement). */
+  deleteUser(userId: string): Promise<void>;
+  purgeSessions(now: Date): Promise<void>;
 }
+
+/** Durée de vie d'une session : au-delà, il faut se reconnecter. */
+export const SESSION_DAYS = 90;
 
 export class MemoryAuthStore implements AuthStore {
   users = new Map<string, User>();
-  sessions = new Map<string, string>();
+  sessions = new Map<string, { userId: string; at: number }>();
+  now = () => Date.now();
   async getUser(e: string) { return this.users.get(e) ?? null; }
   async createUser(u: User) { if (this.users.has(u.email)) return false; this.users.set(u.email, u); return true; }
-  async putSession(h: string, id: string) { this.sessions.set(h, id); }
-  async userBySession(h: string) { return this.sessions.get(h) ?? null; }
+  async putSession(h: string, id: string) { this.sessions.set(h, { userId: id, at: this.now() }); }
+  async userBySession(h: string, now: Date = new Date(this.now())) {
+    const s = this.sessions.get(h);
+    return s && now.getTime() - s.at < SESSION_DAYS * 864e5 ? s.userId : null;
+  }
+  async deleteSession(h: string) { this.sessions.delete(h); }
+  async deleteUser(id: string) {
+    for (const [e, u] of this.users) if (u.id === id) this.users.delete(e);
+    for (const [h, s] of this.sessions) if (s.userId === id) this.sessions.delete(h);
+  }
+  async purgeSessions() {}
 }
 
 export class D1AuthStore implements AuthStore {
@@ -37,8 +54,19 @@ export class D1AuthStore implements AuthStore {
     await this.db.prepare('INSERT INTO sessions (token_hash, user_id) VALUES (?1, ?2)').bind(tokenHash, userId).run();
   }
   async userBySession(tokenHash: string) {
-    const r = await this.db.prepare('SELECT user_id FROM sessions WHERE token_hash = ?1').bind(tokenHash).first<{ user_id: string }>();
+    const r = await this.db.prepare(`SELECT user_id FROM sessions WHERE token_hash = ?1 AND created_at > datetime('now', '-${SESSION_DAYS} days')`).bind(tokenHash).first<{ user_id: string }>();
     return r?.user_id ?? null;
+  }
+  async deleteSession(tokenHash: string) {
+    await this.db.prepare('DELETE FROM sessions WHERE token_hash = ?1').bind(tokenHash).run();
+  }
+  async deleteUser(userId: string) {
+    await this.db.prepare('DELETE FROM sync_records WHERE user_id = ?1').bind(userId).run();
+    await this.db.prepare('DELETE FROM sessions WHERE user_id = ?1').bind(userId).run();
+    await this.db.prepare('DELETE FROM users WHERE id = ?1').bind(userId).run();
+  }
+  async purgeSessions(_now?: Date) {
+    await this.db.prepare(`DELETE FROM sessions WHERE created_at <= datetime('now', '-${SESSION_DAYS} days')`).bind().run();
   }
 }
 
@@ -92,4 +120,16 @@ export async function handleAuth(path: string, body: Record<string, any>, store:
 export async function authenticateBearer(req: Request, store: AuthStore): Promise<string | null> {
   const m = /^Bearer (\S{20,200})$/.exec(req.headers.get('authorization') ?? '');
   return m ? store.userBySession(await sha256Hex(m[1])) : null;
+}
+
+/** Déconnexion (révoque la session) et suppression du compte (efface le compte et les données synchronisées). */
+export async function handleSession(path: string, req: Request, store: AuthStore): Promise<{ status: number; data: unknown }> {
+  const m = /^Bearer (\S{20,200})$/.exec(req.headers.get('authorization') ?? '');
+  if (!m) return { status: 401, data: { error: 'auth' } };
+  const hash = await sha256Hex(m[1]);
+  const userId = await store.userBySession(hash);
+  if (!userId) return { status: 401, data: { error: 'auth' } };
+  if (path === '/api/auth/logout') await store.deleteSession(hash);
+  else await store.deleteUser(userId);
+  return { status: 200, data: { ok: true } };
 }

@@ -11,16 +11,18 @@ npm install
 npm run dev          # développement : http://localhost:5173
 npm run build        # vérification des types + build de production (dist/)
 npm run preview      # sert dist/ (service worker actif) : http://localhost:4173
+node tests/e2e/serve.mjs   # sert dist/ AVEC les en-têtes de public/_headers (dont la politique de sécurité CSP), comme Cloudflare Pages
 npm test             # tests unitaires du moteur (rotation, renforcement, progression, rappels)
-npm run test:e2e     # parcours Playwright (nécessite build + preview, voir tests/e2e/)
+npm run test:e2e     # parcours Playwright : lancer d'abord `node tests/e2e/serve.mjs` (voir tests/e2e/smoke.mjs)
 ```
 
 ## Tester sur iPhone
 1. Déployez (voir `docs/DEPLOY.md`) ou exposez `npm run preview` sur le réseau local (HTTPS requis pour installer/notifier hors localhost).
 2. Safari › Partager › **Sur l'écran d'accueil**. Ouvrez WIRD depuis l'icône.
-3. Écran de bienvenue : « Essayer avec des données de démonstration » (sourates 93–114 mémorisées + apprentissage de la sourate 78, clairement signalés) ou « Commencer » à vide, puis *Mon Wird › Mes sourates* pour indiquer ce que vous avez déjà mémorisé.
-4. Parcours conseillé : Accueil › **Commencer mon Wird** › réciter › *J'ai terminé* › évaluer (4 choix). Interrompez (✕) puis **Reprendre**. Évaluez « Non maîtrisé » : le verset revient en *Renforcement* dès le lendemain tout en restant dans la rotation.
-5. Mode avion : l'app reste utilisable. *Profil › Données* : export/import JSON, remise à zéro.
+3. Écran de bienvenue : « Découvrir avec des données de démonstration » (sourates 93–114 mémorisées + apprentissage de la sourate 78, clairement signalés) ou « Commencer » : prénom, sourates déjà apprises, niveau d'apprentissage (Je débute / Intermédiaire / Avancé), rythme de révision (pages, Hizb ou Juz par semaine).
+4. Parcours conseillé : Accueil › **Mémorisation › Commencer** › travailler (avec ton Mushaf ou avec le téléphone) › évaluer chaque passage (4 choix) › bilan › « Terminé pour aujourd'hui ». Interrompez (✕) puis **Reprendre**. Un verset n'est « à renforcer » que si sa révision est notée « Quelques hésitations » ou moins ; il reste de toute façon dans la rotation.
+5. **Mon Wird** : les 114 sourates et le Coran numérique (lecteur de pages plein écran : glisser pour tourner, double tap pour zoomer). **Révisions** : le programme du jour, ce qui arrive, les apprentissages.
+6. Mode avion : l'app reste utilisable. *Profil › Paramètres › Données* : export/import JSON, remise à zéro.
 
 Documentation : `docs/ARCHITECTURE.md`, `docs/NOTIFICATIONS.md`, `docs/DEPLOY.md`, `docs/FEATURES.md`.
 

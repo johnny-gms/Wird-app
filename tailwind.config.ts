@@ -15,6 +15,7 @@ export default {
         muted: v('muted'),
         line: v('line'),
         primary: v('primary'),
+        accent: v('accent'),
         deep: v('deep'),
         ivory: v('ivory'),
         gold: v('gold'),
@@ -34,14 +35,15 @@ export default {
         neutral: v('neutral'),
         'neutral-ink': v('neutral-ink'),
       },
-      // Typographie centralisée : sans-serif système pour l'interface, serif éditorial (celui de la version précédente) pour les titres,
+      // Typographie centralisée : Plus Jakarta Sans pour l'interface et les titres, Fraunces pour les accents éditoriaux,
       // Amiri Quran pour l'arabe. Polices système : aucun téléchargement.
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
-        display: ['"Iowan Old Style"', '"Palatino Linotype"', 'Palatino', '"Book Antiqua"', 'Georgia', 'serif'],
+        sans: ['"Plus Jakarta Sans Variable"', '"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        display: ['"Plus Jakarta Sans Variable"', '"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+        serif: ['"Fraunces Variable"', 'Fraunces', 'Georgia', 'serif'],
         arabic: ['"Amiri Quran"', '"Geeza Pro"', 'serif'],
       },
-      borderRadius: { xl2: '1.25rem' },
+      borderRadius: { xl2: '1.25rem', card: '24px' },
       boxShadow: {
         card: '0 1px 2px rgb(var(--shadow) / 0.05), 0 8px 24px -12px rgb(var(--shadow) / 0.12)',
       },

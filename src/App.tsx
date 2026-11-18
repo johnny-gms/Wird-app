@@ -18,14 +18,19 @@ import ProgressTab from './screens/progress/ProgressTab';
 import Profile from './screens/profile/Profile';
 import ProfileEdit from './screens/profile/ProfileEdit';
 import Settings from './screens/profile/Settings';
+import SettingsMemorisation from './screens/profile/SettingsMemorisation';
 import { ProfileNotifications, ProfileAbout } from './screens/profile/SubScreens';
 import Session from './screens/session/Session';
 import Bilan from './screens/session/Bilan';
+import Congrats from './screens/session/Congrats';
+import LearnChoose from './screens/wird/LearnChoose';
 
 /** Écran parent d'une sous-page (null = pas de retour par balayage : onglets principaux, séance, écrans à geste propre). */
 function parentRoute(pathname: string): string | null {
-  if (/^\/wird\/\d+$/.test(pathname) || pathname === '/coran') return '/wird';
-  if (pathname === '/connues') return '/profil/parametres';
+  if (/^\/wird\/\d+$/.test(pathname)) return '/wird';
+  if (pathname === '/apprendre') return '/revisions';
+  if (pathname === '/connues') return '/profil/parametres/memorisation';
+  if (pathname === '/profil/parametres/memorisation') return '/profil/parametres';
   if (['/profil/profil', '/profil/parametres', '/profil/apropos'].includes(pathname)) return '/profil';
   if (['/profil/notifications', '/profil/corbeille'].includes(pathname)) return '/profil/parametres';
   return null;
@@ -92,7 +97,7 @@ export default function App() {
   const isRoot = ROOTS.has(pathname);
   const routeKey = pathname;
   return (
-    <div className={cx(!focus && 'pb-24 lg:pb-0 lg:pl-60')}>
+    <div className={cx(!focus && 'pb-28 lg:pb-0 lg:pl-60')}>
       {!online && !focus && (
         <div className="pt-safe bg-warn-soft px-4 py-2 text-center text-xs font-semibold text-warn" role="status">
           Hors connexion — tes données restent enregistrées sur l’appareil.
@@ -123,6 +128,7 @@ export default function App() {
           <Route path="/wird/sourates/:id" element={<RedirectSurah />} />
           <Route path="/wird/:id" element={<SurahDetail />} />
           <Route path="/coran" element={<Coran />} />
+          <Route path="/apprendre" element={<LearnChoose />} />
           <Route path="/connues" element={<KnownScreen />} />
           <Route path="/revisions" element={<Revisions />} />
           <Route path="/progression" element={<ProgressTab />} />
@@ -132,11 +138,13 @@ export default function App() {
           <Route path="/profil/donnees" element={<Navigate to="/profil" replace />} />
           <Route path="/profil/profil" element={<ProfileEdit />} />
           <Route path="/profil/parametres" element={<Settings />} />
+          <Route path="/profil/parametres/memorisation" element={<SettingsMemorisation />} />
           <Route path="/profil/notifications" element={<ProfileNotifications />} />
           <Route path="/profil/corbeille" element={<Trash />} />
           <Route path="/profil/apropos" element={<ProfileAbout />} />
           <Route path="/session" element={<Session />} />
           <Route path="/session/bilan" element={<Bilan />} />
+          <Route path="/session/felicitations" element={<Congrats />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

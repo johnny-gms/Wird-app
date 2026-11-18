@@ -25,7 +25,7 @@ async function setup() {
   const store = new MemoryStore();
   const call = (path: string, body?: object, headers: Record<string, string> = {}, method = 'POST', now = new Date('2026-04-10T05:00:00Z')) =>
     handleRequest(new Request('https://api.example.org' + path, { method, headers: { 'content-type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined }), env, store, now, fetchImpl);
-  const subscription = { endpoint: 'https://push.example.net/abc', keys: { p256dh: b64uEncode(ua.getPublicKey()), auth: b64uEncode(auth) } };
+  const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', keys: { p256dh: b64uEncode(ua.getPublicKey()), auth: b64uEncode(auth) } };
   return { env, store, call, subscription, sentPushes, setStatus: (s: number) => (status = s), fetchImpl };
 }
 const prefs = DEFAULT_NOTIFICATIONS;
@@ -48,6 +48,10 @@ describe('Worker de rappels — API', () => {
     expect((await t.call('/api/prefs', { endpoint: t.subscription.endpoint, prefs }, { 'x-wird-token': 'x'.repeat(43) })).status).toBe(401);
     expect((await t.call('/api/prefs', { endpoint: t.subscription.endpoint, prefs: { daily: 1 } }, { 'x-wird-token': token })).status).toBe(400);
     expect((await t.call('/api/subscribe', { subscription: { endpoint: 'http://insecure', keys: { p256dh: 'a', auth: 'b' } }, prefs })).status).toBe(400);
+    // seules les adresses des vrais services Push sont acceptées (pas de requêtes vers un site quelconque)
+    for (const bad of ['https://evil.example.com/x', 'https://fcm.googleapis.com.evil.com/x', 'https://user:pw@fcm.googleapis.com/x', 'https://fcm.googleapis.com:8443/x', 'https://127.0.0.1/x']) {
+      expect((await t.call('/api/subscribe', { subscription: { endpoint: bad, keys: { p256dh: 'a', auth: 'b' } }, prefs })).status).toBe(400);
+    }
     expect((await t.call('/api/prefs', { endpoint: t.subscription.endpoint, prefs: { ...prefs, daily: { enabled: false, time: '06:15' } } }, { 'x-wird-token': token })).status).toBe(200);
     expect(t.store.subs.get(t.subscription.endpoint)!.prefs.daily).toEqual({ enabled: false, time: '06:15' });
   });
