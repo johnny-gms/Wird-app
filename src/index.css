@@ -21,6 +21,8 @@
   --accent: 29 74 55; /* onglet actif et barres de progression : vert en clair, doré en sombre */
   --ring: 169 196 174;
   --glory: 227 194 119; /* éclat du bilan : doré en clair, crème en sombre */
+  --vm-ring: 29 74 55;
+  --vm-fill: 226 236 225;
   --deep: 18 53 42; /* #12352A */
   --ivory: 255 255 255;
   --gold: 169 196 174; /* sauge #A9C4AE */
@@ -53,6 +55,8 @@
   --accent: 236 235 228;
   --ring: 236 235 228;
   --glory: 236 235 228;
+  --vm-ring: 236 235 228;
+  --vm-fill: 30 48 78;
   --deep: 14 30 52;
   --ivory: 255 255 255;
   --gold: 170 170 164;
@@ -95,6 +99,50 @@
 :root[data-theme='dark'] .label,
 :root[data-theme='dark'] .eyebrow { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-weight: 600; letter-spacing: 0.14em; font-size: 11px; text-transform: uppercase; }
 :root[data-theme='dark'] .eyebrow::before { content: '•'; margin-right: 0.55em; color: rgb(var(--accent)); }
+
+
+/* numéro de verset : médaillon à 8 pointes (étoile arrondie), aux couleurs de l'app */
+.vm {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 2.05em;
+  height: 2.05em;
+  margin: 0 0.3em;
+  vertical-align: middle;
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: 'Amiri Quran', 'Geeza Pro', serif;
+  font-size: 0.56em;
+  line-height: 1;
+  color: rgb(var(--ink));
+  background: none;
+  border: 0;
+  min-width: 0;
+  height: 2.05em;
+}
+.vm > span { position: relative; z-index: 1; font-weight: 700; }
+.vm::before, .vm::after { content: ''; position: absolute; pointer-events: none; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+.vm::before { inset: 0; background: rgb(var(--vm-ring)); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'%3E%3Crect x='9.0' y='9.0' width='30' height='30'/%3E%3Crect x='9.0' y='9.0' width='30' height='30' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'%3E%3Crect x='9.0' y='9.0' width='30' height='30'/%3E%3Crect x='9.0' y='9.0' width='30' height='30' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E"); }
+.vm::after { inset: 15%; background: rgb(var(--vm-fill)); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'%3E%3Crect x='9.0' y='9.0' width='30' height='30'/%3E%3Crect x='9.0' y='9.0' width='30' height='30' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'%3E%3Crect x='9.0' y='9.0' width='30' height='30'/%3E%3Crect x='9.0' y='9.0' width='30' height='30' transform='rotate(45 24 24)'/%3E%3C/g%3E%3C/svg%3E"); }
+
+/* Thèmes de lecture du Coran (indépendants du thème de l'app) : sombre et fond blanc */
+.reader-dark {
+  --bg: 9 16 29; --surface: 14 24 42; --surface2: 24 39 64; --ink: 235 241 250; --muted: 139 156 182; --line: 36 52 80;
+  --primary: 236 235 228; --primary-ink: 11 11 13; --accent: 236 235 228; --ring: 236 235 228; --soft: 22 36 60;
+  --good: 124 200 158; --blue: 167 171 247; --hard: 240 160 92; --alert: 236 128 118; --neutral: 30 44 70;
+  --vm-ring: 236 235 228; --vm-fill: 30 48 78;
+  --tj-madd-6: #f05aa8; --tj-madd-jaiz: #f0a94a; --tj-madd-2: #d8bd54; --tj-ghunna: #4cc98a; --tj-silent: #8a8f8c; --tj-qalqala: #4cc8e0; --tj-tafkhim: #5aa8e0;
+  color-scheme: dark;
+}
+.reader-white {
+  --bg: 255 255 255; --surface: 255 255 255; --surface2: 242 242 240; --ink: 17 17 17; --muted: 105 110 108; --line: 224 224 220;
+  --primary: 29 74 55; --primary-ink: 255 255 255; --accent: 29 74 55; --ring: 29 74 55; --soft: 232 240 232;
+  --good: 47 122 85; --blue: 91 134 197; --hard: 223 150 56; --alert: 212 106 90; --neutral: 231 227 217;
+  --vm-ring: 29 74 55; --vm-fill: 226 236 225;
+  --tj-madd-6: #e0218a; --tj-madd-jaiz: #d98a1e; --tj-madd-2: #b89b2c; --tj-ghunna: #1fa05a; --tj-silent: #9a9a9a; --tj-qalqala: #1ba8c7; --tj-tafkhim: #1e6fa5;
+  color-scheme: light;
+}
 
 @layer base {
   html {
@@ -164,21 +212,6 @@
     background: linear-gradient(150deg, #1f5240, #12352a);
     @apply rounded-[26px] text-[#f4f1e8];
     box-shadow: 0 1px 2px rgb(var(--shadow) / 0.05), 0 6px 18px rgb(var(--shadow) / 0.08);
-  }
-  /* repère de fin de verset, comme l'artefact */
-  .vm {
-    @apply inline-block text-center align-middle text-primary;
-    direction: ltr;
-    unicode-bidi: isolate;
-    min-width: 1.7em;
-    height: 1.7em;
-    line-height: 1.55em;
-    border-radius: 50%;
-    border: 1.5px solid #8fa896;
-    font-size: 0.62em;
-    font-family: 'Amiri Quran', 'Geeza Pro', serif;
-    margin: 0 0.25em;
-    background: radial-gradient(circle, transparent 62%, rgba(143, 168, 150, 0.18) 64%);
   }
   /* ===== Composants de la maquette index ===== */
   .mem-btn { background: #f6f1e4; color: #12352a; }
@@ -301,17 +334,6 @@ html.fs-active::-webkit-scrollbar { display: none; }
   border: 5px solid #3aa89a;
   border-image: repeating-linear-gradient(135deg, #3aa89a 0 6px, #d9b866 6px 9px, #3aa89a 9px 15px) 5;
   box-shadow: inset 0 0 0 2px rgb(var(--surface)), inset 0 0 0 3px #3aa89a55;
-}
-.mushaf .vm {
-  min-width: 1.55em;
-  height: 1.55em;
-  line-height: 1.5em;
-  margin: 0 0.15em;
-  border: 1.5px solid #3aa89a;
-  border-radius: 9999px;
-  font-size: 0.55em;
-  color: inherit;
-  background: transparent;
 }
 .mushaf-title { margin: 4px 0 10px; padding: 4px 0; text-align: center; font-size: 22px; border: 1.5px solid #3aa89a; border-radius: 8px; background: #3aa89a1a; }
 .mushaf-tab { padding: 2px 14px; font-size: 14px; border: 1.5px solid #3aa89a; border-radius: 6px; background: rgb(var(--surface)); }

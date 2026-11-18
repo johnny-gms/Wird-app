@@ -2,13 +2,13 @@ import { AlignJustify, BookOpen, ChevronLeft, ChevronsLeft, ChevronsRight, Slide
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { TOTAL_PAGES, pageRange } from '@/engine/pages';
-import { fromAyahId, hizbOf, surahMeta } from '@/engine/quran';
+import { fromAyahId, surahMeta } from '@/engine/quran';
 import { haptic } from '@/lib/haptics';
 import { basmalaFor, type QuranData } from '@/lib/quranText';
 import { TAJWEED_LEGEND, tajweedParts, type TajweedData } from '@/lib/tajweed';
 import { useReaderData } from '@/lib/useReaderData';
 import { VerseSheet } from './VerseSheet';
-import { Sheet, cx } from './ui';
+import { Segmented, Sheet, cx } from './ui';
 
 const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';
 const arNum = (n: number) => String(n).replace(/\d/g, (d) => AR_DIGITS[+d]);
@@ -88,7 +88,7 @@ function Slide({ page, data, tj, tjOn, size, highlight, onVerse }: { page: numbe
                 {g.ayahs.map((a) => (
                   <span key={a}>
                     <span onClick={() => onVerse(g.surah, a)} className={cx('cursor-pointer rounded-md', inHl(g.surah, a) && 'bg-primary/20')}>{colored(g.surah, a, data.s[g.surah - 1][a - 1])}</span>{' '}
-                    <span className="vm">{arNum(a)}</span>{' '}
+                    <span className="vm"><span>{arNum(a)}</span></span>{' '}
                   </span>
                 ))}
               </p>
@@ -112,13 +112,53 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
   const [sel, setSel] = useState<{ surah: number; ayah: number } | null>(null);
   const [settings, setSettings] = useState(false);
   const [goto, setGoto] = useState('');
+  const [theme, setTheme] = useState<'normal' | 'dark' | 'white'>(() => {
+    try { const v = localStorage.getItem('wird-reader-theme'); return v === 'dark' || v === 'white' ? v : 'normal'; } catch { return 'normal'; }
+  });
+  const pickTheme = (t: 'normal' | 'dark' | 'white') => {
+    setTheme(t);
+    try { localStorage.setItem('wird-reader-theme', t); } catch { /* ignore */ }
+  };
+  // zoom par double tap : échelle + déplacement de la page
+  const zl = useRef<HTMLDivElement>(null);
+  const zoomState = useRef({ s: 1, x: 0, y: 0 });
+  const [zoomed, setZoomed] = useState(false);
+  const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
+  const dbl = useRef(false);
+  const verseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const view = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ x: number; y: number; id: number; on: boolean } | null>(null);
+  const drag = useRef<{ x: number; y: number; id: number; on: boolean; tx: number; ty: number; t: number } | null>(null);
   const busy = useRef(false);
 
   const surahName = surahMeta(groupsOf(pg)[0].surah).tr;
-  const juz = Math.ceil(hizbOf(pageRange(pg)[0]) / 2);
+
+  const applyZoom = useCallback((animate: boolean) => {
+    const z = zl.current;
+    const v = view.current;
+    if (!z || !v) return;
+    const st = zoomState.current;
+    const w = v.clientWidth;
+    const h = v.clientHeight;
+    st.x = Math.max(w - w * st.s, Math.min(0, st.x));
+    st.y = Math.max(h - h * st.s, Math.min(0, st.y));
+    z.style.transition = animate ? 'transform .22s cubic-bezier(.2,.8,.2,1)' : 'none';
+    z.style.transform = `translate(${st.x}px, ${st.y}px) scale(${st.s})`;
+  }, []);
+  const resetZoom = useCallback(() => {
+    zoomState.current = { s: 1, x: 0, y: 0 };
+    setZoomed(false);
+    applyZoom(true);
+  }, [applyZoom]);
+  const toggleZoomAt = (px: number, py: number) => {
+    const st = zoomState.current;
+    if (st.s > 1) { resetZoom(); return; }
+    const s = 2.4;
+    zoomState.current = { s, x: px - s * px, y: py - s * py };
+    setZoomed(true);
+    applyZoom(true);
+  };
+  useEffect(() => { resetZoom(); }, [pg, resetZoom]);
 
   const move = useCallback((dx: number, animate: boolean) => {
     const t = track.current;
@@ -143,14 +183,21 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
 
   const down = (e: React.PointerEvent) => {
     if (busy.current) return;
-    drag.current = { x: e.clientX, y: e.clientY, id: e.pointerId, on: false };
+    drag.current = { x: e.clientX, y: e.clientY, id: e.pointerId, on: false, tx: zoomState.current.x, ty: zoomState.current.y, t: performance.now() };
   };
   const mv = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
     const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (zoomState.current.s > 1) {
+      // page agrandie : on se déplace dans la page
+      if (!d.on && Math.hypot(dx, dy) > 6) { d.on = true; (e.currentTarget as HTMLElement).setPointerCapture(d.id); }
+      if (d.on) { zoomState.current.x = d.tx + dx; zoomState.current.y = d.ty + dy; applyZoom(false); }
+      return;
+    }
     if (!d.on) {
-      if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(e.clientY - d.y)) {
+      if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
         d.on = true;
         (e.currentTarget as HTMLElement).setPointerCapture(d.id);
       } else return;
@@ -162,8 +209,27 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
   const up = (e: React.PointerEvent) => {
     const d = drag.current;
     drag.current = null;
-    if (!d || !d.on) return;
+    if (!d) return;
     const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (!d.on) {
+      // un simple toucher : deux touchers rapprochés = zoom / retour à la taille normale
+      if (Math.hypot(dx, dy) < 10 && performance.now() - d.t < 350) {
+        const now = performance.now();
+        const lt = lastTap.current;
+        const rect = view.current?.getBoundingClientRect();
+        if (lt && now - lt.t < 320 && Math.hypot(e.clientX - lt.x, e.clientY - lt.y) < 40 && rect) {
+          lastTap.current = null;
+          dbl.current = true;
+          setTimeout(() => { dbl.current = false; }, 400);
+          if (verseTimer.current) clearTimeout(verseTimer.current);
+          haptic('select');
+          toggleZoomAt(e.clientX - rect.left, e.clientY - rect.top);
+        } else lastTap.current = { t: now, x: e.clientX, y: e.clientY };
+      }
+      return;
+    }
+    if (zoomState.current.s > 1) return;
     const w = view.current?.clientWidth ?? 360;
     if (Math.abs(dx) > Math.min(90, w * 0.22)) turn(dx > 0 ? 1 : -1);
     else move(0, true);
@@ -182,10 +248,10 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
   const circle = 'grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface2 text-ink transition active:scale-95 disabled:opacity-35';
 
   const slideOf = (p: number): ReactNode =>
-    p >= 1 && p <= TOTAL_PAGES && data ? <Slide page={p} data={data} tj={tj} tjOn={tjOn} size={size} highlight={highlight} onVerse={(s, a) => { haptic('tap'); setSel({ surah: s, ayah: a }); }} /> : null;
+    p >= 1 && p <= TOTAL_PAGES && data ? <Slide page={p} data={data} tj={tj} tjOn={tjOn} size={size} highlight={highlight} onVerse={(s, a) => { if (dbl.current) return; if (verseTimer.current) clearTimeout(verseTimer.current); verseTimer.current = setTimeout(() => { haptic('tap'); setSel({ surah: s, ayah: a }); }, 280); }} /> : null;
 
   return createPortal(
-    <div className="pt-safe pb-safe fixed inset-0 z-[55] flex flex-col bg-bg" role="dialog" aria-label="Coran numérique, pages">
+    <div className={cx('pt-safe pb-safe fixed inset-0 z-[45] flex flex-col bg-bg text-ink', theme === 'dark' && 'reader-dark', theme === 'white' && 'reader-white')} role="dialog" aria-label="Coran numérique, pages">
       {/* barre du haut */}
       <div className="flex items-center justify-between gap-3 px-3.5 pb-2.5 pt-3">
         <button className={circle} onClick={onClose} aria-label="Retour"><ChevronLeft size={22} /></button>
@@ -197,19 +263,21 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
       </div>
 
       {/* la page */}
-      <div ref={view} className="relative min-h-0 flex-1 touch-pan-y select-none overflow-hidden border-y border-line bg-surface" onPointerDown={down} onPointerMove={mv} onPointerUp={up} onPointerCancel={up}>
+      <div ref={view} className={cx('relative min-h-0 flex-1 select-none overflow-hidden border-y border-line bg-surface', zoomed ? 'touch-none' : 'touch-pan-y')} onPointerDown={down} onPointerMove={mv} onPointerUp={up} onPointerCancel={up}>
         {failed && <p className="p-6 text-center text-sm text-muted">Le texte n’a pas pu être chargé. Réessaie une fois connecté.</p>}
         {!data && !failed && <p className="p-6 text-center text-sm text-muted">Chargement…</p>}
-        <div ref={track} className="absolute inset-0 will-change-transform">
+        <div ref={zl} className="absolute inset-0 origin-top-left">
+        <div ref={track} className="absolute inset-0">
           <div className="absolute inset-0" style={{ transform: 'translateX(-100%)' }} aria-hidden>{slideOf(pg + 1)}</div>
           <div className="absolute inset-0">{slideOf(pg)}</div>
           <div className="absolute inset-0" style={{ transform: 'translateX(100%)' }} aria-hidden>{slideOf(pg - 1)}</div>
+        </div>
         </div>
       </div>
 
       {/* bande de pages */}
       <div className="shrink-0 px-3.5 pb-2 pt-2">
-        <p className="text-center text-[13px] text-muted">{surahName} · Juz {juz} · page {pg} / {TOTAL_PAGES}</p>
+        <p className="text-center text-[13px] text-muted">{surahName} · page {pg} / {TOTAL_PAGES}</p>
         <div className="mt-2 flex items-center justify-between gap-2">
           <button className={circle} disabled={pg >= TOTAL_PAGES} onClick={() => { haptic('select'); onPage(TOTAL_PAGES); }} aria-label="Dernière page"><ChevronsLeft size={20} /></button>
           <div className="flex min-w-0 flex-1 items-start justify-center gap-1.5" role="group" aria-label="Pages voisines">
@@ -228,6 +296,11 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
 
       <Sheet open={settings} onClose={() => setSettings(false)} title="Réglages de lecture">
         <div className="space-y-5 pb-2">
+          <div>
+            <b className="block">Fond de lecture</b>
+            <span className="mb-2 block text-sm text-muted">Normal suit le thème de l’app.</span>
+            <Segmented<'normal' | 'dark' | 'white'> value={theme} onChange={pickTheme} options={[{ value: 'normal', label: 'Normal' }, { value: 'dark', label: 'Sombre' }, { value: 'white', label: 'Fond blanc' }]} />
+          </div>
           <div className="flex items-center justify-between gap-3">
             <div><b className="block">Tajwid</b><span className="text-sm text-muted">Couleurs des règles de récitation</span></div>
             <button className="chip" aria-pressed={tjOn} onClick={toggleTj}>{tjOn ? 'Activé' : 'Désactivé'}</button>
