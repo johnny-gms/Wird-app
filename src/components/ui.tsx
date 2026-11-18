@@ -94,7 +94,7 @@ export function Tabs<T extends string>({ options, value, onChange }: { options: 
   );
 }
 
-export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: ReactNode }) {
+export function Sheet({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title?: string; children: ReactNode; footer?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<{ y0: number; last: number; t: number; v: number } | null>(null);
   useEffect(() => {
@@ -143,8 +143,8 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 animate-fade bg-ink/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="pb-safe relative max-h-[88dvh] w-full max-w-[520px] animate-sheet-up overflow-y-auto rounded-t-[28px] bg-bg px-4 pb-6 shadow-[0_-6px_30px_rgba(0,0,0,.2)] outline-none sm:rounded-[28px]">
-        <div className="sticky top-0 z-10 -mx-4 touch-none bg-bg px-4 pb-2 pt-2.5" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="relative flex max-h-[88dvh] w-full max-w-[520px] animate-sheet-up flex-col overflow-hidden rounded-t-[28px] bg-bg shadow-[0_-6px_30px_rgba(0,0,0,.2)] outline-none sm:rounded-[28px]">
+        <div className="z-10 shrink-0 touch-none bg-bg px-4 pb-2 pt-2.5" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
           <i className="mx-auto mb-2 block h-[5px] w-11 rounded-full bg-line" />
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-[19px] font-bold tracking-[-0.2px]">{title}</h2>
@@ -153,7 +153,9 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
             </button>
           </div>
         </div>
-        {children}
+        {/* contenu défilant ; le pied (actions) reste toujours collé au bord bas, au-dessus de la zone sûre */}
+        <div className={cx('min-h-0 flex-1 overflow-y-auto px-4', footer ? 'pb-3' : 'pb-safe pb-6')}>{children}</div>
+        {footer && <div className="pb-safe shrink-0 border-t border-line bg-bg px-4 pt-2.5 pb-1">{footer}</div>}
       </div>
     </div>,
     document.body,

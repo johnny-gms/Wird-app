@@ -156,9 +156,12 @@ function Detail({ surah }: { surah: number }) {
         </ul>
       )}
 
-      <Sheet open={picking} onClose={close} title={`${meta.tr} · sélectionner des versets`}>
-        <VersePicker surah={surah} selected={sel} onChange={setSel} verses={verses} />
-        <div className="sticky bottom-0 -mx-4 mt-4 border-t border-line bg-bg px-4 pb-1 pt-2.5">
+      <Sheet
+        open={picking}
+        onClose={close}
+        title={`${meta.tr} · sélectionner des versets`}
+        footer={
+          <>
           <p className="mb-2 text-[13px]"><b>{sel.size}</b> verset{sel.size > 1 ? 's' : ''} sélectionné{sel.size > 1 ? 's' : ''}{runs.length ? ` · ${runs.map(([f, t]) => (f === t ? f : `${f}–${t}`)).join(', ')}` : ''}</p>
           <div className="grid grid-cols-2 gap-2">
             <button className="btn-primary !min-h-[44px] text-sm" disabled={!sel.size} onClick={() => { runs.forEach(([f, t]) => addMemorized(surah, f, t)); haptic('success'); toast('Marqué comme déjà appris'); close(); }}><Check size={16} /> Déjà appris</button>
@@ -190,7 +193,10 @@ function Detail({ surah }: { surah: number }) {
               close();
             }}><Trash2 size={16} /> Retirer</button>
           </div>
-        </div>
+          </>
+        }
+      >
+        <VersePicker surah={surah} selected={sel} onChange={setSel} verses={verses} />
       </Sheet>
       <div className="mt-8"><SurahNav surah={surah} /></div>
       {verse && <VerseSheet surah={surah} ayah={verse} onClose={() => setVerse(null)} />}
