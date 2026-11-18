@@ -1,25 +1,19 @@
-import { Bell, ChevronRight, Download, Smartphone, Upload } from 'lucide-react';
+import { Bell, ChevronRight, Download, GraduationCap, Smartphone, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { LearnLevels, ReviewLevels, learnPatch, learnValueFromSettings, reviewPatch, reviewValueFromSettings } from '@/components/LevelPickers';
+import { Link } from 'react-router-dom';
+import { learnSummary, learnValueFromSettings, reviewSummary, reviewValueFromSettings } from '@/components/LevelPickers';
 import { ConfirmSheet, Segmented, SubPage, Toggle, toast } from '@/components/ui';
 import { dateKey } from '@/engine/dates';
-import type { Direction, ThemeMode } from '@/engine/types';
+import type { ThemeMode } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
 import { isIOS, isStandalone, useInstall } from '@/lib/pwa';
 import { APP_VERSION } from '@/lib/version';
 import { useWird } from '@/store/useWird';
 
-const DIR: { value: Direction; label: string }[] = [
-  { value: 'forward', label: 'Al-Fatiha → An-Nas' },
-  { value: 'backward', label: 'An-Nas → Al-Fatiha' },
-];
-
 const Section = ({ children }: { children: React.ReactNode }) => <h2 className="label mb-2 mt-7">{children}</h2>;
 
 /** Paramètres : réglages organisés en sections claires (le Profil ne garde que l'identité et les accès). */
 export default function Settings() {
-  const nav = useNavigate();
   const { profile, settings, updateSettings, exportData, importData, resetAll } = useWird();
   const install = useInstall((s) => s.event);
   const [reset, setReset] = useState(false);
@@ -41,24 +35,15 @@ export default function Settings() {
 
   return (
     <SubPage title="Paramètres" back="/profil">
-      <Section>Mémorisation et révision</Section>
-      <div className="card space-y-4 p-4">
-        <b>Mémorisation et révision</b>
-        <div>
-          <p className="mb-2 text-sm text-muted">Apprentissage de nouveaux versets</p>
-          <LearnLevels value={learnValueFromSettings(settings)} onChange={(v) => updateSettings(learnPatch(v))} />
-        </div>
-        <div>
-          <p className="mb-2 text-sm text-muted">Révision</p>
-          <ReviewLevels value={reviewValueFromSettings(settings)} onChange={(v) => updateSettings(reviewPatch(v))} />
-          <p className="mt-1 text-xs text-muted">Si tu connais moins de contenu, la révision se limite à ce que tu as. Rien n’est reporté ni dû.</p>
-        </div>
-        <div>
-          <p className="mb-1.5 text-sm text-muted">Sens d’apprentissage des nouvelles sourates</p>
-          <Segmented<Direction> value={settings.learnDirection} onChange={(learnDirection) => updateSettings({ learnDirection })} options={DIR} />
-        </div>
-      </div>
-
+      <Section>Mémorisation et apprentissage</Section>
+      <Link to="/profil/parametres/memorisation" className="card flex items-center gap-3 p-4">
+        <GraduationCap size={20} className="text-primary" />
+        <span className="min-w-0 flex-1">
+          <b className="block">Rythme et sourates apprises</b>
+          <span className="block truncate text-sm text-muted">{learnSummary(learnValueFromSettings(settings))} · {reviewSummary(reviewValueFromSettings(settings))}</span>
+        </span>
+        <ChevronRight size={18} className="text-muted" />
+      </Link>
 
       <Section>Apparence</Section>
       <div className="card space-y-3 p-4">
@@ -67,13 +52,6 @@ export default function Settings() {
           <div><p>Retours haptiques</p><p className="text-xs text-muted">Légères vibrations quand l’appareil le permet.</p></div>
           <Toggle label="Retours haptiques" checked={settings.haptics} onChange={(haptics) => { updateSettings({ haptics }); if (haptics) setTimeout(() => haptic('success'), 50); }} />
         </div>
-      </div>
-
-
-      <Section>Sourates déjà apprises</Section>
-      <div className="card p-4">
-        <p className="mb-2 text-sm text-muted">Indique en un tap les sourates que tu connais avant WIRD. Elles sont marquées apprises, sans compter comme du travail dans l’application.</p>
-        <button className="btn-soft w-full" onClick={() => nav('/connues')}>Choisir mes sourates</button>
       </div>
 
 

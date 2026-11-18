@@ -8,13 +8,13 @@ import { rangePages } from '@/engine/pages';
 import { addDays, diffDays, endOfMonth, parseKey, startOfMonth, startOfWeek } from '@/engine/dates';
 import { dueReinforcement } from '@/engine/plan';
 import { activeDaySet, activeDaysIn, allHizbStats, allSurahStats, currentStreak, overall } from '@/engine/progress';
-import { ayahId, fromAyahId, formatDuration, hizbRange, rangeLabel, surahMeta } from '@/engine/quran';
+import { ayahId, fromAyahId, hizbRange, rangeLabel, surahMeta } from '@/engine/quran';
 import { periodReport } from '@/engine/reports';
 import { groupRuns } from '@/engine/rotation';
 import type { Grade, HistoryEntry, ProgressPoint, SessionSummary, VerseState } from '@/engine/types';
 import { formatDateShort, useToday } from '@/lib/hooks';
 import { useWird } from '@/store/useWird';
-import { GoalsCompact, History } from './ProgressMore';
+import { GoalsCompact } from './ProgressMore';
 import { SurahGrid } from '../wird/SurahGrid';
 
 type Range = 7 | 30 | 90 | 0; // 0 = tout
@@ -79,7 +79,7 @@ export default function ProgressPage() {
           <button key={r.v} role="tab" aria-selected={range === r.v} onClick={() => setRange(r.v)} className="chip">{r.l}</button>
         ))}
       </div>
-      <Evolution range={range} today={today} history={history} progressLog={progressLog} summaries={summaries} days={days} />
+      <Evolution range={range} today={today} history={history} progressLog={progressLog} days={days} />
 
       {/* ---------- Bilan ---------- */}
       <Bilan today={today} history={history} progressLog={progressLog} summaries={summaries} />
@@ -87,10 +87,6 @@ export default function ProgressPage() {
       {/* ---------- Versets à renforcer ---------- */}
       <H2>Mes versets à renforcer</H2>
       <Reinforce verses={verses} history={history} progressLog={progressLog} today={today} />
-
-      {/* ---------- Historique ---------- */}
-      <H2>Historique</H2>
-      <History />
 
       {/* ---------- Suivi des hizb ---------- */}
       <H2>Suivi des hizb</H2>
@@ -122,32 +118,10 @@ function Big({ n, l }: { n: number; l: string }) {
 const Title = ({ children }: { children: React.ReactNode }) => <p className="text-base font-bold">{children}</p>;
 
 // ------------------------------------------------------------------ Évolution
-function weekBuckets(from: string, today: string): { start: string; end: string }[] {
-  const out: { start: string; end: string }[] = [];
-  let s = startOfWeek(from);
-  while (s <= today) {
-    out.push({ start: s, end: addDays(s, 6) });
-    s = addDays(s, 7);
-  }
-  return out;
-}
-
-function Evolution({ range, today, history, progressLog, summaries, days }: { range: Range; today: string; history: HistoryEntry[]; progressLog: ProgressPoint[]; summaries: SessionSummary[]; days: Set<string> }) {
+function Evolution({ range, today, history, progressLog, days }: { range: Range; today: string; history: HistoryEntry[]; progressLog: ProgressPoint[]; days: Set<string> }) {
   const first = history.length ? history.reduce((m, h) => (h.date < m ? h.date : m), today) : today;
   const from = range === 0 ? first : addDays(today, -(range - 1));
-  // 7 jours : barres quotidiennes ; sinon : barres hebdomadaires (26 semaines au plus)
-  const buckets = useMemo(() => {
-    if (range === 7) return Array.from({ length: 7 }, (_, i) => ({ start: addDays(today, i - 6), end: addDays(today, i - 6) }));
-    return weekBuckets(from, today).slice(-26);
-  }, [range, from, today]);
-  const sessions = buckets.map((b) => activeDaysIn(days, b.start, b.end));
-  const timeMs = buckets.map((b) => summaries.filter((s) => s.date >= b.start && s.date <= b.end).reduce((a, s) => a + s.activeMs, 0));
-  const totalSessions = sessions.reduce((a, n) => a + n, 0);
-  const totalMs = timeMs.reduce((a, n) => a + n, 0);
   const rep = useMemo(() => periodReport(history, progressLog, from, today), [history, progressLog, from, today]);
-  const unit = range === 7 ? 'jour' : 'sem.';
-  const labelL = formatDateShort(buckets[0]?.start ?? today).replace(/^\w+\.? /, '');
-  const labelR = range === 7 ? 'aujourd’hui' : 'sem. en cours';
 
   // courbe : points du journal de progression dans la période (+ dernier point avant)
   const pts = useMemo(() => {
@@ -173,18 +147,6 @@ function Evolution({ range, today, history, progressLog, summaries, days }: { ra
       </div>
 
       <div className="card p-4">
-        <Title>Séances par {range === 7 ? 'jour' : 'semaine'}</Title>
-        <p className="mt-0.5 text-sm text-muted">{totalSessions} jour{totalSessions > 1 ? 's' : ''} de travail sur la période</p>
-        {totalSessions > 0 ? <Bars values={sessions} left={labelL} right={labelR} unit={unit} /> : <p className="mt-1 text-xs text-muted">Pas encore de données sur cette période.</p>}
-      </div>
-
-      <div className="card p-4">
-        <Title>Temps consacré</Title>
-        <p className="mt-0.5 text-sm text-muted">{totalMs >= 60_000 ? formatDuration(totalMs) : '0 min'} sur la période (temps actif mesuré)</p>
-        {totalMs >= 60_000 ? <Bars values={timeMs} left={labelL} right={labelR} unit={unit} /> : <p className="mt-1 text-xs text-muted">Pas encore de données sur cette période.</p>}
-      </div>
-
-      <div className="card p-4">
         <Title>Évaluations</Title>
         <Grades r={rep.byGrade} total={rep.verses} />
       </div>
@@ -206,20 +168,6 @@ function Line({ points }: { points: number[] }) {
       <polygon points={`0,${H} ${line} ${W},${H}`} className="fill-primary/10" />
       <polyline points={line} fill="none" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="stroke-primary" />
     </svg>
-  );
-}
-
-function Bars({ values, left, right, unit }: { values: number[]; left: string; right: string; unit: string }) {
-  const max = Math.max(1, ...values);
-  return (
-    <>
-      <div className="mt-3 flex h-[70px] items-end gap-[3px]" role="img" aria-label={`Valeurs par ${unit}`}>
-        {values.map((v, i) => (
-          <i key={i} className={cx('block min-h-[3px] flex-1 rounded-t-[3px]', i === values.length - 1 ? 'bg-primary' : 'bg-sage')} style={{ height: `${Math.max(4, (v / max) * 100)}%`, opacity: v ? 1 : 0.55 }} />
-        ))}
-      </div>
-      <div className="mt-1.5 flex justify-between text-xs text-muted"><span>{left}</span><span>{right}</span></div>
-    </>
   );
 }
 

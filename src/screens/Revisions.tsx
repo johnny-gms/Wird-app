@@ -192,7 +192,7 @@ export default function Revisions() {
         <div className="mt-4">
           <p className="card px-4 py-3 text-sm leading-relaxed text-muted">
             {learningEnabled(settings) ? <>Ton rythme : <b className="text-ink">{settings.learnWeekly ? (settings.learnWeekly.unit === 'verses' ? `${settings.learnWeekly.amount} verset${settings.learnWeekly.amount > 1 ? 's' : ''} par semaine` : `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(settings.learnWeekly.amount)} page${settings.learnWeekly.amount > 1 ? 's' : ''} par semaine`) : 'rythme personnalisé'}</b>, {settings.learnDirection === 'forward' ? 'du début du Coran' : 'de la fin du Coran'}. </> : 'Pas de nouvel apprentissage. '}
-            <Link to="/profil/parametres" className="font-semibold text-primary">Modifier</Link>
+            <Link to="/profil/parametres/memorisation" className="font-semibold text-primary">Modifier</Link>
           </p>
           <div className="mt-3 space-y-2.5">
             {active.length === 0 && <p className="card p-5 text-center text-sm text-muted">{learningEnabled(settings) ? 'WIRD ouvrira automatiquement la prochaine sourate à apprendre.' : 'Aucun apprentissage en cours. Ajoutes-en un ci-dessous.'}</p>}

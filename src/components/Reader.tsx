@@ -81,14 +81,14 @@ export function Reader({ page, onPage, onSurah, surah, mode, onMode, highlight }
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
-        <div className="flex gap-2" role="tablist">
-          <button role="tab" aria-selected={mode === 'page'} className="chip" onClick={() => onMode('page')}>Pages</button>
-          <button role="tab" aria-selected={mode === 'list'} className="chip" onClick={() => onMode('list')}>Liste</button>
+        <div className="flex items-center gap-1.5" role="tablist">
+          <button role="tab" aria-selected={mode === 'page'} className="chip chip-sm" onClick={() => onMode('page')}>Pages</button>
+          <button role="tab" aria-selected={mode === 'list'} className="chip chip-sm" onClick={() => onMode('list')}>Liste</button>
         </div>
-        <div className="flex gap-1.5">
-          <button className="chip" aria-pressed={tjOn} onClick={toggleTj}>Tajwid</button>
-          <button className="btn-soft !min-h-[36px] !px-3 text-sm" onClick={() => zoom(-0.15)} aria-label="Réduire le texte">A−</button>
-          <button className="btn-soft !min-h-[36px] !px-3 text-sm" onClick={() => zoom(0.15)} aria-label="Agrandir le texte">A+</button>
+        <div className="flex items-center gap-1.5">
+          <button className="chip chip-sm" aria-pressed={tjOn} onClick={toggleTj}>Tajwid</button>
+          <button className="chip chip-sm" onClick={() => zoom(-0.15)} aria-label="Réduire le texte">A−</button>
+          <button className="chip chip-sm" onClick={() => zoom(0.15)} aria-label="Agrandir le texte">A+</button>
         </div>
       </div>
 
