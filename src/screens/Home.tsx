@@ -2,6 +2,7 @@ import { ChevronRight, Flame } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ProfileAvatar } from '@/components/Avatar';
+import { ReviewMoreSheet } from '@/components/ReviewMoreSheet';
 import { Sheet, cx } from '@/components/ui';
 import { addDays, diffDays, startOfWeek } from '@/engine/dates';
 import { formatPages } from '@/engine/pages';
@@ -26,6 +27,7 @@ export default function Home() {
   const { profile, plan, verses, goals, history, session, settings } = store;
   const [awayHidden, setAwayHidden] = useState(false);
   const [flame, setFlame] = useState(false);
+  const [more, setMore] = useState(false);
   const [motivation, setMotivation] = useState<string | null>(null);
   useEffect(() => {
     void loadQuranText().then((d) => d && setMotivation(d.s[72][3].split(' ').slice(-3).join(' ')));
@@ -113,10 +115,10 @@ export default function Home() {
           <div className="min-w-0 flex-1">
             <p className="eyebrow text-[10.5px] font-bold uppercase tracking-[1.4px] opacity-70">Mémorisation</p>
             <h2 className="mt-2 text-[21px] font-extrabold leading-tight tracking-[-0.3px]">
-              {session ? 'Séance en cours' : nextReview ? `${surahMeta(nextReview.surah).tr} · ${rangeLabel(nextReview.surah, nextReview.from, nextReview.to).replace(/^Sourate \d+ — /, '')}` : reviewItems.length ? 'Révisions terminées' : 'Rien à réviser pour le moment'}
+              {session ? 'Séance en cours' : nextReview ? `${surahMeta(nextReview.surah).tr} · ${rangeLabel(nextReview.surah, nextReview.from, nextReview.to).replace(/^Sourate \d+ — /, '')}` : reviewItems.length ? 'Révisions terminées' : o.memorizedVerses > 0 ? 'Pas de révision prévue' : 'Rien à réviser pour le moment'}
             </h2>
             <p className="mt-1 text-[13.5px] opacity-75">
-              {session ? (sessionHasReview ? 'Reprends là où tu t’es arrêté.' : 'Une séance d’apprentissage est ouverte : reprends-la quand tu veux.') : nextReview ? `${reviewPending.length > 1 ? `et ${reviewPending.length - 1} autre${reviewPending.length > 2 ? 's' : ''} passage${reviewPending.length > 2 ? 's' : ''} · ` : ''}≈ ${formatPages(pagesOf(reviewPending))}` : reviewItems.length ? 'Qu’Allah te facilite, à demain 🌿' : hasAny ? 'Profite de ta journée.' : 'Tes révisions apparaîtront ici.'}
+              {session ? (sessionHasReview ? 'Reprends là où tu t’es arrêté.' : 'Une séance d’apprentissage est ouverte : reprends-la quand tu veux.') : nextReview ? `${reviewPending.length > 1 ? `et ${reviewPending.length - 1} autre${reviewPending.length > 2 ? 's' : ''} passage${reviewPending.length > 2 ? 's' : ''} · ` : ''}≈ ${formatPages(pagesOf(reviewPending))}` : reviewItems.length ? 'Qu’Allah te facilite, à demain 🌿 Tu peux aussi réviser en plus.' : o.memorizedVerses > 0 ? 'Tu peux réviser ce que tu connais quand tu veux.' : hasAny ? 'Profite de ta journée.' : 'Tes révisions apparaîtront ici.'}
             </p>
             {streak > 0 && <p className="streak-line mt-2 font-mono text-[12.5px] font-semibold">🔥 {streak} jour{streak > 1 ? 's' : ''} d’affilée</p>}
           </div>
@@ -124,8 +126,10 @@ export default function Home() {
         </div>
         <div className="relative z-[1] mt-4 flex items-center gap-3">
           {(session || reviewPending.length > 0) && <button className="mem-btn rounded-full px-5 py-3 text-[14.5px] font-bold transition active:scale-95" onClick={startReview}>{session ? 'Reprendre' : 'Commencer'}</button>}
+          {!session && reviewPending.length === 0 && o.memorizedVerses > 0 && <button className="mem-btn rounded-full px-5 py-3 text-[14.5px] font-bold transition active:scale-95" onClick={() => { haptic('tap'); setMore(true); }}>Réviser davantage</button>}
           <span className="text-[13px] opacity-70 tabular-nums" aria-label="Révisions faites aujourd’hui">{reviewDoneCount} / {reviewItems.length} passages</span>
         </div>
+        {!session && reviewPending.length > 0 && o.memorizedVerses > 0 && <button className="relative z-[1] mt-3 text-[13px] font-semibold underline underline-offset-2 opacity-80" onClick={() => { haptic('tap'); setMore(true); }}>Réviser en plus</button>}
       </article>
 
       {/* Série et semaine */}
@@ -198,6 +202,8 @@ export default function Home() {
           <small className="mt-1.5 block text-xs text-muted">Al-Muzzammil · verset 4</small>
         </div>
       </div>
+
+      <ReviewMoreSheet open={more} onClose={() => setMore(false)} />
 
       {/* Série */}
       <Sheet open={flame} onClose={() => setFlame(false)} title="Ma série">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, ENGINE } from './config';
-import { weekQuota, nextLearnTargets, buildPlan, dailyLearnPages, learningEnabled, itemIds, completeGoal, evaluateItem, goalProgress, memorizedIds, nextLearnTarget, skipItem, itemPages, upcomingRotation, type Core } from './plan';
+import { weekQuota, nextLearnTargets, buildPlan, dailyLearnPages, learningEnabled, itemIds, completeGoal, evaluateItem, goalProgress, memorizedIds, nextLearnTarget, skipItem, itemPages, upcomingRotation, reviewAheadItems, type Core } from './plan';
 import { TOTAL_PAGES, idsPages, pageOf, rangePages } from './pages';
 import { allHizbStats, currentStreak, overall, surahStats } from './progress';
 import { ayahId, fromAyahId, hizbOf, hizbRange, SURAHS, TOTAL_VERSES } from './quran';
@@ -513,5 +513,59 @@ describe('objectif par semaine : plusieurs petites sourates', () => {
     const goal = { id: 'g', surah: 114, from: 1, to: 6, cursor: 1, paused: false, createdAt: '2026-05-04', completedAt: null };
     const c = completeGoal(mkCore({}, { goals: [goal] }), 'g', '2026-05-05');
     expect(Object.values(c.verses).every((v) => !v.fragile && v.reinforceDue === null)).toBe(true);
+  });
+});
+
+describe('réviser en plus, quand on veut', () => {
+  const core = () => mkCore(mem(2, 1, 286, mem(3, 1, 200)));
+  it('propose les pages suivantes de la rotation, même si le programme du jour est terminé', () => {
+    let c = core();
+    c = { ...c, plan: buildPlan(c, D, null) };
+    for (const i of c.plan!.items.filter((x) => x.kind === 'review')) c = evaluateItem(c, i.id, 'mastered', new Date(D + 'T08:00:00Z'), D);
+    expect(c.plan!.items.every((i) => i.status === 'done')).toBe(true);
+    const extra = reviewAheadItems(c, c.plan!, 2);
+    expect(extra.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(extra.flatMap(itemIds)).size).toBe(extra.flatMap(itemIds).length);
+    const before = new Set(c.plan!.items.flatMap(itemIds));
+    expect(extra.flatMap(itemIds).some((id) => before.has(id))).toBe(false); // jamais les mêmes versets le même jour
+    expect(extra.every((i) => i.adhoc && i.kind === 'review' && i.endCursor !== undefined)).toBe(true);
+  });
+  it('faire une révision en plus fait avancer la rotation, et elle survit à un recalcul du programme', () => {
+    let c = core();
+    c = { ...c, plan: buildPlan(c, D, null) };
+    for (const i of c.plan!.items) c = evaluateItem(c, i.id, 'mastered', new Date(D + 'T08:00:00Z'), D);
+    const cursorBefore = c.rotation.cursor;
+    const extra = reviewAheadItems(c, c.plan!, 1);
+    c = { ...c, plan: { ...c.plan!, items: [...c.plan!.items, ...extra] } };
+    // un recalcul (réglage modifié…) ne fait pas disparaître la révision demandée
+    const rebuilt = buildPlan(c, D, c.plan);
+    expect(rebuilt.items.some((i) => i.id === extra[0].id && i.status === 'pending')).toBe(true);
+    c = { ...c, plan: rebuilt };
+    c = evaluateItem(c, extra[0].id, 'mastered', new Date(D + 'T09:00:00Z'), D);
+    expect(c.rotation.cursor).toBe(extra[0].endCursor);
+    expect(c.rotation.cursor).not.toBe(cursorBefore);
+    // demande suivante : on continue après, sans répéter
+    const more = reviewAheadItems(c, c.plan!, 1);
+    expect(more[0] && itemIds(more[0]).some((id) => itemIds(extra[0]).includes(id))).toBeFalsy();
+  });
+  it('au lancement : des sourates seulement déclarées « déjà apprises » peuvent être révisées à la demande', () => {
+    const v: Record<number, VerseState> = {};
+    for (let a = 1; a <= 20; a++) v[ayahId(78, a)] = { ...newMemorizedVerse(ayahId(78, a), '2026-03-01'), declared: true };
+    let c = mkCore(v);
+    c = { ...c, plan: buildPlan(c, D, null) };
+    expect(c.plan!.items.filter((i) => i.kind === 'review')).toHaveLength(0); // aucune révision imposée
+    const extra = reviewAheadItems(c, c.plan!, 1);
+    expect(extra.length).toBe(1);
+    expect(extra[0].surah).toBe(78);
+    expect(extra[0].endCursor).toBeUndefined(); // ne déplace pas la rotation
+    c = { ...c, plan: { ...c.plan!, items: [...c.plan!.items, ...extra] } };
+    c = evaluateItem(c, extra[0].id, 'mastered', new Date(D + 'T09:00:00Z'), D);
+    expect(c.verses[ayahId(78, extra[0].from)].declared).toBe(false); // entre dans le suivi normal
+    const more = reviewAheadItems(c, c.plan!, 1);
+    expect(more.flatMap(itemIds).some((id) => itemIds(extra[0]).includes(id))).toBe(false);
+  });
+  it('rien à réviser : liste vide', () => {
+    const c = mkCore({});
+    expect(reviewAheadItems(c, { date: D, items: [] }, 2)).toEqual([]);
   });
 });

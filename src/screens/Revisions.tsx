@@ -1,6 +1,7 @@
 import { BookOpen, Check, ChevronDown, Flame, Pause, Play, RefreshCw, Undo2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ReviewMoreSheet } from '@/components/ReviewMoreSheet';
 import { ConfirmSheet, GradeChip, ProgressBar, Screen, cx, toast } from '@/components/ui';
 import { addDays } from '@/engine/dates';
 import { formatPages, pageOf } from '@/engine/pages';
@@ -37,6 +38,7 @@ export default function Revisions() {
   const [tab, setTab] = useState<Tab>('today');
   const [confirm, setConfirm] = useState<{ id: string; kind: 'complete' | 'delete' } | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [more, setMore] = useState(false);
 
   const items = plan?.items ?? [];
   const pending = items.filter((i) => i.status === 'pending');
@@ -70,6 +72,7 @@ export default function Revisions() {
   ];
 
   return (
+    <>
     <Screen title="Révisions" sub="Ton programme du jour, ce qui arrive et tes apprentissages">
       {/* Où j'en suis */}
       <section className="kpi" aria-label="Avancement du jour">
@@ -88,6 +91,11 @@ export default function Revisions() {
         {(session || pending.length > 0) && (
           <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#F6F1E4] py-3.5 text-[15.5px] font-bold text-[#12352A] transition active:scale-[.98]" onClick={() => begin()}>
             <Play size={16} fill="currentColor" strokeWidth={0} /> {session ? 'Reprendre ma séance' : 'Commencer ma séance'}
+          </button>
+        )}
+        {!session && Object.values(vs).some((v) => v.status === 'memorized') && (
+          <button className={pending.length ? 'mt-3 w-full text-center text-[13.5px] font-semibold underline underline-offset-2 opacity-85' : 'mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#F6F1E4] py-3.5 text-[15.5px] font-bold text-[#12352A] transition active:scale-[.98]'} onClick={() => { haptic('tap'); setMore(true); }}>
+            {pending.length ? 'Réviser en plus' : 'Réviser davantage'}
           </button>
         )}
       </section>
@@ -249,6 +257,8 @@ export default function Revisions() {
         }}
       />
     </Screen>
+    <ReviewMoreSheet open={more} onClose={() => setMore(false)} />
+    </>
   );
 }
 

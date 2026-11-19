@@ -78,7 +78,8 @@ export function dueReinforcement(verses: Record<number, VerseState>, date: strin
  * Les éléments déjà terminés ou ignorés sont conservés ; seuls les éléments « à faire » sont recalculés. Aucune dette.
  */
 export function buildPlan(ctx: PlanBuildContext, date: string, prev: DailyPlan | null): DailyPlan {
-  const kept = prev && prev.date === date ? prev.items.filter((i) => i.status === 'done' || i.status === 'skipped') : [];
+  // Les révisions « en plus » (demandées par l'utilisateur) restent au programme tant qu'elles ne sont pas faites.
+  const kept = prev && prev.date === date ? prev.items.filter((i) => i.status === 'done' || i.status === 'skipped' || (i.extra && i.status === 'pending')) : [];
   const items: PlanItem[] = [...kept];
 
   // 1. Renforcement
@@ -183,6 +184,44 @@ export function buildPlan(ctx: PlanBuildContext, date: string, prev: DailyPlan |
 
   items.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
   return { date, items };
+}
+
+/**
+ * Révision « en plus » : les prochaines pages de la rotation, à la demande, même si le programme du jour est terminé.
+ * Elles prolongent la rotation (le curseur avance, demain on continue après) et comptent dans l'objectif de la semaine.
+ * Renvoie une liste vide s'il n'y a rien de plus à réviser aujourd'hui.
+ */
+export function reviewAheadItems(ctx: Pick<PlanBuildContext, 'verses' | 'rotation'>, plan: DailyPlan, pages: number): PlanItem[] {
+  const memorized = rotationIds(ctx.verses);
+  const used = new Set<number>(plan.items.flatMap(itemIds));
+  const last = [...plan.items].reverse().find((i) => i.kind === 'review' && i.endCursor !== undefined);
+  let cursor = last?.endCursor ?? ctx.rotation.cursor;
+  const n = plan.items.filter((i) => i.adhoc).length;
+  const out: PlanItem[] = [];
+  const seenPages = new Set<number>();
+  let guard = memorized.length + 2;
+  while (seenPages.size < pages && guard-- > 0) {
+    const c = nextChunk(memorized, cursor, used, ENGINE.chunkSize, true);
+    if (!c) break;
+    c.ids.forEach((id) => used.add(id));
+    seenPages.add(pageOf(c.ids[0]));
+    out.push({ id: `${plan.date}:adhoc:${n + out.length}:${c.surah}:${c.from}-${c.to}`, kind: 'review', surah: c.surah, from: c.from, to: c.to, status: 'pending', adhoc: true, extra: true, endCursor: c.endCursor, wraps: c.wraps });
+    cursor = c.endCursor;
+  }
+  // Plus rien à réviser dans la rotation (par exemple au lancement, quand les sourates sont seulement déclarées « déjà apprises ») :
+  // on propose ce que l'utilisateur dit connaître. Dès qu'un passage est évalué, il entre dans le suivi normal (voir applyGrade).
+  if (seenPages.size < pages) {
+    const declared = memorizedIds(ctx.verses).filter((id) => ctx.verses[id].declared && !ENGINE.autoExcludedSurahs.includes(fromAyahId(id).surah));
+    guard = declared.length + 2;
+    while (seenPages.size < pages && guard-- > 0) {
+      const c = nextChunk(declared, null, used, ENGINE.chunkSize, true);
+      if (!c) break;
+      c.ids.forEach((id) => used.add(id));
+      seenPages.add(pageOf(c.ids[0]));
+      out.push({ id: `${plan.date}:adhoc:${n + out.length}:${c.surah}:${c.from}-${c.to}`, kind: 'review', surah: c.surah, from: c.from, to: c.to, status: 'pending', adhoc: true, extra: true });
+    }
+  }
+  return out;
 }
 
 /** Pages du Mushaf par unité de révision : un Hizb ≈ 10 pages (604 ÷ 60), un Juz ≈ 20 pages (604 ÷ 30). */
@@ -365,7 +404,8 @@ export function evaluateItem(core: Core, itemId: string, grade: Grade, now: Date
   // Avance le curseur de rotation sur le préfixe d'éléments de rotation terminés.
   let rotation = core.rotation;
   const applied = new Set<string>();
-  for (const i of items.filter((x) => x.kind === 'review' && !x.adhoc)) {
+  // (les révisions en plus portent aussi un curseur : prendre de l'avance fait avancer la rotation)
+  for (const i of items.filter((x) => x.kind === 'review' && (!x.adhoc || x.endCursor !== undefined))) {
     if (i.applied) continue;
     if (i.status !== 'done') break;
     rotation = { cursor: i.endCursor ?? rotation.cursor, cycles: rotation.cycles + (i.wraps ? 1 : 0) };

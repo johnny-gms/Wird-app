@@ -59,6 +59,8 @@ export interface PlanItem {
   applied?: boolean;
   /** Ajouté à la demande (n'influence pas la rotation). */
   adhoc?: boolean;
+  /** Révision « en plus » demandée par l'utilisateur (reste au programme tant qu'elle n'est pas faite). */
+  extra?: boolean;
   doneAt?: string;
 }
 
