@@ -515,3 +515,30 @@ describe('objectif par semaine : plusieurs petites sourates', () => {
     expect(Object.values(c.verses).every((v) => !v.fragile && v.reinforceDue === null)).toBe(true);
   });
 });
+
+describe('réviser en plus : plage choisie', () => {
+  it('une révision en plus demandée reste au programme après un recalcul, sans déplacer la rotation', () => {
+    let c = mkCore(mem(78, 1, 40));
+    c = { ...c, plan: buildPlan(c, D, null) };
+    const item = { id: `${D}:adhoc:0:78:1-10`, kind: 'review' as const, surah: 78, from: 1, to: 10, status: 'pending' as const, adhoc: true, extra: true };
+    c = { ...c, plan: { ...c.plan!, items: [...c.plan!.items, item] } };
+    const rebuilt = buildPlan(c, D, c.plan);
+    expect(rebuilt.items.some((i) => i.id === item.id && i.status === 'pending')).toBe(true);
+    const before = c.rotation.cursor;
+    c = evaluateItem({ ...c, plan: rebuilt }, item.id, 'mastered', new Date(D + 'T09:00:00Z'), D);
+    expect(c.rotation.cursor).toBe(before);
+    expect(c.history.some((h) => h.kind === 'review' && h.surah === 78 && h.from === 1 && h.to === 10)).toBe(true);
+  });
+  it('un passage seulement déclaré « déjà appris » entre dans le suivi normal dès qu’il est évalué', () => {
+    const v: Record<number, VerseState> = {};
+    for (let a = 1; a <= 20; a++) v[ayahId(78, a)] = { ...newMemorizedVerse(ayahId(78, a), '2026-03-01'), declared: true };
+    let c = mkCore(v);
+    c = { ...c, plan: buildPlan(c, D, null) };
+    expect(c.plan!.items.filter((i) => i.kind === 'review')).toHaveLength(0);
+    const item = { id: `${D}:adhoc:0:78:1-5`, kind: 'review' as const, surah: 78, from: 1, to: 5, status: 'pending' as const, adhoc: true, extra: true };
+    c = { ...c, plan: { ...c.plan!, items: [item] } };
+    c = evaluateItem(c, item.id, 'mastered', new Date(D + 'T09:00:00Z'), D);
+    expect(c.verses[ayahId(78, 3)].declared).toBe(false);
+    expect(c.verses[ayahId(78, 8)].declared).toBe(true);
+  });
+});

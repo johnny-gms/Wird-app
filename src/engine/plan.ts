@@ -78,7 +78,8 @@ export function dueReinforcement(verses: Record<number, VerseState>, date: strin
  * Les éléments déjà terminés ou ignorés sont conservés ; seuls les éléments « à faire » sont recalculés. Aucune dette.
  */
 export function buildPlan(ctx: PlanBuildContext, date: string, prev: DailyPlan | null): DailyPlan {
-  const kept = prev && prev.date === date ? prev.items.filter((i) => i.status === 'done' || i.status === 'skipped') : [];
+  // Les révisions « en plus » (demandées par l'utilisateur) restent au programme tant qu'elles ne sont pas faites.
+  const kept = prev && prev.date === date ? prev.items.filter((i) => i.status === 'done' || i.status === 'skipped' || (i.extra && i.status === 'pending')) : [];
   const items: PlanItem[] = [...kept];
 
   // 1. Renforcement
