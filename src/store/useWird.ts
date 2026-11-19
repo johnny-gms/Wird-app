@@ -12,7 +12,6 @@ import {
   memorizedIds,
   nextLearnTargets,
   reopenItem,
-  reviewAheadItems,
   skipItem,
   type Core,
 } from '@/engine/plan';
@@ -85,8 +84,8 @@ interface Actions {
   startLearnAhead(goalId?: string, opts?: { mode?: SessionMode; minutes?: number; verses?: number }): boolean;
   /** Ajoute un passage à la demande (séance supplémentaire) : révision par défaut, ou apprentissage lié à un objectif. */
   addAdhoc(surah: number, from: number, to: number, opts?: { kind?: 'learn'; goalId?: string }): string | null;
-  /** Révision en plus, quand l'utilisateur veut : les prochaines pages de la rotation, même si le programme du jour est fait. Retourne false s'il n'y a rien de plus à réviser. */
-  startReviewAhead(pages: number): boolean;
+  /** Révision en plus, quand l'utilisateur veut : une sourate entière ou des versets précis (seuls les versets appris sont retenus), même si le programme du jour est fait. Retourne false s'il n'y a rien d'appris dans la plage. */
+  startReviewRange(surah: number, from: number, to: number): boolean;
   /** Ouvre la séance (tout le programme restant, ou un seul élément). Retourne false s'il n'y a rien à faire. */
   startSession(only?: string | string[], opts?: { mode?: SessionMode; minutes?: number }): boolean;
   chooseMode(mode: SessionMode): void;
@@ -419,11 +418,20 @@ export const useWird = create<WirdStore>((set, get) => {
       return get().startSession([id], { mode: opts?.mode, minutes: opts?.minutes });
     },
 
-    startReviewAhead(pages) {
+    startReviewRange(surah, from, to) {
       get().ensureToday();
       const s = get();
       if (!s.plan) return false;
-      const items = reviewAheadItems(s, s.plan, pages);
+      const items: PlanItem[] = [];
+      let n = s.plan.items.filter((i) => i.adhoc).length;
+      let a = from;
+      while (a <= to) {
+        while (a <= to && s.verses[ayahId(surah, a)]?.status !== 'memorized') a++;
+        let b = a;
+        while (b < to && s.verses[ayahId(surah, b + 1)]?.status === 'memorized') b++;
+        if (a <= to) items.push({ id: `${s.plan.date}:adhoc:${n++}:${surah}:${a}-${b}`, kind: 'review', surah, from: a, to: b, status: 'pending', adhoc: true, extra: true });
+        a = b + 1;
+      }
       if (!items.length) return false;
       set({ plan: { ...s.plan, items: [...s.plan.items, ...items] } });
       return get().startSession(items.map((i) => i.id));

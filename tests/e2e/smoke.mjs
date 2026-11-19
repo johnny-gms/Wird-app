@@ -105,7 +105,11 @@ ok(!/Rappels activés/.test(await body()), 'jamais « Rappels activés » sans a
   const txt = await p2.locator('body').innerText();
   ok(/Réviser davantage/.test(txt), 'accueil : « Réviser davantage » proposé même sans programme de révision du jour');
   await p2.getByRole('button', { name: 'Réviser davantage' }).click();
-  await p2.getByRole('button', { name: /^1 page/ }).click();
+  await p2.getByLabel('Rechercher une sourate').fill('naba');
+  await p2.getByRole('button', { name: /An-Naba|Naba/ }).first().click();
+  await p2.getByRole('button', { name: 'Choisir des versets' }).click();
+  ok(/Versets? \d/.test(await p2.getByRole('dialog').innerText()), 'révision en plus : choix de la plage de versets');
+  await p2.getByRole('button', { name: /^Réviser (le|les) versets? / }).click();
   await p2.waitForURL('**/session');
   if (await p2.getByText('Comment veux-tu travailler ?').isVisible().catch(() => false)) await chooseMode(p2, 'mushaf');
   const n2 = await gradeAll(p2, 'Maîtrisé');
