@@ -127,7 +127,7 @@ interface Actions {
 export interface OnboardingConfig {
   name: string;
   gender?: Gender | null;
-  /** Sourates déjà apprises avant WIRD (déclarées : hors rotation de révision tant qu'elles ne sont pas travaillées). */
+  /** Sourates déjà apprises avant WIRD (déclarées : elles entrent dans la rotation de révision). */
   knownSurahs: number[];
   learnDirection: Direction;
   learnMode: LearnMode;

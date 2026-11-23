@@ -23,7 +23,7 @@ export interface VerseState {
   reviews: number;
   addedAt: string; // AAAA-MM-JJ
   source: 'user' | 'demo';
-  /** Verset déclaré « déjà appris » avant WIRD et jamais travaillé dans l'application : hors rotation de révision. */
+  /** Verset déclaré « déjà appris » avant WIRD et jamais travaillé dans l'application : signalé tel quel jusqu'à sa première évaluation dans WIRD. */
   declared?: boolean;
 }
 

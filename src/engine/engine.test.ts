@@ -534,7 +534,7 @@ describe('réviser en plus : plage choisie', () => {
     for (let a = 1; a <= 20; a++) v[ayahId(78, a)] = { ...newMemorizedVerse(ayahId(78, a), '2026-03-01'), declared: true };
     let c = mkCore(v);
     c = { ...c, plan: buildPlan(c, D, null) };
-    expect(c.plan!.items.filter((i) => i.kind === 'review')).toHaveLength(0);
+    expect(c.plan!.items.filter((i) => i.kind === 'review').length).toBeGreaterThan(0); // les sourates déclarées sont au programme de révision
     const item = { id: `${D}:adhoc:0:78:1-5`, kind: 'review' as const, surah: 78, from: 1, to: 5, status: 'pending' as const, adhoc: true, extra: true };
     c = { ...c, plan: { ...c.plan!, items: [item] } };
     c = evaluateItem(c, item.id, 'mastered', new Date(D + 'T09:00:00Z'), D);

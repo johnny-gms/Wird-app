@@ -31,7 +31,7 @@ export function memorizedIds(verses: Record<number, VerseState>): number[] {
   return out.sort((a, b) => a - b);
 }
 
-/** Versets de la rotation de révision : mémorisés, hors versets simplement déclarés (voir ENGINE.declaredInRotation). */
+/** Versets de la rotation de révision : tous les versets mémorisés (les versets simplement déclarés « déjà appris » en font partie, voir ENGINE.declaredInRotation). */
 export function rotationIds(verses: Record<number, VerseState>): number[] {
   const out: number[] = [];
   for (const k in verses) {
