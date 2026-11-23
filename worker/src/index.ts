@@ -2,7 +2,7 @@
  * Worker de rappels WIRD (Cloudflare Workers + D1 + Cron Trigger). Contrat d'API : docs/NOTIFICATIONS.md.
  * Données Push : abonnement, préférences, fuseau, dernière activité. Synchronisation (/api/sync/*) : uniquement avec un compte.
  */
-import { decideReminders, type SubscriberState } from '../../src/notifications/rules';
+import { dueReminders, type SubscriberState } from '../../src/notifications/rules';
 import type { NotificationPrefs } from '../../src/engine/types';
 import { D1Store, type D1Like, type Store, type Subscriber } from './store';
 import { b64uEncode, importVapidKey, isPushEndpoint, sendWebPush } from './webpush';
@@ -58,8 +58,13 @@ const cleanTz = (tz: unknown): string => {
   return 'UTC';
 };
 
+const formatters = new Map<string, Intl.DateTimeFormat>(); // un formateur par fuseau (le cron passe chaque minute : on évite de les recréer pour chaque abonné)
 export function localParts(now: Date, tz: string): { date: string; time: string } {
-  const f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  let f = formatters.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    formatters.set(tz, f);
+  }
   const p = Object.fromEntries(f.formatToParts(now).map((x) => [x.type, x.value]));
   return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}` };
 }
@@ -110,7 +115,7 @@ export async function handleRequest(req: Request, env: Env, store: Store = new D
     if (!isPushEndpoint(s?.endpoint) || typeof s.keys?.p256dh !== 'string' || typeof s.keys?.auth !== 'string' || !prefs) return json(env, { error: 'invalid' }, 400);
     const existing = await store.get(s.endpoint);
     const token = b64uEncode(crypto.getRandomValues(new Uint8Array(32)));
-    const sub: Subscriber = { endpoint: s.endpoint, p256dh: s.keys.p256dh, auth: s.keys.auth, tokenHash: await sha256Hex(token), tz: cleanTz(body.tz), prefs, lastActivityDate: existing?.lastActivityDate ?? null, unfinishedDate: existing?.unfinishedDate ?? null, sent: existing?.sent ?? {} };
+    const sub: Subscriber = { endpoint: s.endpoint, p256dh: s.keys.p256dh, auth: s.keys.auth, tokenHash: await sha256Hex(token), tz: cleanTz(body.tz), prefs, lastActivityDate: existing?.lastActivityDate ?? null, unfinishedDate: existing?.unfinishedDate ?? null, sent: existing?.sent ?? {}, streak: existing?.streak ?? 0 };
     await store.put(sub);
     return json(env, { ok: true, token });
   }
@@ -135,7 +140,8 @@ export async function handleRequest(req: Request, env: Env, store: Store = new D
     case '/api/activity': {
       if (typeof body.date !== 'string' || !DATE.test(body.date)) return json(env, { error: 'invalid' }, 400);
       // toute activité arrête les relances du jour ; « unfinished » mémorise un travail laissé en cours
-      await store.put({ ...sub, tz: cleanTz(body.tz ?? sub.tz), lastActivityDate: body.date, unfinishedDate: body.unfinished === true ? body.date : null });
+      const streak = Number.isInteger(body.streak) && body.streak >= 0 && body.streak <= 100000 ? (body.streak as number) : sub.streak;
+      await store.put({ ...sub, tz: cleanTz(body.tz ?? sub.tz), lastActivityDate: body.date, unfinishedDate: body.unfinished === true ? body.date : null, streak });
       return json(env, { ok: true });
     }
     case '/api/resubscribe': {
@@ -165,18 +171,23 @@ export async function runCron(env: Env, store: Store, now: Date = new Date(), fe
       out.gone++;
       continue;
     }
-    const state: SubscriberState = { prefs: sub.prefs, lastActivityDate: sub.lastActivityDate, unfinishedDate: sub.unfinishedDate, sent: sub.sent };
+    const state: SubscriberState = { prefs: sub.prefs, lastActivityDate: sub.lastActivityDate, unfinishedDate: sub.unfinishedDate, sent: sub.sent, streak: sub.streak };
     const { date, time } = localParts(now, sub.tz);
-    for (const r of decideReminders(state, date, time)) {
-      const res = await sendWebPush({ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }, { title: r.title, body: r.body, url: '/', tag: `wird-${r.kind}` }, v, { fetchImpl });
-      if (res === 'gone') {
-        await store.delete(sub.endpoint);
-        out.gone++;
-      } else if (res === 'sent') {
-        await store.put({ ...sub, sent: { ...sub.sent, [r.kind]: r.stamp } });
-        out.sent++;
-      } else out.retry++;
-    }
+    // Un seul message par passage : le plus utile. Les autres rappels dus au même moment sont alors considérés comme couverts
+    // (sinon ils partiraient aux passages suivants et plusieurs notifications s'enchaîneraient).
+    const due = dueReminders(state, date, time);
+    if (!due.length) continue;
+    const r = due[0];
+    const res = await sendWebPush({ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }, { title: r.title, body: r.body, url: '/', tag: `wird-${r.kind}` }, v, { fetchImpl });
+    if (res === 'gone') {
+      await store.delete(sub.endpoint);
+      out.gone++;
+    } else if (res === 'sent') {
+      const sent = { ...sub.sent };
+      for (const d of due) sent[d.kind] = d.stamp;
+      await store.put({ ...sub, sent });
+      out.sent++;
+    } else out.retry++;
   }
   await store.setMeta('lastCron', now.toISOString());
   try {

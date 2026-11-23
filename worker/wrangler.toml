@@ -10,8 +10,8 @@ database_name = "wird-push"
 database_id = "e6d279f2-4cd0-41e4-96ce-ddfc464c6149"
 
 [triggers]
-# Toutes les 15 minutes : le Worker évalue, pour chaque abonné, quels rappels sont dus dans son fuseau horaire.
-crons = ["*/15 * * * *"]
+# Chaque minute : le Worker évalue, pour chaque abonné, quels rappels sont dus dans son fuseau horaire (le rappel part à l'heure choisie, à la minute près).
+crons = ["* * * * *"]
 
 [vars]
 ALLOWED_ORIGIN = "https://wird-app-u62.pages.dev"   # origine autorisée (CORS), sans / final

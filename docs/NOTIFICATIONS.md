@@ -3,7 +3,7 @@
 ## Ce qui est fait (dans le dépôt)
 - **App** : permission demandée après un geste, abonnement Push (VAPID), quatre rappels indépendants (quotidien, second si non validé, lendemain si inachevé, retour après absence) avec horaires, notification locale de test, **tableau de bord de configuration** (Profil › Rappels) qui vérifie réellement ce qui peut l'être.
 - **Service Worker** : affichage, clic (ouvre l'app), réabonnement automatique (`pushsubscriptionchange`).
-- **Worker** (`worker/`) : abonnement / désabonnement / préférences / activité / test, jeton secret par appareil (stocké haché), CORS limité à l'origine de l'app, Cron toutes les 15 min appliquant `src/notifications/rules.ts`. Chiffrement RFC 8291 et signature VAPID (RFC 8292) en WebCrypto, **testés** : interopérabilité avec l'implémentation de référence (`http_ece`), cycle complet du Cron (heures locales, absence de doublon, arrêt à la reprise d'activité, abonnements expirés 410, pannes 5xx).
+- **Worker** (`worker/`) : abonnement / désabonnement / préférences / activité / test, jeton secret par appareil (stocké haché), CORS limité à l'origine de l'app, Cron chaque minute (rappel à l'heure choisie, à la minute près ; un rappel manqué de plus de 30 min n'est jamais rattrapé) appliquant `src/notifications/rules.ts`. Chiffrement RFC 8291 et signature VAPID (RFC 8292) en WebCrypto, **testés** : interopérabilité avec l'implémentation de référence (`http_ece`), cycle complet du Cron (heures locales, absence de doublon, arrêt à la reprise d'activité, abonnements expirés 410, pannes 5xx).
 
 ## Ce que seul toi peux faire (compte Cloudflare) — étapes exactes
 Rien de ceci n'a été fait ni ne peut l'être depuis le dépôt : il faut ton compte.
@@ -14,11 +14,15 @@ Rien de ceci n'a été fait ni ne peut l'être depuis le dépôt : il faut ton c
 5. **Générer les clés VAPID** (chez toi) : `node scripts/gen-vapid.mjs`.
 6. **Enregistrer les secrets** : `npx wrangler secret put VAPID_PUBLIC_KEY` puis `npx wrangler secret put VAPID_PRIVATE_KEY` (colle les valeurs).
 7. **Déployer** : `npx wrangler deploy` → note l'URL du Worker (`https://wird-push.<ton-compte>.workers.dev`).
-8. **Vérifier le Cron** : Cloudflare › Workers & Pages › `wird-push` › Settings › Trigger Events › Cron Triggers → `*/15 * * * *`.
+8. **Vérifier le Cron** : Cloudflare › Workers & Pages › `wird-push` › Settings › Trigger Events › Cron Triggers → `* * * * *`.
 9. **Brancher l'app** (dans ce dépôt, l'adresse du Worker et la clé publique sont déjà dans `.env.production` : valeurs publiques, la clé privée n'y est jamais ; ne pas les redéfinir dans le tableau de bord Pages, qui aurait la priorité) : Cloudflare Pages › ton projet › Settings › Variables and secrets → `VITE_PUSH_API_URL` (URL du Worker) et `VITE_VAPID_PUBLIC_KEY` (clé publique), puis relance un déploiement.
 10. **Tester sur iPhone** (iOS 16.4+) : installe l'app sur l'écran d'accueil, ouvre-la depuis l'icône, Profil › Rappels › *Activer les rappels*, puis *Envoyer un test depuis le serveur*. Le tableau de bord doit afficher toutes les lignes en vert.
 
 ## Contrat d'API (JSON)
+**Règle d'envoi :** au plus deux messages par jour (matin, puis soir) et un seul par absence. Après une absence de `afterDays` jours : un message de reprise, puis silence jusqu'au retour. La veille d'un travail laissé inachevé, ce message remplace le rappel quotidien. Un rappel n'est envoyé que dans les 30 minutes qui suivent l'heure choisie (aucun rattrapage), et un seul message part à chaque passage du Cron.
+
+**Série :** `POST /api/activity {date, unfinished, streak, tz}` : `streak` (entier ≥ 0) est la série à la date de la dernière activité. Si l'utilisateur a travaillé hier et pas encore aujourd'hui, les rappels « quotidien » et « deuxième » mentionnent sa série (ton encourageant). Elle est conservée dans la colonne `sent` (clé `_streak`), sans migration.
+
 `POST /api/subscribe {subscription, prefs, tz}` → `{token}` · `POST /api/prefs|activity|unsubscribe|test|resubscribe` avec en-tête `x-wird-token` et `endpoint` · `GET /api/health` → `{ok, publicKey, lastCron}`.
 Données stockées : abonnement Push, préférences, fuseau, date de dernière activité. Jamais de versets ni d'évaluations.
 

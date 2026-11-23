@@ -16,6 +16,7 @@ import {
   type Core,
 } from '@/engine/plan';
 import { SURAHS, ayahId, surahMeta } from '@/engine/quran';
+import { activeDaySet, currentStreak } from '@/engine/progress';
 import { newLearningVerse, newMemorizedVerse } from '@/engine/scheduling';
 import type {
   DayRecord,
@@ -554,7 +555,7 @@ export const useWird = create<WirdStore>((set, get) => {
           : s.lastValidation;
       set({ verses: c.verses, goals: c.goals, rotation: c.rotation, history: c.history, plan: c.plan, lastValidation, progressLog: logProgress({ verses: c.verses, progressLog: s.progressLog }, today) });
       const stillOpen = (c.plan?.items ?? []).some((i) => i.status === 'pending');
-      if (evaluated > 0) void enqueue('activity', { date: today, at: now.toISOString(), unfinished: stillOpen, tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      if (evaluated > 0) void enqueue('activity', { date: today, at: now.toISOString(), unfinished: stillOpen, streak: currentStreak(activeDaySet(c.history), today), tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
       finishSummary();
       set({ session: null });
       return evaluated > 0 ? 'bilan' : 'none';
@@ -596,7 +597,7 @@ export const useWird = create<WirdStore>((set, get) => {
     interrupt(addMs) {
       const s = get().session;
       if (s) set({ session: { ...s, activeMs: s.activeMs + addMs } });
-      if (get().history.some((h) => h.date === dateKey())) void enqueue('activity', { date: dateKey(), at: new Date().toISOString(), unfinished: true, tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      if (get().history.some((h) => h.date === dateKey())) void enqueue('activity', { date: dateKey(), at: new Date().toISOString(), unfinished: true, streak: currentStreak(activeDaySet(get().history), dateKey()), tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
     },
     addActiveTime(ms) {
       const s = get().session;

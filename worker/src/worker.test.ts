@@ -100,11 +100,38 @@ describe('Worker de rappels — Cron (quatre catégories indépendantes)', () =>
     await t.call('/api/activity', { endpoint: t.subscription.endpoint, date: '2026-04-09', unfinished: true }, { 'x-wird-token': token });
     await runCron(t.env, t.store, new Date('2026-04-10T07:15:00Z'), t.fetchImpl); // 09:15 locale : inachevé
     expect(t.sentPushes.map((p) => p.message.tag)).toEqual(['wird-unfinished']);
-    await runCron(t.env, t.store, new Date('2026-04-13T09:00:00Z'), t.fetchImpl); // 4 jours après : retour
+    await runCron(t.env, t.store, new Date('2026-04-13T08:15:00Z'), t.fetchImpl); // 4 jours après, 10:15 locale : retour
     expect(t.sentPushes.map((p) => p.message.tag)).toContain('wird-comeback');
     const n = t.sentPushes.length;
-    await runCron(t.env, t.store, new Date('2026-04-14T09:00:00Z'), t.fetchImpl);
+    await runCron(t.env, t.store, new Date('2026-04-14T08:15:00Z'), t.fetchImpl);
     expect(t.sentPushes.length).toBe(n); // un seul message par absence
+  });
+  it('série en jeu : le rappel du jour mentionne la série ; valeur invalide ignorée', async () => {
+    const t = await setup();
+    const token = await sub(t);
+    await t.call('/api/activity', { endpoint: t.subscription.endpoint, date: '2026-04-09', unfinished: false, streak: 6 }, { 'x-wird-token': token });
+    await runCron(t.env, t.store, new Date('2026-04-10T05:45:00Z'), t.fetchImpl); // 07:45 locale
+    expect(t.sentPushes[0].message.title).toContain('6 jours');
+    expect(JSON.stringify([...t.store.subs.values()])).toContain('"streak":6');
+    await t.call('/api/activity', { endpoint: t.subscription.endpoint, date: '2026-04-09', streak: -3 }, { 'x-wird-token': token });
+    await t.call('/api/activity', { endpoint: t.subscription.endpoint, date: '2026-04-09', streak: 'abc' }, { 'x-wird-token': token });
+    expect([...t.store.subs.values()][0].streak).toBe(6);
+  });
+  it('jamais plusieurs notifications d’affilée : rappels activés tard, ou plusieurs rappels à la même heure', async () => {
+    // 1) activés à 21:00 : tous les créneaux du jour sont passés → rien ne part (pas de rattrapage)
+    const t = await setup();
+    await sub(t);
+    for (const iso of ['2026-04-10T19:00:00Z', '2026-04-10T19:01:00Z', '2026-04-10T19:15:00Z']) await runCron(t.env, t.store, new Date(iso), t.fetchImpl); // 21:00+ locale
+    expect(t.sentPushes).toHaveLength(0);
+    // 2) quatre rappels réglés à la même heure : un seul message, puis plus rien sur toute la journée
+    const u = await setup();
+    const same = { daily: { enabled: true, time: '08:00' }, second: { enabled: true, time: '08:10' }, unfinished: { enabled: true, time: '08:00' }, comeback: { enabled: true, afterDays: 3, time: '08:00' } };
+    const token = await sub(u, { prefs: same });
+    await u.call('/api/activity', { endpoint: u.subscription.endpoint, date: '2026-04-01', unfinished: true }, { 'x-wird-token': token });
+    for (let m = 0; m < 40; m++) await runCron(u.env, u.store, new Date(Date.UTC(2026, 3, 10, 6, m)), u.fetchImpl); // 08:00 → 08:39 locale
+    expect(u.sentPushes).toHaveLength(1);
+    await runCron(u.env, u.store, new Date('2026-04-10T17:45:00Z'), u.fetchImpl); // le soir : toujours rien (déjà couverts)
+    expect(u.sentPushes).toHaveLength(1);
   });
   it('abonnement expiré (410) : supprimé automatiquement', async () => {
     const t = await setup();

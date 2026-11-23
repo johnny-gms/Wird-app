@@ -11,8 +11,8 @@ import { useWird } from '@/store/useWird';
 
 // ------------------------------------------------------------------ Rappels
 const CATS: { key: keyof NotificationPrefs; title: string; hint: string; example: string }[] = [
-  { key: 'daily', title: 'Rappel quotidien', hint: 'Un rappel doux à l’heure choisie.', example: 'Ton programme est prêt, à ton rythme.' },
-  { key: 'second', title: 'Deuxième rappel', hint: 'Seulement si le Wird n’a pas été commencé.', example: 'Quelques minutes suffisent aujourd’hui.' },
+  { key: 'daily', title: 'Rappel quotidien', hint: 'Un rappel doux à l’heure choisie. Si tu as une série en cours, il la mentionne pour t’encourager.', example: 'Ton programme est prêt, à ton rythme.' },
+  { key: 'second', title: 'Deuxième rappel', hint: 'Seulement si le Wird n’a pas été commencé. Avec une série en cours : « Garde ta flamme allumée ».', example: 'Quelques minutes suffisent aujourd’hui.' },
   { key: 'unfinished', title: 'Travail inachevé', hint: 'Le lendemain, si un travail est resté en cours.', example: 'Tu avais commencé hier : reprends quand tu veux, sans pression.' },
   { key: 'comeback', title: 'Message de retour', hint: 'Après plusieurs jours d’absence, un seul message.', example: 'Rien à rattraper : ton Wird reprend simplement là où tu l’avais laissé.' },
 ];
@@ -159,10 +159,10 @@ function Dashboard({ status, onChanged }: { status: PushStatus | null; onChanged
     },
     {
       id: 'cron',
-      label: 'Cron actif (toutes les 15 minutes)',
-      state: !health?.reachable ? 'unknown' : cronAge !== null && cronAge < 35 ? 'ok' : 'todo',
+      label: 'Cron actif (chaque minute)',
+      state: !health?.reachable ? 'unknown' : cronAge !== null && cronAge < 5 ? 'ok' : 'todo',
       detail: health?.lastCron ? `Dernier passage : ${new Date(health.lastCron).toLocaleString('fr-FR')}` : undefined,
-      todo: <>Cloudflare › Workers &amp; Pages › <b>wird-push</b> › <b>Settings › Trigger Events › Cron Triggers</b> : vérifie la présence de <code>*/15 * * * *</code> (elle vient de <code>wrangler.toml</code> au déploiement). Le premier passage peut prendre jusqu’à 15 minutes.</>,
+      todo: <>Cloudflare › Workers &amp; Pages › <b>wird-push</b> › <b>Settings › Trigger Events › Cron Triggers</b> : vérifie la présence de <code>* * * * *</code> (elle vient de <code>wrangler.toml</code> au déploiement). Le premier passage peut prendre jusqu’à une minute.</>,
     },
     {
       id: 'install',
