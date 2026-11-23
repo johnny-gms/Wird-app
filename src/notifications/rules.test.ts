@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_NOTIFICATIONS } from '@/engine/config';
-import { decideReminders, type SubscriberState } from './rules';
+import { decideReminders, streakMessage, type SubscriberState } from './rules';
 
 const base = (over: Partial<SubscriberState> = {}): SubscriberState => ({ prefs: structuredClone(DEFAULT_NOTIFICATIONS), lastActivityDate: '2026-03-09', unfinishedDate: null, sent: {}, ...over });
 const kinds = (s: SubscriberState, d: string, t: string) => decideReminders(s, d, t).map((r) => r.kind);
@@ -38,5 +38,24 @@ describe('règles de rappel', () => {
   });
   it('un nouvel utilisateur (aucune activité) ne reçoit ni reprise ni message culpabilisant', () => {
     expect(kinds(base({ lastActivityDate: null }), '2026-03-10', '12:00')).toEqual(['daily']);
+  });
+  it('série en jeu : les rappels du jour en parlent (encourageant), sinon message habituel', () => {
+    const y = base({ lastActivityDate: '2026-03-09', streak: 5 });
+    const daily = decideReminders(y, '2026-03-10', '07:31')[0];
+    expect(daily.kind).toBe('daily');
+    expect(daily.title).toContain('5 jours');
+    const second = decideReminders({ ...y, sent: { daily: '2026-03-10' } }, '2026-03-10', '19:45')[0];
+    expect(second.kind).toBe('second');
+    expect(second.title).toMatch(/flamme/i);
+    expect(second.body).toContain('5 jours');
+    // 1 jour : on invite à allumer la série
+    expect(decideReminders(base({ streak: 1 }), '2026-03-10', '07:31')[0].title).toMatch(/Allume ta série/);
+    // dernière activité plus ancienne : série déjà interrompue, message habituel
+    const old = decideReminders(base({ lastActivityDate: '2026-03-07', streak: 5 }), '2026-03-10', '07:31')[0];
+    expect(old.title).toBe('Ton Wird du jour');
+    // série inconnue : message habituel
+    expect(decideReminders(base(), '2026-03-10', '07:31')[0].title).toBe('Ton Wird du jour');
+    // jamais de ton culpabilisant
+    for (const n of [1, 2, 30]) for (const k of ['daily', 'second'] as const) expect(JSON.stringify(streakMessage(k, n))).not.toMatch(/perdu|échec|dommage|honte|retard/i);
   });
 });

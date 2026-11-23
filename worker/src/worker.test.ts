@@ -106,6 +106,17 @@ describe('Worker de rappels — Cron (quatre catégories indépendantes)', () =>
     await runCron(t.env, t.store, new Date('2026-04-14T09:00:00Z'), t.fetchImpl);
     expect(t.sentPushes.length).toBe(n); // un seul message par absence
   });
+  it('série en jeu : le rappel du jour mentionne la série ; valeur invalide ignorée', async () => {
+    const t = await setup();
+    const token = await sub(t);
+    await t.call('/api/activity', { endpoint: t.subscription.endpoint, date: '2026-04-09', unfinished: false, streak: 6 }, { 'x-wird-token': token });
+    await runCron(t.env, t.store, new Date('2026-04-10T05:45:00Z'), t.fetchImpl); // 07:45 locale
+    expect(t.sentPushes[0].message.title).toContain('6 jours');
+    expect(JSON.stringify([...t.store.subs.values()])).toContain('"streak":6');
+    await t.call('/api/activity', { endpoint: t.subscription.endpoint, date: '2026-04-09', streak: -3 }, { 'x-wird-token': token });
+    await t.call('/api/activity', { endpoint: t.subscription.endpoint, date: '2026-04-09', streak: 'abc' }, { 'x-wird-token': token });
+    expect([...t.store.subs.values()][0].streak).toBe(6);
+  });
   it('abonnement expiré (410) : supprimé automatiquement', async () => {
     const t = await setup();
     await sub(t);

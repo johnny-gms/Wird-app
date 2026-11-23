@@ -11,8 +11,8 @@ import { useWird } from '@/store/useWird';
 
 // ------------------------------------------------------------------ Rappels
 const CATS: { key: keyof NotificationPrefs; title: string; hint: string; example: string }[] = [
-  { key: 'daily', title: 'Rappel quotidien', hint: 'Un rappel doux à l’heure choisie.', example: 'Ton programme est prêt, à ton rythme.' },
-  { key: 'second', title: 'Deuxième rappel', hint: 'Seulement si le Wird n’a pas été commencé.', example: 'Quelques minutes suffisent aujourd’hui.' },
+  { key: 'daily', title: 'Rappel quotidien', hint: 'Un rappel doux à l’heure choisie. Si tu as une série en cours, il la mentionne pour t’encourager.', example: 'Ton programme est prêt, à ton rythme.' },
+  { key: 'second', title: 'Deuxième rappel', hint: 'Seulement si le Wird n’a pas été commencé. Avec une série en cours : « Garde ta flamme allumée ».', example: 'Quelques minutes suffisent aujourd’hui.' },
   { key: 'unfinished', title: 'Travail inachevé', hint: 'Le lendemain, si un travail est resté en cours.', example: 'Tu avais commencé hier : reprends quand tu veux, sans pression.' },
   { key: 'comeback', title: 'Message de retour', hint: 'Après plusieurs jours d’absence, un seul message.', example: 'Rien à rattraper : ton Wird reprend simplement là où tu l’avais laissé.' },
 ];

@@ -110,7 +110,7 @@ export async function handleRequest(req: Request, env: Env, store: Store = new D
     if (!isPushEndpoint(s?.endpoint) || typeof s.keys?.p256dh !== 'string' || typeof s.keys?.auth !== 'string' || !prefs) return json(env, { error: 'invalid' }, 400);
     const existing = await store.get(s.endpoint);
     const token = b64uEncode(crypto.getRandomValues(new Uint8Array(32)));
-    const sub: Subscriber = { endpoint: s.endpoint, p256dh: s.keys.p256dh, auth: s.keys.auth, tokenHash: await sha256Hex(token), tz: cleanTz(body.tz), prefs, lastActivityDate: existing?.lastActivityDate ?? null, unfinishedDate: existing?.unfinishedDate ?? null, sent: existing?.sent ?? {} };
+    const sub: Subscriber = { endpoint: s.endpoint, p256dh: s.keys.p256dh, auth: s.keys.auth, tokenHash: await sha256Hex(token), tz: cleanTz(body.tz), prefs, lastActivityDate: existing?.lastActivityDate ?? null, unfinishedDate: existing?.unfinishedDate ?? null, sent: existing?.sent ?? {}, streak: existing?.streak ?? 0 };
     await store.put(sub);
     return json(env, { ok: true, token });
   }
@@ -135,7 +135,8 @@ export async function handleRequest(req: Request, env: Env, store: Store = new D
     case '/api/activity': {
       if (typeof body.date !== 'string' || !DATE.test(body.date)) return json(env, { error: 'invalid' }, 400);
       // toute activité arrête les relances du jour ; « unfinished » mémorise un travail laissé en cours
-      await store.put({ ...sub, tz: cleanTz(body.tz ?? sub.tz), lastActivityDate: body.date, unfinishedDate: body.unfinished === true ? body.date : null });
+      const streak = Number.isInteger(body.streak) && body.streak >= 0 && body.streak <= 100000 ? (body.streak as number) : sub.streak;
+      await store.put({ ...sub, tz: cleanTz(body.tz ?? sub.tz), lastActivityDate: body.date, unfinishedDate: body.unfinished === true ? body.date : null, streak });
       return json(env, { ok: true });
     }
     case '/api/resubscribe': {
@@ -165,7 +166,7 @@ export async function runCron(env: Env, store: Store, now: Date = new Date(), fe
       out.gone++;
       continue;
     }
-    const state: SubscriberState = { prefs: sub.prefs, lastActivityDate: sub.lastActivityDate, unfinishedDate: sub.unfinishedDate, sent: sub.sent };
+    const state: SubscriberState = { prefs: sub.prefs, lastActivityDate: sub.lastActivityDate, unfinishedDate: sub.unfinishedDate, sent: sub.sent, streak: sub.streak };
     const { date, time } = localParts(now, sub.tz);
     for (const r of decideReminders(state, date, time)) {
       const res = await sendWebPush({ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }, { title: r.title, body: r.body, url: '/', tag: `wird-${r.kind}` }, v, { fetchImpl });

@@ -18,6 +18,8 @@ export interface SubscriberState {
   unfinishedDate: string | null;
   /** Dernier envoi par catégorie : date locale concernée. Évite les doublons. */
   sent: Partial<Record<ReminderKind, string>>;
+  /** Série (jours consécutifs travaillés) à la date de la dernière activité. Absente ou 0 : inconnue. */
+  streak?: number;
 }
 
 export interface Reminder {
@@ -35,13 +37,33 @@ export const MESSAGES: Record<ReminderKind, { title: string; body: string }> = {
   comeback: { title: 'Bon retour quand tu seras prêt', body: 'Rien à rattraper : ton Wird reprend simplement là où tu l’avais laissé.' },
 };
 
+/**
+ * Quand l'utilisateur a travaillé hier, les rappels du jour parlent de sa série : encourageant, jamais culpabilisant.
+ * (Si la dernière activité est plus ancienne, la série est déjà interrompue : on garde les messages habituels.)
+ */
+export function streakMessage(kind: 'daily' | 'second', streak: number): { title: string; body: string } | null {
+  if (!(streak >= 1)) return null;
+  if (streak === 1) {
+    return kind === 'daily'
+      ? { title: 'Allume ta série 🔥', body: 'Tu as travaillé hier : un petit passage aujourd’hui et ta série démarre.' }
+      : { title: 'Ta série n’attend que toi 🔥', body: 'Quelques minutes suffisent pour la lancer.' };
+  }
+  return kind === 'daily'
+    ? { title: `Ta série de ${streak} jours continue 🔥`, body: 'Un petit passage aujourd’hui garde ta flamme allumée.' }
+    : { title: 'Garde ta flamme allumée 🔥', body: `${streak} jours d’affilée : quelques minutes suffisent pour ne pas la perdre.` };
+}
+
 /** `localDate` / `localTime` : date (AAAA-MM-JJ) et heure (HH:MM) dans le fuseau de l'abonné. */
 export function decideReminders(s: SubscriberState, localDate: string, localTime: string): Reminder[] {
   const out: Reminder[] = [];
   const p = s.prefs;
   const workedToday = s.lastActivityDate === localDate;
   const due = (time: string) => localTime >= time;
-  const push = (kind: ReminderKind, stamp = localDate) => out.push({ kind, ...MESSAGES[kind], stamp });
+  const streakAtRisk = s.lastActivityDate !== null && diffDays(s.lastActivityDate, localDate) === 1 ? (s.streak ?? 0) : 0;
+  const push = (kind: ReminderKind, stamp = localDate) => {
+    const sm = kind === 'daily' || kind === 'second' ? streakMessage(kind, streakAtRisk) : null;
+    out.push({ kind, ...(sm ?? MESSAGES[kind]), stamp });
+  };
 
   if (!workedToday) {
     // Rappel quotidien

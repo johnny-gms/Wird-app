@@ -19,6 +19,8 @@ Rien de ceci n'a été fait ni ne peut l'être depuis le dépôt : il faut ton c
 10. **Tester sur iPhone** (iOS 16.4+) : installe l'app sur l'écran d'accueil, ouvre-la depuis l'icône, Profil › Rappels › *Activer les rappels*, puis *Envoyer un test depuis le serveur*. Le tableau de bord doit afficher toutes les lignes en vert.
 
 ## Contrat d'API (JSON)
+**Série :** `POST /api/activity {date, unfinished, streak, tz}` : `streak` (entier ≥ 0) est la série à la date de la dernière activité. Si l'utilisateur a travaillé hier et pas encore aujourd'hui, les rappels « quotidien » et « deuxième » mentionnent sa série (ton encourageant). Elle est conservée dans la colonne `sent` (clé `_streak`), sans migration.
+
 `POST /api/subscribe {subscription, prefs, tz}` → `{token}` · `POST /api/prefs|activity|unsubscribe|test|resubscribe` avec en-tête `x-wird-token` et `endpoint` · `GET /api/health` → `{ok, publicKey, lastCron}`.
 Données stockées : abonnement Push, préférences, fuseau, date de dernière activité. Jamais de versets ni d'évaluations.
 

@@ -12,6 +12,8 @@ export interface Subscriber {
   lastActivityDate: string | null;
   unfinishedDate: string | null;
   sent: Partial<Record<ReminderKind, string>>;
+  /** Série à la date de la dernière activité (conservée dans la colonne `sent`, sous la clé réservée `_streak`, pour éviter une migration de la base). */
+  streak: number;
 }
 
 /** Accès aux données : implémenté pour D1 (production) et en mémoire (tests). */
@@ -44,7 +46,10 @@ interface Row {
   endpoint: string; p256dh: string; auth: string; token_hash: string; tz: string; prefs: string;
   last_activity_date: string | null; unfinished_date: string | null; sent: string;
 }
-const fromRow = (r: Row): Subscriber => ({ endpoint: r.endpoint, p256dh: r.p256dh, auth: r.auth, tokenHash: r.token_hash, tz: r.tz, prefs: JSON.parse(r.prefs), lastActivityDate: r.last_activity_date, unfinishedDate: r.unfinished_date, sent: JSON.parse(r.sent) });
+const fromRow = (r: Row): Subscriber => {
+  const { _streak, ...sent } = JSON.parse(r.sent) as Record<string, string | number>;
+  return { endpoint: r.endpoint, p256dh: r.p256dh, auth: r.auth, tokenHash: r.token_hash, tz: r.tz, prefs: JSON.parse(r.prefs), lastActivityDate: r.last_activity_date, unfinishedDate: r.unfinished_date, sent: sent as Subscriber['sent'], streak: Number(_streak) || 0 };
+};
 
 export class D1Store implements Store {
   constructor(private db: D1Like) {}
@@ -59,7 +64,7 @@ export class D1Store implements Store {
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
          ON CONFLICT(endpoint) DO UPDATE SET p256dh=?2, auth=?3, token_hash=?4, tz=?5, prefs=?6, last_activity_date=?7, unfinished_date=?8, sent=?9, updated_at=datetime('now')`,
       )
-      .bind(s.endpoint, s.p256dh, s.auth, s.tokenHash, s.tz, JSON.stringify(s.prefs), s.lastActivityDate, s.unfinishedDate, JSON.stringify(s.sent))
+      .bind(s.endpoint, s.p256dh, s.auth, s.tokenHash, s.tz, JSON.stringify(s.prefs), s.lastActivityDate, s.unfinishedDate, JSON.stringify({ ...s.sent, _streak: s.streak }))
       .run();
   }
   async delete(endpoint: string) {
