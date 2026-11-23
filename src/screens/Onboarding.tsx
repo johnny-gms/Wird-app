@@ -30,7 +30,7 @@ export default function Onboarding() {
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender | null>(null);
   const [known, setKnown] = useState<Set<number>>(new Set());
-  const [learnDir, setLearnDir] = useState<Direction>('forward');
+  const [learnDir, setLearnDir] = useState<Direction>('backward'); // on commence par la fin du Coran (sourates courtes)
   const [learn, setLearn] = useState<LearnLevelValue>(DEFAULT_LEARN);
   const [review, setReview] = useState<ReviewValue>(DEFAULT_REVIEW);
 
@@ -52,7 +52,7 @@ export default function Onboarding() {
       </header>
       {step === ACCOUNT && <AccountStep onDone={() => go(NAME)} />}
       {step === NAME && <NameStep name={name} setName={setName} onNext={() => go(GENDER)} />}
-      {step === GENDER && <GenderStep gender={gender} setGender={setGender} onNext={() => go(KNOWN)} />}
+      {step === GENDER && <AvatarStep avatar={gender} setAvatar={setGender} onNext={() => go(KNOWN)} />}
       {step === KNOWN && <KnownStep known={known} setKnown={setKnown} knownPages={knownPages} onNext={() => go(LEARN)} />}
       {step === LEARN && <LearnStep value={learn} setValue={setLearn} dir={learnDir} setDir={setLearnDir} onNext={() => go(REVIEW)} />}
       {step === REVIEW && <ReviewStep value={review} setValue={setReview} known={known} knownPages={knownPages} onNext={() => go(RECAP)} />}
@@ -204,25 +204,25 @@ function NameStep({ name, setName, onNext }: { name: string; setName: (s: string
   );
 }
 
-// ------------------------------------------------------------------ Genre (après le prénom)
-function GenderStep({ gender, setGender, onNext }: { gender: Gender | null; setGender: (g: Gender) => void; onNext: () => void }) {
-  const opts: { v: Gender; label: string }[] = [{ v: 'male', label: 'Homme' }, { v: 'female', label: 'Femme' }];
+// ------------------------------------------------------------------ Photo de profil (après le prénom)
+/** Choix d'une illustration de profil. (La valeur est stockée dans `gender` pour rester compatible avec les données existantes ; elle ne sert qu'à l'image.) */
+export const AVATAR_CHOICES: Gender[] = ['male', 'female'];
+function AvatarStep({ avatar, setAvatar, onNext }: { avatar: Gender | null; setAvatar: (g: Gender) => void; onNext: () => void }) {
   return (
     <>
       <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-footer pt-5">
         <p className="text-xs font-bold uppercase tracking-[.14em] text-primary">Faisons connaissance</p>
-        <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Tu es…</h1>
-        <p className="mt-2 text-[14.5px] leading-snug text-muted">Pour choisir ta photo de profil. Tu pourras la changer dans Profil.</p>
-        <div className="mt-6 grid grid-cols-2 gap-3" role="radiogroup" aria-label="Genre">
-          {opts.map((o) => (
-            <button key={o.v} role="radio" aria-checked={gender === o.v} onClick={() => setGender(o.v)} className={cx('flex flex-col items-center gap-3 rounded-[20px] border-2 bg-surface p-4 transition active:scale-[.98]', gender === o.v ? 'border-primary' : 'border-line')}>
-              <Avatar gender={o.v} size={88} className="rounded-full" />
-              <span className="text-[16px] font-semibold">{o.label}</span>
+        <h1 className="mt-2 text-[27px] font-extrabold leading-[1.15] tracking-[-0.5px]">Choisis ta photo de profil</h1>
+        <p className="mt-2 text-[14.5px] leading-snug text-muted">Tu pourras la changer à tout moment dans Profil. De nouvelles photos arriveront.</p>
+        <div className="mt-6 grid grid-cols-2 gap-3" role="radiogroup" aria-label="Photo de profil">
+          {AVATAR_CHOICES.map((v, i) => (
+            <button key={v} role="radio" aria-checked={avatar === v} aria-label={`Photo de profil ${i + 1}`} onClick={() => setAvatar(v)} className={cx('flex items-center justify-center rounded-[20px] border-2 bg-surface p-5 transition active:scale-[.98]', avatar === v ? 'border-primary' : 'border-line')}>
+              <Avatar gender={v} size={104} className="rounded-full" />
             </button>
           ))}
         </div>
       </div>
-      <StickyFooter><button className="btn-primary w-full" disabled={!gender} onClick={onNext}>Continuer</button></StickyFooter>
+      <StickyFooter><button className="btn-primary w-full" onClick={onNext}>{avatar ? 'Continuer' : 'Continuer sans photo'}</button></StickyFooter>
     </>
   );
 }
@@ -250,7 +250,7 @@ function KnownStep({ known, setKnown, knownPages, onNext }: { known: Set<number>
 
 // ------------------------------------------------------------------ Apprentissage
 function LearnStep({ value, setValue, dir, setDir, onNext }: { value: LearnLevelValue; setValue: (v: LearnLevelValue) => void; dir: Direction; setDir: (d: Direction) => void; onNext: () => void }) {
-  const dirs: { v: Direction; label: string }[] = [{ v: 'forward', label: 'Du début du Coran' }, { v: 'backward', label: 'De la fin du Coran' }];
+  const dirs: { v: Direction; label: string }[] = [{ v: 'backward', label: 'De la fin du Coran' }, { v: 'forward', label: 'Du début du Coran' }];
   return (
     <>
       <div className="mx-auto w-full max-w-[520px] flex-1 px-[22px] pb-footer pt-5">

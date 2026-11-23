@@ -1,11 +1,11 @@
 import type { Gender } from '@/engine/types';
 
-/** Photos de profil illustrées (sans visage), selon le genre choisi. */
+/** Photos de profil illustrées (sans visage). Le paramètre `gender` désigne simplement l'illustration choisie : d'autres viendront. */
 export function Avatar({ gender, size = 64, className }: { gender?: Gender | null; size?: number; className?: string }) {
   const common = { width: size, height: size, viewBox: '0 0 120 120', className, role: 'img' as const };
   if (gender === 'female') {
     return (
-      <svg {...common} aria-label="Photo de profil : femme">
+      <svg {...common} aria-label="Photo de profil 2">
         <defs><clipPath id="av-f"><circle cx="60" cy="60" r="60" /></clipPath></defs>
         <g clipPath="url(#av-f)">
           <rect width="120" height="120" fill="#FCEFF0" />
@@ -20,7 +20,7 @@ export function Avatar({ gender, size = 64, className }: { gender?: Gender | nul
     );
   }
   return (
-    <svg {...common} aria-label="Photo de profil : homme">
+    <svg {...common} aria-label="Photo de profil 1">
       <defs><clipPath id="av-m"><circle cx="60" cy="60" r="60" /></clipPath></defs>
       <g clipPath="url(#av-m)">
         <rect width="120" height="120" fill="#F2EBDD" />
@@ -36,7 +36,7 @@ export function Avatar({ gender, size = 64, className }: { gender?: Gender | nul
   );
 }
 
-/** Avatar du profil : l'illustration correspondant au choix homme / femme, sinon l'initiale du prénom. */
+/** Avatar du profil : l'illustration choisie, sinon l'initiale du prénom. */
 export function ProfileAvatar({ name, gender, size = 56 }: { name: string; gender?: Gender | null; size?: number }) {
   if (gender) return <Avatar gender={gender} size={size} className="shrink-0 rounded-full" />;
   return (
