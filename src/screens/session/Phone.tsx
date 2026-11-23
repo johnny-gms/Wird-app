@@ -1,8 +1,8 @@
 import { BookOpen, Check, Eye, EyeOff, Smartphone } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { KindBadge, SurahNumber, cx } from '@/components/ui';
-import { itemPages, itemSig } from '@/engine/plan';
-import { formatPages, pageOf } from '@/engine/pages';
+import { itemSig } from '@/engine/plan';
+import { pageOf } from '@/engine/pages';
 import { ayahId, hizbOf, rangeLabel, surahMeta } from '@/engine/quran';
 import type { PhoneProgress, PlanItem, SessionMode } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
@@ -93,7 +93,7 @@ export function PhoneWork({ item, progress, onChange, onClose }: { item: PlanIte
         <h2 className="title-section">{meta.tr}</h2>
         <span className="text-sm text-muted">{rangeLabel(item.surah, item.from, item.to).replace(/^Sourate \d+ — /, '')}</span>
       </div>
-      <p className="mt-0.5 text-sm text-muted">Verset {shown} sur {n} · {mushafRef(item)} · {formatPages(itemPages(item))}</p>
+      <p className="mt-0.5 text-sm text-muted">Verset {shown} sur {n} · {mushafRef(item)}</p>
 
       <div className="card relative mt-4 p-4">
         {failed && <p className="text-sm text-muted">Le texte n’a pas pu être chargé. Utilise ton Mushaf.</p>}

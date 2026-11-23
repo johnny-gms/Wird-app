@@ -3,9 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GradeChip, Sheet, KindBadge, SurahNumber, cx, toast, GRADE_STYLE } from '@/components/ui';
 import { GRADE_HINT, GRADE_LABEL, GRADE_ORDER } from '@/engine/config';
-import { formatPages } from '@/engine/pages';
-import { itemPages, itemSig } from '@/engine/plan';
-import { rangeLabel, surahMeta } from '@/engine/quran';
+import { itemSig } from '@/engine/plan';
+import { rangeLabel, surahMeta, versesText } from '@/engine/quran';
 import type { DraftGrade, PlanItem } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
 import { useWird } from '@/store/useWird';
@@ -87,7 +86,7 @@ export default function Session() {
   const evalItems = mode === 'phone' ? items.filter(isDone) : items;
   const remaining = mode === 'phone' ? items.filter((i) => !isDone(i)) : [];
   const total = items.length;
-  const pages = items.reduce((a, i) => a + itemPages(i), 0);
+  const nVerses = items.reduce((a, i) => a + (i.to - i.from + 1), 0);
   const decided = evalItems.filter((i) => session.draft[i.id]).length;
   const extra = session.kind === 'extra';
   const current = session.current ? items.find((i) => itemSig(i) === session.current) ?? null : null;
@@ -122,7 +121,7 @@ export default function Session() {
   const subtitle = choosing
     ? 'Choisis ton mode de travail pour cette séance.'
     : session.step === 'program'
-      ? `${total} passage${total > 1 ? 's' : ''} · ${formatPages(pages)}${extra && session.minutes ? ` · environ ${session.minutes} min (indicatif)` : ''}`
+      ? `${total} passage${total > 1 ? 's' : ''} · ${versesText(nVerses)}${extra && session.minutes ? ` · environ ${session.minutes} min (indicatif)` : ''}`
       : `Comment s’est passé chaque passage ? ${decided} / ${evalItems.length}`;
 
   return (
@@ -202,7 +201,7 @@ function Program({ items }: { items: PlanItem[] }) {
               <SurahNumber n={it.surah} size={40} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-semibold">{meta.tr}</span>
-                <span className="mt-0.5 block text-[13px] text-muted">{rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')} · {mushafRef(it)} · {formatPages(itemPages(it))}</span>
+                <span className="mt-0.5 block text-[13px] text-muted">{rangeLabel(it.surah, it.from, it.to).replace(/^Sourate \d+ — /, '')} · {mushafRef(it)} · {versesText(it.to - it.from + 1)}</span>
                 <span className="mt-1.5 block"><KindBadge kind={it.kind} /></span>
               </span>
               <span className="ar text-[26px] leading-none" lang="ar">{meta.ar}</span>

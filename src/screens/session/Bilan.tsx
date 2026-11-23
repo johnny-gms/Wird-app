@@ -2,8 +2,7 @@ import { Flame } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { GradeChip, Screen, cx, toast } from '@/components/ui';
-import { formatPages } from '@/engine/pages';
-import { itemPages, upcomingRotation } from '@/engine/plan';
+import { upcomingRotation } from '@/engine/plan';
 import { activeDaySet, currentStreak } from '@/engine/progress';
 import { formatDuration, rangeLabel, surahMeta } from '@/engine/quran';
 import { haptic } from '@/lib/haptics';
@@ -137,7 +136,6 @@ export default function Bilan() {
   }
 
   // ------------------------------------------------------------ Séance principale
-  const donePages = (plan?.items ?? []).filter((i) => i.status === 'done').reduce((a, i) => a + itemPages(i), 0);
   return (
     <Screen title={complete ? 'Séance accomplie' : 'Bien joué pour aujourd’hui'} sub={complete ? 'Qu’Allah accepte ton effort. À demain, in châ’ Allah.' : 'Ce qui reste peut attendre : rien n’est reporté ni dû.'}>
       <Hero
@@ -148,7 +146,7 @@ export default function Bilan() {
           { n: summary.mastered, l: 'maîtrisés', tone: '#8EE0B0' },
           { n: summary.toReinforce, l: 'à renforcer', tone: '#F2B766' },
         ]}
-        foot={`≈ ${formatPages(donePages)} travaillées${summary.activeMs >= 60_000 ? ` · ${formatDuration(summary.activeMs)}` : ''}`}
+        foot={summary.activeMs >= 60_000 ? `Durée de travail : ${formatDuration(summary.activeMs)}` : undefined}
         onDone={done}
       />
 

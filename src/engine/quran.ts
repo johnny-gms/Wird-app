@@ -43,8 +43,12 @@ export function surahRange(surah: number): [number, number] {
 
 /** « Sourate 2 — versets 5 à 9 » / « Sourate 2 — verset 5 ». */
 export function rangeLabel(surah: number, from: number, to: number): string {
+  if (from === 1 && to === surahMeta(surah).n) return `Sourate ${surah} — sourate entière`;
   return from === to ? `Sourate ${surah} — verset ${from}` : `Sourate ${surah} — versets ${from} à ${to}`;
 }
+
+/** « 1 verset », « 15 versets » : la quantité de travail se dit en versets (ou sourate entière), jamais en fractions de page. */
+export const versesText = (n: number): string => `${n} verset${n > 1 ? 's' : ''}`;
 
 const HIZB_START_IDS: number[] = HIZB_STARTS.map(([s, a]) => ayahId(s, a));
 

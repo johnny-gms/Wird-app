@@ -5,10 +5,9 @@ import { ProfileAvatar } from '@/components/Avatar';
 import { ReviewMoreSheet } from '@/components/ReviewMoreSheet';
 import { Sheet, cx } from '@/components/ui';
 import { addDays, diffDays, startOfWeek } from '@/engine/dates';
-import { formatPages } from '@/engine/pages';
-import { goalProgress, itemPages, learningEnabled, learningSegment } from '@/engine/plan';
+import { goalProgress, learningEnabled, learningSegment } from '@/engine/plan';
 import { activeDaySet, allSurahStats, cellState, currentStreak, overall, pagesByDay } from '@/engine/progress';
-import { rangeLabel, surahMeta } from '@/engine/quran';
+import { rangeLabel, surahMeta, versesText } from '@/engine/quran';
 import type { PlanItem } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
 import { formatDateLong, greeting, useToday } from '@/lib/hooks';
@@ -53,7 +52,7 @@ export default function Home() {
   const doneToday = days.has(today);
   const lastDay = [...days].sort().pop();
   const away = !!lastDay && diffDays(lastDay, today) >= 7 && !awayHidden;
-  const pagesOf = (list: PlanItem[]) => list.reduce((a, i) => a + itemPages(i), 0);
+  const versesOf = (list: PlanItem[]) => list.reduce((a, i) => a + (i.to - i.from + 1), 0);
   const hasAny = o.memorizedVerses + o.learningVerses > 0;
 
   // Mémorisation : uniquement les révisions et renforcements du jour (jamais l'apprentissage)
@@ -64,6 +63,8 @@ export default function Home() {
   const nextReview = reviewPending[0];
   // la séance ouverte contient-elle des révisions ? (sinon c'est une séance d'apprentissage : on le dit)
   const sessionHasReview = !!session && (session.scope === 'all' ? reviewPending.length > 0 : session.scope.some((id) => items.some((i) => i.id === id && i.kind !== 'learn')));
+  // Premier jour : rien n'a encore été appris ni révisé. La carte ne doit pas ressembler à une impasse (« 0 / 0 passages ») : elle dit quoi faire.
+  const firstDay = history.length === 0 && reviewItems.length === 0 && !session;
   const startReview = () => {
     haptic('tap');
     if (session) {
@@ -77,6 +78,8 @@ export default function Home() {
   const goal = goals.find((g) => !g.completedAt && !g.paused && learningSegment({ verses }, g));
   const seg = goal ? learningSegment({ verses }, goal) : null;
   const gp = goal ? goalProgress(goal) : null;
+  // ce qui est réellement prévu aujourd'hui (même passage que dans Révisions), sinon le prochain segment proposé
+  const learnToday = goal ? items.find((i) => i.kind === 'learn' && i.goalId === goal.id && i.status === 'pending') : undefined;
   const startLearn = () => {
     haptic('tap');
     if (store.startLearnAhead(goal?.id)) nav('/session');
@@ -110,6 +113,24 @@ export default function Home() {
       </header>
 
       {/* Mémorisation : les révisions du jour (jamais l'apprentissage) */}
+      {firstDay ? (
+        <article className="mem-card mt-[18px]">
+          <div className="relative z-[1] min-w-0">
+            <p className="eyebrow text-[10.5px] font-bold uppercase tracking-[1.4px] opacity-70">Mémorisation</p>
+            <h2 className="mt-2 text-[21px] font-extrabold leading-tight tracking-[-0.3px]">Ta première étape</h2>
+            <p className="mt-1.5 text-[14px] leading-relaxed opacity-80">
+              {goal && seg ? `Commence par apprendre ${surahMeta(goal.surah).tr}, ${rangeLabel(goal.surah, learnToday?.from ?? seg.from, learnToday?.to ?? seg.to).replace(/^Sourate \d+ — /, '')}. Dès que tu auras appris tes premiers versets, tes révisions apparaîtront ici.` : 'Choisis une sourate à apprendre pour commencer. Dès que tu auras appris tes premiers versets, tes révisions apparaîtront ici.'}
+            </p>
+          </div>
+          <div className="relative z-[1] mt-4">
+            {goal && seg ? (
+              <button className="mem-btn rounded-full px-5 py-3 text-[14.5px] font-bold transition active:scale-95" onClick={startLearn}>Commencer à apprendre</button>
+            ) : (
+              <Link to="/wird" className="mem-btn inline-block rounded-full px-5 py-3 text-[14.5px] font-bold transition active:scale-95">Choisir une sourate</Link>
+            )}
+          </div>
+        </article>
+      ) : (
       <article className="mem-card mt-[18px]">
         <div className="relative z-[1] flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -118,7 +139,7 @@ export default function Home() {
               {session ? 'Séance en cours' : nextReview ? `${surahMeta(nextReview.surah).tr} · ${rangeLabel(nextReview.surah, nextReview.from, nextReview.to).replace(/^Sourate \d+ — /, '')}` : reviewItems.length ? 'Révisions terminées' : o.memorizedVerses > 0 ? 'Pas de révision prévue' : 'Rien à réviser pour le moment'}
             </h2>
             <p className="mt-1 text-[13.5px] opacity-75">
-              {session ? (sessionHasReview ? 'Reprends là où tu t’es arrêté.' : 'Une séance d’apprentissage est ouverte : reprends-la quand tu veux.') : nextReview ? `${reviewPending.length > 1 ? `et ${reviewPending.length - 1} autre${reviewPending.length > 2 ? 's' : ''} passage${reviewPending.length > 2 ? 's' : ''} · ` : ''}≈ ${formatPages(pagesOf(reviewPending))}` : reviewItems.length ? 'Qu’Allah te facilite, à demain 🌿 Tu peux aussi réviser en plus.' : o.memorizedVerses > 0 ? 'Tu peux réviser ce que tu connais quand tu veux.' : hasAny ? 'Profite de ta journée.' : 'Tes révisions apparaîtront ici.'}
+              {session ? (sessionHasReview ? 'Reprends là où tu t’es arrêté.' : 'Une séance d’apprentissage est ouverte : reprends-la quand tu veux.') : nextReview ? `${reviewPending.length > 1 ? `et ${reviewPending.length - 1} autre${reviewPending.length > 2 ? 's' : ''} passage${reviewPending.length > 2 ? 's' : ''} · ` : ''}${versesText(versesOf(reviewPending))}` : reviewItems.length ? 'Qu’Allah te facilite, à demain 🌿 Tu peux aussi réviser en plus.' : o.memorizedVerses > 0 ? 'Tu peux réviser ce que tu connais quand tu veux.' : hasAny ? 'Profite de ta journée.' : 'Tes révisions apparaîtront ici.'}
             </p>
             {streak > 0 && <p className="streak-line mt-2 font-mono text-[12.5px] font-semibold">🔥 {streak} jour{streak > 1 ? 's' : ''} d’affilée</p>}
           </div>
@@ -131,6 +152,7 @@ export default function Home() {
         </div>
         {!session && reviewPending.length > 0 && o.memorizedVerses > 0 && <button className="relative z-[1] mt-3 text-[13px] font-semibold underline underline-offset-2 opacity-80" onClick={() => { haptic('tap'); setMore(true); }}>Réviser en plus</button>}
       </article>
+      )}
 
       {/* Série et semaine */}
       <div className="mt-3.5 grid grid-cols-2 gap-2.5">
@@ -163,7 +185,7 @@ export default function Home() {
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface2" role="progressbar" aria-valuenow={Math.round((gp.done / gp.total) * 100)} aria-valuemin={0} aria-valuemax={100}><i className="block h-full rounded-full bg-accent transition-[width] duration-700" style={{ width: `${gp.total ? (gp.done / gp.total) * 100 : 0}%` }} /></div>
               <p className="mt-2 text-[13.5px] text-muted"><b className="text-ink tabular-nums">{gp.done}</b> / {gp.total} versets appris</p>
-              <button className="btn-primary mt-3.5 w-full" onClick={startLearn}>Continuer</button>
+              <button className="btn-primary mt-3.5 w-full" onClick={startLearn}>{gp.done === 0 ? 'Commencer' : 'Continuer'}</button>
             </>
           ) : (
             <>

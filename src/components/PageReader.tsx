@@ -6,7 +6,9 @@ import { fromAyahId, surahMeta } from '@/engine/quran';
 import { haptic } from '@/lib/haptics';
 import { basmalaFor, type QuranData } from '@/lib/quranText';
 import { TAJWEED_LEGEND, tajweedParts, type TajweedData } from '@/lib/tajweed';
+import { markTipSeen, tipSeen } from '@/lib/tips';
 import { useReaderData } from '@/lib/useReaderData';
+import { TipCard } from './FingerDemo';
 import { VerseSheet } from './VerseSheet';
 import { Segmented, Sheet, cx } from './ui';
 
@@ -110,6 +112,8 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
   const { data, failed, tj, tjOn, toggleTj, size, zoom } = useReaderData();
   const pg = Math.max(1, Math.min(TOTAL_PAGES, page));
   const [sel, setSel] = useState<{ surah: number; ayah: number } | null>(null);
+  const [tip, setTip] = useState(() => !tipSeen('reader'));
+  const endTip = () => { markTipSeen('reader'); setTip(false); };
   const [settings, setSettings] = useState(false);
   const [goto, setGoto] = useState('');
   const [theme, setTheme] = useState<'normal' | 'dark'>(() => {
@@ -323,6 +327,11 @@ export function PageReader({ page, onPage, onMode, onClose, highlight }: { page:
           )}
         </div>
       </Sheet>
+      {tip && data && (
+        <div className="absolute inset-x-4 bottom-24 z-[5] mx-auto max-w-[420px]">
+          <TipCard kind="swipe" title="Tourne les pages d’un geste" text="Glisse ton doigt vers la droite ou la gauche pour changer de page. Touche deux fois rapidement pour zoomer. Touche un verset pour le voir en détail." onClose={endTip} />
+        </div>
+      )}
       {sel && <VerseSheet surah={sel.surah} ayah={sel.ayah} onClose={() => setSel(null)} />}
     </div>,
     document.body,

@@ -4,9 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ReviewMoreSheet } from '@/components/ReviewMoreSheet';
 import { ConfirmSheet, GradeChip, ProgressBar, Screen, cx, toast } from '@/components/ui';
 import { addDays } from '@/engine/dates';
-import { formatPages, pageOf } from '@/engine/pages';
-import { goalProgress, itemPages, learningEnabled, learningSegment, upcomingRotation } from '@/engine/plan';
-import { ayahId, rangeLabel, surahMeta } from '@/engine/quran';
+import { pageOf } from '@/engine/pages';
+import { goalProgress, learningEnabled, learningSegment, upcomingRotation } from '@/engine/plan';
+import { ayahId, rangeLabel, surahMeta, versesText } from '@/engine/quran';
 import { groupRuns } from '@/engine/rotation';
 import type { PlanItem, WorkKind } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
@@ -63,6 +63,10 @@ export default function Revisions() {
     return { reinforce: reinforce.slice(0, 6), rot };
   }, [vs, goals, rotation, settings, plan, today]);
 
+  // « 2 révisions · 1 apprentissage » : même vocabulaire que l'accueil (la carte Mémorisation compte les révisions, la carte Sourate à apprendre l'apprentissage)
+  const nRev = pending.filter((i) => i.kind !== 'learn').length;
+  const nLearn = pending.length - nRev;
+  const counts = [nRev ? `${nRev} révision${nRev > 1 ? 's' : ''}` : '', nLearn ? `${nLearn} apprentissage${nLearn > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
   const active = goals.filter((g) => !g.completedAt);
   const finished = goals.filter((g) => g.completedAt);
   const tabs: { v: Tab; l: string; n?: number }[] = [
@@ -81,10 +85,10 @@ export default function Revisions() {
           <div className="min-w-0 flex-1">
             <p className="eyebrow text-[12px] font-bold uppercase tracking-[1.2px] opacity-70">Aujourd’hui</p>
             <p className="mt-0.5 text-[20px] font-extrabold leading-tight tracking-[-0.3px]">
-              {session ? 'Séance en cours' : pending.length ? `${pending.length} passage${pending.length > 1 ? 's' : ''} à faire` : planned ? 'Programme terminé' : 'Rien de prévu'}
+              {session ? 'Séance en cours' : pending.length ? `${counts} à faire` : planned ? 'Programme terminé' : 'Rien de prévu'}
             </p>
             <p className="mt-0.5 text-[13px] opacity-75">
-              {session ? 'Reprends là où tu t’es arrêté.' : pending.length ? `≈ ${formatPages(pending.reduce((a, i) => a + itemPages(i), 0))} · à ton rythme` : planned ? 'Qu’Allah te facilite, à demain 🌿' : 'Profite de ta journée.'}
+              {session ? 'Reprends là où tu t’es arrêté.' : pending.length ? `${versesText(pending.reduce((a, i) => a + (i.to - i.from + 1), 0))} · à ton rythme` : planned ? 'Qu’Allah te facilite, à demain 🌿' : 'Profite de ta journée.'}
             </p>
           </div>
         </div>
@@ -272,7 +276,7 @@ function Row({ it, index, onGo, onSkip }: { it: PlanItem; index: number; onGo: (
         <span className="num-tile" aria-hidden>{String(index).padStart(2, '0')}</span>
         <Link to={`/wird/${it.surah}`} className="min-w-0 flex-1">
           <b className="block text-[16px] leading-snug">{s.id}. {s.tr}</b>
-          <span className="block text-[13px] leading-snug text-muted">{verses(it)} · {it.kind === 'review' ? `page ${pageOf(ayahId(it.surah, it.from))}` : formatPages(itemPages(it))}</span>
+          <span className="block text-[13px] leading-snug text-muted">{verses(it)}{it.kind === 'review' ? ` · page ${pageOf(ayahId(it.surah, it.from))}` : ''}</span>
         </Link>
         <button className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface2" aria-label="Mettre de côté pour aujourd’hui" onClick={onSkip}>⋯</button>
       </div>
