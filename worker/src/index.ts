@@ -2,7 +2,7 @@
  * Worker de rappels WIRD (Cloudflare Workers + D1 + Cron Trigger). Contrat d'API : docs/NOTIFICATIONS.md.
  * Données Push : abonnement, préférences, fuseau, dernière activité. Synchronisation (/api/sync/*) : uniquement avec un compte.
  */
-import { decideReminders, type SubscriberState } from '../../src/notifications/rules';
+import { dueReminders, type SubscriberState } from '../../src/notifications/rules';
 import type { NotificationPrefs } from '../../src/engine/types';
 import { D1Store, type D1Like, type Store, type Subscriber } from './store';
 import { b64uEncode, importVapidKey, isPushEndpoint, sendWebPush } from './webpush';
@@ -58,8 +58,13 @@ const cleanTz = (tz: unknown): string => {
   return 'UTC';
 };
 
+const formatters = new Map<string, Intl.DateTimeFormat>(); // un formateur par fuseau (le cron passe chaque minute : on évite de les recréer pour chaque abonné)
 export function localParts(now: Date, tz: string): { date: string; time: string } {
-  const f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  let f = formatters.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    formatters.set(tz, f);
+  }
   const p = Object.fromEntries(f.formatToParts(now).map((x) => [x.type, x.value]));
   return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}` };
 }
@@ -168,16 +173,21 @@ export async function runCron(env: Env, store: Store, now: Date = new Date(), fe
     }
     const state: SubscriberState = { prefs: sub.prefs, lastActivityDate: sub.lastActivityDate, unfinishedDate: sub.unfinishedDate, sent: sub.sent, streak: sub.streak };
     const { date, time } = localParts(now, sub.tz);
-    for (const r of decideReminders(state, date, time)) {
-      const res = await sendWebPush({ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }, { title: r.title, body: r.body, url: '/', tag: `wird-${r.kind}` }, v, { fetchImpl });
-      if (res === 'gone') {
-        await store.delete(sub.endpoint);
-        out.gone++;
-      } else if (res === 'sent') {
-        await store.put({ ...sub, sent: { ...sub.sent, [r.kind]: r.stamp } });
-        out.sent++;
-      } else out.retry++;
-    }
+    // Un seul message par passage : le plus utile. Les autres rappels dus au même moment sont alors considérés comme couverts
+    // (sinon ils partiraient aux passages suivants et plusieurs notifications s'enchaîneraient).
+    const due = dueReminders(state, date, time);
+    if (!due.length) continue;
+    const r = due[0];
+    const res = await sendWebPush({ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }, { title: r.title, body: r.body, url: '/', tag: `wird-${r.kind}` }, v, { fetchImpl });
+    if (res === 'gone') {
+      await store.delete(sub.endpoint);
+      out.gone++;
+    } else if (res === 'sent') {
+      const sent = { ...sub.sent };
+      for (const d of due) sent[d.kind] = d.stamp;
+      await store.put({ ...sub, sent });
+      out.sent++;
+    } else out.retry++;
   }
   await store.setMeta('lastCron', now.toISOString());
   try {

@@ -9,8 +9,8 @@ database_name = "wird-push"
 database_id = "<ID affiché par `npx wrangler d1 create wird-push`>"
 
 [triggers]
-# Toutes les 15 minutes : le Worker évalue, pour chaque abonné, quels rappels sont dus dans son fuseau horaire.
-crons = ["*/15 * * * *"]
+# Chaque minute : le Worker évalue, pour chaque abonné, quels rappels sont dus dans son fuseau horaire.
+crons = ["* * * * *"]
 
 [vars]
 ALLOWED_ORIGIN = "https://<adresse exacte de ton app>"   # origine autorisée (CORS), sans / final

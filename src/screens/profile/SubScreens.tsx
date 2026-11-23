@@ -159,10 +159,10 @@ function Dashboard({ status, onChanged }: { status: PushStatus | null; onChanged
     },
     {
       id: 'cron',
-      label: 'Cron actif (toutes les 15 minutes)',
-      state: !health?.reachable ? 'unknown' : cronAge !== null && cronAge < 35 ? 'ok' : 'todo',
+      label: 'Cron actif (chaque minute)',
+      state: !health?.reachable ? 'unknown' : cronAge !== null && cronAge < 5 ? 'ok' : 'todo',
       detail: health?.lastCron ? `Dernier passage : ${new Date(health.lastCron).toLocaleString('fr-FR')}` : undefined,
-      todo: <>Cloudflare › Workers &amp; Pages › <b>wird-push</b> › <b>Settings › Trigger Events › Cron Triggers</b> : vérifie la présence de <code>*/15 * * * *</code> (elle vient de <code>wrangler.toml</code> au déploiement). Le premier passage peut prendre jusqu’à 15 minutes.</>,
+      todo: <>Cloudflare › Workers &amp; Pages › <b>wird-push</b> › <b>Settings › Trigger Events › Cron Triggers</b> : vérifie la présence de <code>* * * * *</code> (elle vient de <code>wrangler.toml</code> au déploiement). Le premier passage peut prendre jusqu’à une minute.</>,
     },
     {
       id: 'install',
