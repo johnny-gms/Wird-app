@@ -103,8 +103,9 @@ ok(!/Rappels activés/.test(await body()), 'jamais « Rappels activés » sans a
   const p2 = await c2.newPage();
   await onboard(p2, { name: 'Sara', known: 'juz' });
   const txt = await p2.locator('body').innerText();
-  ok(/Réviser davantage/.test(txt), 'accueil : « Réviser davantage » proposé même sans programme de révision du jour');
-  await p2.getByRole('button', { name: 'Réviser davantage' }).click();
+  ok(/Commencer/.test(txt) && /passages?/.test(txt), 'lancement avec des sourates déclarées : un programme de révision est proposé dès le premier jour');
+  ok(/Réviser en plus/.test(txt), 'accueil : « Réviser en plus » proposé');
+  await p2.getByRole('button', { name: 'Réviser en plus' }).click();
   await p2.getByLabel('Rechercher une sourate').fill('naba');
   await p2.getByRole('button', { name: /An-Naba|Naba/ }).first().click();
   await p2.getByRole('button', { name: 'Choisir des versets' }).click();
@@ -116,7 +117,7 @@ ok(!/Rappels activés/.test(await body()), 'jamais « Rappels activés » sans a
   ok(n2 === 1, 'révision en plus : 1 passage évalué et validé');
   await p2.goto(BASE + '/');
   await p2.getByText('Ma progression').first().waitFor();
-  ok(/Réviser davantage/.test(await p2.locator('body').innerText()), 'on peut enchaîner une nouvelle révision en plus');
+  ok(/Réviser (davantage|en plus)/.test(await p2.locator('body').innerText()), 'on peut enchaîner une nouvelle révision en plus');
   await c2.close();
 }
 

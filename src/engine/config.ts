@@ -31,8 +31,8 @@ export const ENGINE = {
   /** Une sourate est « à entretenir » si ses versets mémorisés n'ont pas été révisés depuis ce nombre de jours. */
   maintainAfterDays: 30,
 
-  /** Les versets simplement déclarés « déjà appris » (jamais travaillés dans WIRD) entrent-ils dans la rotation de révision ? */
-  declaredInRotation: false,
+  /** Les versets simplement déclarés « déjà appris » (jamais travaillés dans WIRD) entrent-ils dans la rotation de révision ? Oui : c'est le but de les déclarer, WIRD doit en planifier la révision. */
+  declaredInRotation: true,
 
   /** Sourates exclues du programme automatique (révision et propositions d'apprentissage) : Al-Fatiha, récitée chaque jour en prière. Elles restent consultables. */
   autoExcludedSurahs: [1] as readonly number[],
