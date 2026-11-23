@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { SurahPickerList } from '@/components/SurahPickerList';
 import { SubPage, ProgressBar, cx, toast } from '@/components/ui';
 import { VerseRangePicker } from '@/components/VerseRangePicker';
-import { formatPages, rangePages } from '@/engine/pages';
 import { goalProgress, learningSegment } from '@/engine/plan';
-import { ayahId, surahMeta } from '@/engine/quran';
+import { ayahId, surahMeta, versesText } from '@/engine/quran';
 import { haptic } from '@/lib/haptics';
 import { lastMode } from '@/screens/session/Phone';
 import { useWird } from '@/store/useWird';
@@ -66,7 +65,7 @@ export default function LearnChoose() {
       ) : (
         <>
           <VerseRangePicker surah={meta.id} n={meta.n} from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} verses={verses} />
-          <button className={cx('btn-primary mt-6 w-full')} onClick={start}>Commencer l’apprentissage · ≈ {formatPages(rangePages(meta.id, from, to))}</button>
+          <button className={cx('btn-primary mt-6 w-full')} onClick={start}>Commencer l’apprentissage · {from === 1 && to === meta.n ? 'sourate entière' : versesText(to - from + 1)}</button>
           <button className="mt-2 w-full py-3 text-sm font-semibold text-muted" onClick={() => setSurah(null)}>Changer de sourate</button>
         </>
       )}

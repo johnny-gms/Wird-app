@@ -9,7 +9,7 @@ export default function ProfileEdit() {
   const { profile, updateProfile } = useWird();
   const [name, setName] = useState(profile.name);
   const [age, setAge] = useState(profile.age ? String(profile.age) : '');
-  const opt: { v: Gender; label: string }[] = [{ v: 'male', label: 'Homme' }, { v: 'female', label: 'Femme' }];
+  const opt: { v: Gender }[] = [{ v: 'male' }, { v: 'female' }];
   return (
     <SubPage title="Mon profil" back="/profil">
       <div className="flex justify-center"><ProfileAvatar name={profile.name} gender={profile.gender} size={112} /></div>
@@ -23,12 +23,11 @@ export default function ProfileEdit() {
           <input className="input mt-1.5" inputMode="numeric" value={age} placeholder="Facultatif" onChange={(e) => setAge(e.target.value.replace(/\D/g, '').slice(0, 3))} onBlur={() => { const n = parseInt(age); updateProfile({ age: n >= 1 && n <= 120 ? n : null }); if (!(n >= 1 && n <= 120)) setAge(''); }} />
         </label>
         <div>
-          <span className="text-sm text-muted">Je suis</span>
+          <span className="text-sm text-muted">Ma photo de profil</span>
           <div className="mt-1.5 grid grid-cols-2 gap-3" role="radiogroup">
             {opt.map((o) => (
-              <button key={o.v} role="radio" aria-checked={profile.gender === o.v} onClick={() => updateProfile({ gender: o.v })} className={cx('flex flex-col items-center gap-2 rounded-2xl border-2 bg-surface p-3 transition active:scale-[.98]', profile.gender === o.v ? 'border-primary' : 'border-line')}>
-                <Avatar gender={o.v} size={64} className="rounded-full" />
-                <span className="font-semibold">{o.label}</span>
+              <button key={o.v} role="radio" aria-label={`Photo de profil ${opt.indexOf(o) + 1}`} aria-checked={profile.gender === o.v} onClick={() => updateProfile({ gender: o.v })} className={cx('flex flex-col items-center gap-2 rounded-2xl border-2 bg-surface p-3 transition active:scale-[.98]', profile.gender === o.v ? 'border-primary' : 'border-line')}>
+                <Avatar gender={o.v} size={72} className="rounded-full" />
               </button>
             ))}
           </div>

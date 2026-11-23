@@ -239,8 +239,8 @@ describe('programme du jour', () => {
   });
 
   it('évaluer fait avancer la rotation ; un élément ignoré la retient', () => {
-    const verses = { ...mem(1, 1, 7), ...mem(2, 1, 60) };
-    let c = mkCore(verses, { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 3 } });
+    const verses = { ...mem(78, 1, 40), ...mem(79, 1, 46), ...mem(80, 1, 42), ...mem(81, 1, 29) };
+    let c = mkCore(verses, { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 6 } });
     c = { ...c, plan: buildPlan(c, D, null) };
     const rev = c.plan!.items.filter((i) => i.kind === 'review');
     expect(rev.length).toBeGreaterThanOrEqual(3);
@@ -540,5 +540,25 @@ describe('réviser en plus : plage choisie', () => {
     c = evaluateItem(c, item.id, 'mastered', new Date(D + 'T09:00:00Z'), D);
     expect(c.verses[ayahId(78, 3)].declared).toBe(false);
     expect(c.verses[ayahId(78, 8)].declared).toBe(true);
+  });
+});
+
+describe('une sourate sur plusieurs pages reste un seul passage', () => {
+  it('le programme de révision ne découpe pas une sourate en « versets 1 à 15 » puis « 16 à 30 »', () => {
+    const v = mem(2, 1, 286);
+    let c = mkCore(v, { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 4 } });
+    c = { ...c, plan: buildPlan(c, D, null) };
+    const rev = c.plan!.items.filter((i) => i.kind === 'review');
+    expect(rev).toHaveLength(1);
+    expect(rev[0].surah).toBe(2);
+    expect(rev[0].to - rev[0].from).toBeGreaterThan(20);
+    expect(rev[0].id).toContain(`:${rev[0].from}-${rev[0].to}`);
+  });
+  it('quand l’objectif couvre toute une courte sourate : « sourate entière »', () => {
+    const c0 = mkCore(mem(87, 1, 19), { settings: { ...DEFAULT_SETTINGS, reviewPagesPerDay: 3 } });
+    const plan = buildPlan(c0, D, null);
+    const rev = plan.items.filter((i) => i.kind === 'review');
+    expect(rev).toHaveLength(1);
+    expect([rev[0].from, rev[0].to]).toEqual([1, 19]);
   });
 });

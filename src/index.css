@@ -260,14 +260,14 @@
   justify-content: center;
   /* même vert que le fond du logo WIRD : seul le nom en arabe ressort */
   background: linear-gradient(180deg, #376c56 0%, #27493b 100%);
-  transition: opacity 0.6s ease;
+  transition: opacity 0.25s ease;
 }
 #spl img {
   width: 150px;
   height: auto;
   opacity: 0;
   transform: scale(0.9);
-  animation: splIn 0.7s 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation: splIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 #spl.out {
   opacity: 0;
@@ -338,3 +338,22 @@ html.fs-active::-webkit-scrollbar { display: none; }
 @keyframes cgDraw { to { stroke-dashoffset: 0; } }
 @keyframes cgBurst { from { transform: translate(-50%, -50%) scale(0.2); opacity: 0; } 30% { opacity: 1; } to { transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(1) rotate(var(--r)); opacity: 1; } }
 @keyframes cgRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* Astuces animées (doigt) — arrêtées si l'utilisateur réduit les animations */
+@keyframes fdChip { 0%, 18% { background-color: rgb(var(--surface2)); color: rgb(var(--muted)); } 26%, 88% { background-color: rgb(var(--primary)); color: rgb(var(--primary-ink)); } 100% { background-color: rgb(var(--surface2)); color: rgb(var(--muted)); } }
+@keyframes fdFinger { 0% { left: 2%; opacity: 0; } 8% { left: 2%; opacity: 1; } 20% { left: 2%; } 72% { left: 78%; opacity: 1; } 90% { left: 78%; opacity: 1; } 100% { left: 78%; opacity: 0; } }
+.fd-slide .fd-chip { animation: fdChip 3.4s ease-in-out infinite both; }
+.fd-slide .fd-finger { animation: fdFinger 3.4s ease-in-out infinite; left: 2%; }
+@keyframes fdSwipeFinger { 0%, 12% { left: 100px; opacity: 0; } 22% { left: 100px; opacity: 1; } 62% { left: 36px; opacity: 1; } 80% { left: 36px; opacity: 0; } 100% { left: 36px; opacity: 0; } }
+@keyframes fdPage2 { 0%, 22% { transform: translateX(0); opacity: 1; } 62%, 100% { transform: translateX(62px); opacity: 0.2; } }
+.fd-swipe .fd-finger-swipe { animation: fdSwipeFinger 3s ease-in-out infinite; left: 100px; }
+.fd-swipe .fd-page2 { animation: fdPage2 3s ease-in-out infinite; }
+@keyframes fdTap { 0%, 100% { transform: translateY(8px); } 20%, 60% { transform: translateY(0); } 30%, 70% { transform: translateY(8px); } }
+@keyframes fdRipple { 0%, 100% { transform: scale(0.4); opacity: 0; } 28%, 68% { transform: scale(1.6); opacity: 1; } 40%, 80% { transform: scale(2); opacity: 0; } }
+.fd-double .fd-finger-tap { animation: fdTap 2.2s ease-in-out infinite; }
+.fd-double .fd-ripple { animation: fdRipple 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .fd-slide .fd-chip { animation: none; }
+  .fd-slide .fd-chip:nth-child(-n + 4) { background-color: rgb(var(--primary)); color: rgb(var(--primary-ink)); }
+  .fd-slide .fd-finger, .fd-swipe .fd-finger-swipe, .fd-swipe .fd-page2, .fd-double .fd-finger-tap, .fd-double .fd-ripple { animation: none; }
+}

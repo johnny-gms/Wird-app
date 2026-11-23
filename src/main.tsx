@@ -7,15 +7,15 @@ import { startOutboxSync } from './sync/outbox';
 import { startPersistence, useWird } from './store/useWird';
 
 startPersistence();
-/** Écran de démarrage (icône WIRD sur fond crème) : visible au moins ~0,9 s, puis fondu. */
+/** Écran de démarrage (icône WIRD sur fond crème) : visible au moins ~0,25 s (juste le temps de ne pas clignoter), puis fondu rapide. */
 const splashStart = performance.now();
 function hideSplash() {
   const el = document.getElementById('spl');
   if (!el) return;
-  const wait = Math.max(0, 900 - (performance.now() - splashStart));
+  const wait = Math.max(0, 250 - (performance.now() - splashStart));
   setTimeout(() => {
     el.classList.add('out');
-    setTimeout(() => el.remove(), 650);
+    setTimeout(() => el.remove(), 260);
   }, wait);
 }
 

@@ -110,6 +110,7 @@ export function buildPlan(ctx: PlanBuildContext, date: string, prev: DailyPlan |
   let cursor = keptRot.length ? (keptRot[keptRot.length - 1].endCursor ?? ctx.rotation.cursor) : ctx.rotation.cursor;
   const seen = new Set<number>(keptRot.flatMap(itemIds));
   const rotExclude = new Set<number>([...coveredReinforce, ...picked, ...seen]);
+  const rotStart = items.length;
   let guard = memorized.length + 2;
   // Objectif par semaine (pages / Hizb / Juz) : répartition sur la semaine, sans dette (voir weekQuota).
   const weeklyReview = ctx.settings.reviewWeekly ? weeklyReviewPages(ctx.settings) : null;
@@ -126,6 +127,10 @@ export function buildPlan(ctx: PlanBuildContext, date: string, prev: DailyPlan |
     cursor = c.endCursor;
     if (c.wraps && seen.size >= memorized.length) break;
   }
+
+  // Une sourate qui s'étend sur plusieurs pages (ou deux Hizb) reste UN passage : « sourate entière », pas « versets 1 à 15 » puis « 16 à 30 ».
+  const merged = mergeSameSurah(items.slice(rotStart), (a, b) => ({ ...a, to: b.to, id: mkId(date, 'review', a.surah, a.from, b.to), endCursor: b.endCursor, wraps: a.wraps || b.wraps }));
+  items.splice(rotStart, items.length - rotStart, ...merged);
 
   // 3. Nouvel apprentissage : objectifs en cours, jusqu'à l'objectif en pages
   const keptLearn = kept.filter((i) => i.kind === 'learn').reduce((a, i) => a + itemPages(i), 0);
@@ -184,6 +189,17 @@ export function buildPlan(ctx: PlanBuildContext, date: string, prev: DailyPlan |
 
   items.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
   return { date, items };
+}
+
+/** Regroupe les passages qui se suivent dans une même sourate (le suivant commence juste après la fin du précédent). */
+export function mergeSameSurah<T extends { surah: number; from: number; to: number }>(list: T[], join: (a: T, b: T) => T): T[] {
+  const out: T[] = [];
+  for (const it of list) {
+    const last = out[out.length - 1];
+    if (last && last.surah === it.surah && last.to + 1 === it.from) out[out.length - 1] = join(last, it);
+    else out.push(it);
+  }
+  return out;
 }
 
 /** Pages du Mushaf par unité de révision : un Hizb ≈ 10 pages (604 ÷ 60), un Juz ≈ 20 pages (604 ÷ 30). */
@@ -421,7 +437,7 @@ export function upcomingRotation(ctx: PlanContext, today: DailyPlan | null, maxI
   const todayPages = new Set<number>((today?.items ?? []).filter((i) => i.kind === 'review' && !i.adhoc).flatMap((i) => itemIds(i).map(pageOf)));
   const upcoming = new Set<number>();
   let guard = memorized.length + 2;
-  while (out.length < maxItems && guard-- > 0) {
+  while (out.length < maxItems + 4 && guard-- > 0) {
     const c = nextChunk(memorized, cursor, new Set(), ENGINE.chunkSize, true);
     if (!c || c.ids.some((id) => seen.has(id))) break;
     const pg = pageOf(c.ids[0]);
@@ -431,7 +447,8 @@ export function upcomingRotation(ctx: PlanContext, today: DailyPlan | null, maxI
     c.ids.forEach((id) => seen.add(id));
     cursor = c.endCursor;
   }
-  return out;
+  // même regroupement que le programme du jour : une sourate sur plusieurs pages = un seul passage
+  return mergeSameSurah(out, (a, b) => ({ ...a, to: b.to })).slice(0, maxItems);
 }
 
 /** Aperçu d'un rythme d'apprentissage : prochain passage et pages par jour correspondantes (calculés sur les versets réels). */

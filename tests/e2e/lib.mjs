@@ -22,7 +22,7 @@ export async function onboard(page, { name = 'Test', known = 'none', learn = /In
   await intro(page);
   await page.getByPlaceholder('Ton prénom').fill(name);
   await page.getByRole('button', { name: 'Continuer' }).click();
-  await page.getByRole('radio', { name: /Homme/ }).click();
+  await page.getByRole('radio', { name: 'Photo de profil 1' }).click();
   await page.getByRole('button', { name: 'Continuer' }).click();
   if (known === 'juz') { await page.getByRole('button', { name: /Juz/ }).click(); await page.getByRole('button', { name: 'Continuer' }).click(); }
   else await page.getByRole('button', { name: 'Je n’en connais pas encore' }).click();

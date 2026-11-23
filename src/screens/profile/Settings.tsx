@@ -8,6 +8,7 @@ import type { ThemeMode } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
 import { isIOS, isStandalone, useInstall } from '@/lib/pwa';
 import { APP_VERSION } from '@/lib/version';
+import { resetTips } from '@/lib/tips';
 import { eraseRemote, getAccount, logout } from '@/sync/account';
 import { useWird } from '@/store/useWird';
 
@@ -93,6 +94,9 @@ export default function Settings() {
           </div>
         </>
       )}
+
+      <Section>Aide</Section>
+      <button className="btn-soft w-full" onClick={() => { resetTips(); toast('Les astuces réapparaîtront'); }}>Revoir les astuces d’utilisation</button>
 
       <Section>À propos</Section>
       <Link to="/profil/apropos" className="card flex items-center gap-3 p-4"><span className="flex-1"><b className="block">À propos</b><span className="text-sm text-muted">Sources du texte, licences, version {APP_VERSION}</span></span><ChevronRight size={18} className="text-muted" /></Link>

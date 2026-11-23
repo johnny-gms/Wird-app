@@ -1,9 +1,10 @@
 import { ChevronDown, Minus, Plus } from 'lucide-react';
-import { useState } from 'react';
-import { formatPages, rangePages } from '@/engine/pages';
+import { useRef, useState } from 'react';
 import { ayahId } from '@/engine/quran';
 import type { VerseState } from '@/engine/types';
 import { haptic } from '@/lib/haptics';
+import { markTipSeen, tipSeen } from '@/lib/tips';
+import { TipCard } from './FingerDemo';
 import { cx } from './ui';
 
 /**
@@ -14,11 +15,19 @@ import { cx } from './ui';
  *  - la grille des versets, repliée, pour ceux qui préfèrent toucher.
  */
 export function VerseRangePicker({ surah, n, from, to, onChange, verses }: { surah: number; n: number; from: number; to: number; onChange: (from: number, to: number) => void; verses?: Record<number, VerseState> }) {
+  // la première fois : une animation montre comment glisser le doigt sur plusieurs versets
+  const [tip, setTip] = useState(() => !tipSeen('slide'));
   const [grid, setGrid] = useState(false);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ a0: number; moved: boolean } | null>(null);
+  const verseAt = (x: number, y: number): number | null => {
+    const el = document.elementFromPoint(x, y)?.closest('[data-v]');
+    return el ? Number(el.getAttribute('data-v')) : null;
+  };
+  const endTip = () => { markTipSeen('slide'); setTip(false); };
   const [first, setFirst] = useState(true); // prochain toucher sur la grille : début (true) ou fin (false)
   const clamp = (x: number) => Math.max(1, Math.min(n, Math.round(x) || 1));
   const count = to - from + 1;
-  const pages = rangePages(surah, from, to);
   const setFrom = (f: number) => { const v = clamp(f); onChange(v, Math.max(v, to)); };
   const setTo = (t: number) => { const v = clamp(t); onChange(Math.min(from, v), v); };
   const len = (k: number) => { haptic('select'); onChange(from, Math.min(n, from + k - 1)); };
@@ -31,9 +40,18 @@ export function VerseRangePicker({ surah, n, from, to, onChange, verses }: { sur
 
   return (
     <div>
+      {tip && (
+        <TipCard
+          kind="slide"
+          title="Sélectionne plusieurs versets d’un geste"
+          text="Sur la grille, pose ton doigt sur le premier verset, puis glisse jusqu’au dernier. Tu peux aussi toucher le premier, puis le dernier."
+          onClose={endTip}
+          action={{ label: 'Essayer', onClick: () => { setGrid(true); setTimeout(() => gridRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80); } }}
+        />
+      )}
       <div className="rounded-[20px] bg-surface2 px-4 py-4 text-center" aria-live="polite">
-        <p className="text-[24px] font-extrabold tracking-[-0.4px]">{from === to ? `Verset ${from}` : `Versets ${from} à ${to}`}</p>
-        <p className="mt-0.5 text-[13.5px] text-muted">{count} verset{count > 1 ? 's' : ''} · ≈ {formatPages(pages)}</p>
+        <p className="text-[24px] font-extrabold tracking-[-0.4px]">{from === 1 && to === n ? 'Sourate entière' : from === to ? `Verset ${from}` : `Versets ${from} à ${to}`}</p>
+        <p className="mt-0.5 text-[13.5px] text-muted">{count} verset{count > 1 ? 's' : ''}</p>
       </div>
 
       <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4" role="group" aria-label="Raccourcis">
@@ -52,18 +70,40 @@ export function VerseRangePicker({ surah, n, from, to, onChange, verses }: { sur
       </button>
       {grid && (
         <div className="mt-2.5">
-          <div className="grid grid-cols-7 gap-1.5" role="group" aria-label="Versets">
+          <div
+            ref={gridRef}
+            className="grid select-none grid-cols-7 gap-1.5"
+            style={{ touchAction: 'pan-y' }}
+            role="group"
+            aria-label="Versets"
+            onPointerDown={(e) => { const a = verseAt(e.clientX, e.clientY); if (a != null) drag.current = { a0: a, moved: false }; }}
+            onPointerMove={(e) => {
+              const d = drag.current;
+              if (!d) return;
+              const a = verseAt(e.clientX, e.clientY);
+              if (a == null || (a === d.a0 && !d.moved)) return;
+              if (!d.moved) { d.moved = true; haptic('select'); }
+              onChange(Math.min(d.a0, a), Math.max(d.a0, a));
+            }}
+            onPointerUp={() => {
+              const d = drag.current;
+              drag.current = null;
+              if (!d) return;
+              if (d.moved) { setFirst(true); endTip(); } else tap(d.a0);
+            }}
+            onPointerCancel={() => { drag.current = null; }}
+          >
             {Array.from({ length: n }, (_, i) => i + 1).map((a) => {
               const sel = a >= from && a <= to;
               const known = verses?.[ayahId(surah, a)]?.status === 'memorized';
               return (
-                <button key={a} onClick={() => tap(a)} aria-pressed={sel} aria-label={`Verset ${a}${known ? ', déjà appris' : ''}`} className={cx('relative flex aspect-square items-center justify-center rounded-lg text-[14px] font-semibold tabular-nums transition active:scale-95', sel ? 'bg-primary text-primary-ink' : known ? 'bg-good-soft text-good' : 'bg-surface2 text-muted')}>
+                <button key={a} data-v={a} onClick={(e) => { if (e.detail === 0) tap(a); }} aria-pressed={sel} aria-label={`Verset ${a}${known ? ', déjà appris' : ''}`} className={cx('relative flex aspect-square items-center justify-center rounded-lg text-[14px] font-semibold tabular-nums transition active:scale-95', sel ? 'bg-primary text-primary-ink' : known ? 'bg-good-soft text-good' : 'bg-surface2 text-muted')}>
                   {a}
                 </button>
               );
             })}
           </div>
-          <p className="mt-2 text-xs text-muted">Touche le premier verset, puis le dernier. En vert : déjà appris.</p>
+          <p className="mt-2 text-xs text-muted">Glisse sur plusieurs versets, ou touche le premier puis le dernier. En vert : déjà appris.</p>
         </div>
       )}
     </div>

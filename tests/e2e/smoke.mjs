@@ -26,6 +26,7 @@ await page.getByText('garde-le.').waitFor();
 await onboard(page, { name: 'Amine', learn: /Avancé/, dir: /De la fin du Coran/ });
 const home = await body();
 ok(/MÉMORISATION/i.test(home) && /Sourate à apprendre/i.test(home), 'accueil : carte Mémorisation et sourate à apprendre');
+ok(/Ta première étape/.test(home) && !/0 \/ 0 passages/.test(home) && /Commencer à apprendre/.test(home), 'accueil du premier jour : une étape claire, pas de « 0 / 0 passages »');
 ok(/Amine/.test(home), 'accueil : prénom affiché');
 const tabs = (await page.locator('nav[aria-label="Navigation principale"] a').allInnerTexts()).map((t) => t.trim()).join('|');
 ok(tabs === 'Accueil|Mon Wird|Révisions|Progression|Profil', `5 onglets : ${tabs}`);
@@ -40,7 +41,7 @@ await page.getByRole('tab', { name: /À venir/ }).click().catch(() => {});
 
 // ---------- Séance d'apprentissage ----------
 await page.goto(BASE + '/');
-await page.getByRole('button', { name: 'Continuer', exact: true }).click();
+await page.getByRole('button', { name: /Commencer à apprendre|^Commencer$|^Continuer$/ }).first().click();
 await page.waitForURL('**/session');
 await chooseMode(page, 'mushaf');
 const n = await gradeAll(page, 'Maîtrisé');
@@ -75,6 +76,18 @@ ok((await page.locator('a[href^="/wird/"]').count()) === 1, 'recherche par nom')
 await page.goto(BASE + '/wird/112');
 await page.getByRole('heading', { name: /Al-Ikhlas/ }).waitFor();
 ok(true, 'détail d’une sourate');
+await page.getByRole('button', { name: 'Sélectionner des versets' }).click();
+ok(await page.getByText('Sélectionne plusieurs versets d’un geste').isVisible(), 'astuce animée : glisser le doigt sur plusieurs versets');
+await page.getByRole('button', { name: 'Essayer' }).click();
+await page.waitForTimeout(700);
+const v1 = await page.locator('[data-v="1"]').boundingBox();
+const v3 = await page.locator('[data-v="3"]').boundingBox();
+await page.mouse.move(v1.x + v1.width / 2, v1.y + v1.height / 2);
+await page.mouse.down();
+await page.mouse.move(v3.x + v3.width / 2, v3.y + v3.height / 2, { steps: 6 });
+await page.mouse.up();
+ok(/Versets 1 à 3/.test(await page.getByRole('dialog').innerText()), 'glisser sur la grille sélectionne plusieurs versets');
+await page.keyboard.press('Escape');
 
 // ---------- Coran numérique (lecteur de pages) ----------
 await page.goto(BASE + '/coran?p=1');

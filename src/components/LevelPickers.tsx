@@ -1,5 +1,4 @@
 import { Check, Minus, Plus } from 'lucide-react';
-import { formatPages } from '@/engine/pages';
 import { PAGES_PER_UNIT } from '@/engine/plan';
 import type { Settings } from '@/engine/types';
 import { cx } from './ui';
@@ -130,7 +129,6 @@ export function LearnLevels({ value, onChange }: { value: LearnLevelValue; onCha
 /** Choix du rythme de révision : pages, Hizb ou Juz par semaine, toujours du début vers la fin du Coran. */
 export function ReviewLevels({ value, onChange }: { value: ReviewValue; onChange: (v: ReviewValue) => void }) {
   const pick = (unit: ReviewUnit) => onChange(value.unit === unit ? value : { unit, amount: REVIEW_DEFAULT_AMOUNT[unit] });
-  const perDay = (value.amount * PAGES_PER_UNIT[value.unit]) / 7;
   return (
     <div>
       <div className="grid gap-2.5" role="radiogroup" aria-label="Rythme de révision">
@@ -144,7 +142,7 @@ export function ReviewLevels({ value, onChange }: { value: ReviewValue; onChange
           <NumStepper value={value.amount} onChange={(amount) => onChange({ unit: 'juz', amount })} min={1} max={10} one="Juz" many="Juz" label="à réviser par semaine" />
         </LevelCard>
       </div>
-      <p className="mt-3 text-center text-xs leading-relaxed text-muted">Environ {formatPages(perDay)} par jour. La révision suit toujours le Coran du début vers la fin.</p>
+      <p className="mt-3 text-center text-xs leading-relaxed text-muted">La révision suit toujours le Coran du début vers la fin.</p>
     </div>
   );
 }
